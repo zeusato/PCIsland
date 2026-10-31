@@ -62,3 +62,23 @@ pub fn web_player_report(
     let url = webview.url()?;
     super::report(&player, &url, msg)
 }
+
+#[tauri::command]
+pub fn web_player_navigate(
+    app: AppHandle,
+    player: State<'_, WebPlayerHandle>,
+    action: String,
+) -> IpcResult<()> {
+    super::navigate(&app, &player, &action)
+}
+
+#[tauri::command]
+pub async fn web_player_clear_data(
+    app: AppHandle,
+    player: State<'_, WebPlayerHandle>,
+) -> IpcResult<()> {
+    let player = player.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || super::clear_data(&app, &player))
+        .await
+        .map_err(|e| IpcError::new("web_player.clear_failed", e.to_string()))?
+}

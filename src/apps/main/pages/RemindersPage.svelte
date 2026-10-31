@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { Check, AlarmClock, Trash2 } from '@lucide/svelte';
+  import Check from '@lucide/svelte/icons/check';
+  import AlarmClock from '@lucide/svelte/icons/alarm-clock';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
   import Card from '$lib/components/Card.svelte';
   import Button from '$lib/components/Button.svelte';
   import { inTauri, reminderCommands } from '$lib/ipc/commands';

@@ -135,6 +135,12 @@ pub struct Filters {
     pub alerts_paused: bool,
 }
 
+/// Serializes a module's typed payload struct (ADR-010). Every payload type is
+/// exported to TypeScript and mapped to its `kind` in `src/lib/registry/payloads.ts`.
+pub fn payload<T: Serialize>(value: &T) -> Value {
+    serde_json::to_value(value).unwrap_or(Value::Null)
+}
+
 /// Pure arbitration over persistent activities (docs/modules/activity-hub.md §5).
 /// Returns (primary, secondary, critical alert, number of further criticals).
 pub fn arbitrate<'a>(
@@ -223,10 +229,16 @@ pub struct ActivityHub {
 }
 
 impl ActivityHub {
-    pub fn start(app: &AppHandle) -> Self {
+    pub fn start(app: &AppHandle, sup: &super::supervisor::Supervisor) -> Self {
         let (tx, rx) = mpsc::unbounded_channel();
         let (top_tx, top) = watch::channel(TopInfo::default());
-        tauri::async_runtime::spawn(service(app.clone(), rx, top_tx));
+        let rx = super::supervisor::shared(rx);
+        let top_tx = Arc::new(top_tx);
+        let app = app.clone();
+        // State is rebuilt as modules publish again after a restart.
+        sup.spawn("activity", move || {
+            service(app.clone(), rx.clone(), top_tx.clone())
+        });
         Self {
             tx,
             handlers: Arc::new(Mutex::new(HashMap::new())),
@@ -309,8 +321,8 @@ struct State {
 
 async fn service(
     app: AppHandle,
-    mut rx: mpsc::UnboundedReceiver<Cmd>,
-    top: watch::Sender<TopInfo>,
+    rx: super::supervisor::Shared<Cmd>,
+    top: Arc<watch::Sender<TopInfo>>,
 ) {
     let mut s = State {
         persistent: Vec::new(),
@@ -333,7 +345,7 @@ async fn service(
             })
             .unwrap_or(1_000);
         let cmd = tokio::select! {
-            cmd = rx.recv() => match cmd { Some(c) => Some(c), None => return },
+            cmd = async { rx.lock().await.recv().await } => match cmd { Some(c) => Some(c), None => return },
             () = tokio::time::sleep(Duration::from_millis(wait.max(16))) => None,
         };
         let now = now_ms();

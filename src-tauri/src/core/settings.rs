@@ -27,6 +27,8 @@ pub struct Settings {
     pub media: MediaSettings,
     pub local_player: LocalPlayerSettings,
     pub lyrics: LyricsSettings,
+    pub visualizer: VisualizerSettings,
+    pub web_player: WebPlayerSettings,
     pub notes: NotesSettings,
     pub shelf: ShelfSettings,
     pub ui: UiSettings,
@@ -49,6 +51,8 @@ impl Default for Settings {
             media: MediaSettings::default(),
             local_player: LocalPlayerSettings::default(),
             lyrics: LyricsSettings::default(),
+            visualizer: VisualizerSettings::default(),
+            web_player: WebPlayerSettings::default(),
             notes: NotesSettings::default(),
             shelf: ShelfSettings::default(),
             ui: UiSettings::default(),
@@ -79,11 +83,15 @@ section!(AppSettings {
     language: String = "vi".into(),
     autostart: bool = true,
     sound_volume: f32 = 0.6,
+    sound_timer: String = "bell".into(),
+    sound_reminder: String = "chime".into(),
+    sound_pomodoro: String = "softTick".into(),
     check_updates: bool = true,
     shortcuts: Shortcuts = Shortcuts::default(),
 });
 section!(IslandSettings {
     idle_display: String = "eyes".into(),
+    monitor: String = "primary".into(),
     hover_delay_ms: u32 = 250,
     collapse_delay_ms: u32 = 400,
     hide_in_fullscreen: bool = true,
@@ -103,6 +111,8 @@ section!(PomodoroSettings {
     auto_start_breaks: bool = true,
     auto_start_work: bool = false,
     focus_with_pomodoro: bool = true,
+    pause_media_on_break: bool = false,
+    focus_playlist_id: String = String::new(),
 });
 section!(RemindersSettings {
     show_upcoming_min: u32 = 15,
@@ -113,6 +123,8 @@ section!(IndicatorsSettings {
     volume_alert: bool = true,
     power_alert: bool = true,
     battery_low_thresholds: Vec<u8> = vec![20, 10],
+    eyes_follow_cursor: bool = false,
+    eyes_moods: bool = true,
 });
 section!(MediaSettings {
     external_enabled: bool = true,
@@ -125,6 +137,13 @@ section!(LocalPlayerSettings {
 section!(LyricsSettings {
     enabled: bool = true,
     online_enabled: bool = true,
+});
+section!(VisualizerSettings {
+    mode: String = "real".into(),
+    fps: u32 = 30,
+});
+section!(WebPlayerSettings {
+    unload_after_paused_min: u32 = 30,
 });
 section!(NotesSettings {
     trash_days: u32 = 30,
@@ -150,6 +169,16 @@ impl Settings {
             i.idle_display = "eyes".into();
         }
         self.app.sound_volume = self.app.sound_volume.clamp(0.0, 1.0);
+        let names = crate::core::audio::SOUND_NAMES;
+        for (value, default) in [
+            (&mut self.app.sound_timer, "bell"),
+            (&mut self.app.sound_reminder, "chime"),
+            (&mut self.app.sound_pomodoro, "softTick"),
+        ] {
+            if !names.contains(&value.as_str()) {
+                *value = default.into();
+            }
+        }
         self.local_player.volume = self.local_player.volume.clamp(0.0, 1.0);
         let p = &mut self.pomodoro;
         p.work_min = p.work_min.clamp(1, 180);
@@ -304,6 +333,20 @@ mod tests {
         assert_eq!(next.island.hover_delay_ms, 800);
         assert_eq!(next.island.idle_display, "clock");
         assert_eq!(next.island.collapse_delay_ms, 400);
+    }
+
+    #[test]
+    fn unknown_sound_falls_back_to_default() {
+        let s = Settings::default();
+        let next = apply_patch(
+            &s,
+            "app",
+            &serde_json::json!({ "soundTimer": "airhorn", "soundReminder": "none" }),
+        )
+        .unwrap();
+        assert_eq!(next.app.sound_timer, "bell");
+        assert_eq!(next.app.sound_reminder, "none");
+        assert!(crate::core::audio::SoundId::named("none").is_none());
     }
 
     #[test]

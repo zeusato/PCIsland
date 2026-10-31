@@ -1,6 +1,6 @@
 # Module: Chỉ báo hệ thống (`indicators`)
 
-> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P1 (F33), P2 (F30, F31), P4 (F32, F34) · Tính năng: F30–F34 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P1 (F33), P2 (F30, F31), P4 (F32, F34) · Tính năng: F30–F34 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 
@@ -143,3 +143,4 @@ Không có.
 | Ngày | Thay đổi |
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
+| 2026-10-31 | Payload có kiểu; phát `AudioDeviceChanged` khi đổi thiết bị mặc định |

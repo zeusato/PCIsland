@@ -15,10 +15,12 @@ use ts_rs::TS;
 
 use crate::core::activity::{Activity, ActivityAction, ActivityHub};
 use crate::core::audio::{AudioEngine, SoundId};
+use crate::core::events::{AppEvent, EventBus};
 use crate::core::id::new_id;
 use crate::core::priority;
 use crate::core::settings::Settings;
 use crate::core::storage::{Db, StorageError};
+use crate::core::supervisor::{Shared, Supervisor, shared};
 use crate::ipc::{events, now_ms};
 pub use crate::shared::nlp_vi::Repeat;
 
@@ -342,6 +344,8 @@ pub fn setup(
     hub: ActivityHub,
     audio: AudioEngine,
     settings: watch::Receiver<Settings>,
+    bus: EventBus,
+    sup: &Supervisor,
 ) -> RemindersHandle {
     let (tx, rx) = mpsc::unbounded_channel();
     let handle = RemindersHandle { tx, db: db.clone() };
@@ -360,19 +364,37 @@ pub fn setup(
             Ok(())
         }),
     );
-    tauri::async_runtime::spawn(service(app.clone(), rx, db, hub, audio, settings));
+    let rx = shared(rx);
+    let app = app.clone();
+    sup.spawn("reminders", move || {
+        service(
+            app.clone(),
+            rx.clone(),
+            db.clone(),
+            hub.clone(),
+            audio.clone(),
+            settings.clone(),
+            bus.clone(),
+        )
+    });
     handle
 }
 
 async fn service(
     app: AppHandle,
-    mut rx: mpsc::UnboundedReceiver<Cmd>,
+    rx: Shared<Cmd>,
     db: Db,
     hub: ActivityHub,
     audio: AudioEngine,
     settings: watch::Receiver<Settings>,
+    bus: EventBus,
 ) {
+    let mut events = bus.subscribe();
     let mut rev = 0u64;
+    // Only broadcast when something visible changed (the loop also wakes on timers).
+    let mut last_sent: Option<(Vec<Reminder>, Vec<Reminder>, u32)> = None;
+    // Mirrors AppEvent::IslandHidden; a hidden island falls back to a Windows toast.
+    let mut island_hidden = false;
     let mut ringing_since: std::collections::HashMap<String, u64> =
         std::collections::HashMap::new();
     loop {
@@ -405,12 +427,17 @@ async fn service(
                         ringing_since.insert(r.id.clone(), now);
                         let _ = save(&db, r);
                         let s = settings.borrow();
-                        audio.ring(
-                            SoundId::Chime,
-                            s.app.sound_volume,
-                            Duration::from_millis(RING_MS),
-                        );
-                        tracing::info!(module = "reminders", id = %r.id, "reminder fired");
+                        if let Some(sound) = SoundId::named(&s.app.sound_reminder) {
+                            audio.ring(sound, s.app.sound_volume, Duration::from_millis(RING_MS));
+                        }
+                        if island_hidden {
+                            crate::platform::toast::show(
+                                &app.config().identifier,
+                                &r.title,
+                                r.note.as_deref().unwrap_or("PCisland"),
+                            );
+                        }
+                        tracing::info!(module = "reminders", id = %r.id, toast = island_hidden, "reminder fired");
                     }
                 }
                 ReminderStatus::Ringing => {
@@ -442,7 +469,7 @@ async fn service(
                     "reminders:missed",
                     "reminders.missed_summary",
                     priority::ALERT,
-                    serde_json::json!({ "count": missed_now }),
+                    crate::core::activity::payload(&CountPayload { count: missed_now }),
                 )
                 .transient(10_000),
             );
@@ -503,7 +530,6 @@ async fn service(
             ),
             None => hub.remove("reminders:upcoming"),
         }
-        rev += 1;
         let missed_count = db
             .call(|c| {
                 c.query_row(
@@ -513,14 +539,19 @@ async fn service(
                 )
             })
             .unwrap_or(0) as u32;
-        let snap = RemindersSnapshot {
-            upcoming: pending.clone(),
-            ringing: ringing.clone(),
-            missed_count,
-            rev,
-        };
-        for label in ["island", "main"] {
-            let _ = app.emit_to(label, events::REMINDERS_STATE, &snap);
+        let current = (pending.clone(), ringing.clone(), missed_count);
+        if last_sent.as_ref() != Some(&current) {
+            rev += 1;
+            let snap = RemindersSnapshot {
+                upcoming: pending.clone(),
+                ringing: ringing.clone(),
+                missed_count,
+                rev,
+            };
+            for label in ["island", "main"] {
+                let _ = app.emit_to(label, events::REMINDERS_STATE, &snap);
+            }
+            last_sent = Some(current);
         }
 
         // Sleep until the next event: a fire time, an upcoming window start, or a ring timeout.
@@ -537,7 +568,15 @@ async fn service(
         }
         let wait = Duration::from_millis(next.saturating_sub(now_ms()).clamp(500, 30_000));
         let cmd = tokio::select! {
-            cmd = rx.recv() => match cmd { Some(c) => Some(c), None => return },
+            cmd = async { rx.lock().await.recv().await } => match cmd { Some(c) => Some(c), None => return },
+            // After sleep/resume: re-evaluate missed and due reminders immediately.
+            // Island visibility only updates the toast fallback flag.
+            Ok(ev @ (AppEvent::Resumed | AppEvent::IslandHidden(_))) = events.recv() => {
+                if let AppEvent::IslandHidden(hidden) = ev {
+                    island_hidden = hidden;
+                }
+                None
+            }
             () = tokio::time::sleep(wait) => None,
         };
         let now = now_ms();
@@ -679,4 +718,11 @@ mod tests {
         save(&db, &r).expect("save");
         assert_eq!(get(&db, "x"), Some(r));
     }
+}
+
+#[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct CountPayload {
+    pub count: u32,
 }

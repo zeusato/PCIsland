@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-local-player-stations"
+description = "Enables the local_player_stations command without any pre-configured scope."
+commands.allow = ["local_player_stations"]
+
+[[permission]]
+identifier = "deny-local-player-stations"
+description = "Denies the local_player_stations command without any pre-configured scope."
+commands.deny = ["local_player_stations"]

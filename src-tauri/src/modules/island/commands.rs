@@ -42,3 +42,9 @@ pub fn island_request_focus(island: State<'_, IslandHandle>) {
 pub fn island_release_focus(island: State<'_, IslandHandle>) {
     island.release_focus();
 }
+
+/// Seconds since the last user input (sleepy eyes, docs/04-design-system.md §11).
+#[tauri::command]
+pub fn island_idle_seconds() -> u32 {
+    crate::platform::shell::idle_seconds()
+}

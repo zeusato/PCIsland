@@ -4,4 +4,8 @@
 pub mod audio_endpoint;
 pub mod foreground;
 pub mod gsmtc;
+pub mod loopback;
+pub mod shell;
+pub mod smtc;
+pub mod toast;
 pub mod window;

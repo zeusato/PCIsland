@@ -145,6 +145,58 @@ fn db_err(e: StorageError) -> IpcError {
     IpcError::new("notes.storage", e.to_string())
 }
 
+/// All live notes as one Markdown document, newest first, pinned on top.
+pub fn to_markdown(notes: &[Note]) -> String {
+    use chrono::{Local, TimeZone};
+    let mut out = String::from(
+        "# PCisland notes
+",
+    );
+    for n in notes {
+        let when = Local
+            .timestamp_millis_opt(n.updated_at as i64)
+            .single()
+            .map_or_else(String::new, |d| d.format("%Y-%m-%d %H:%M").to_string());
+        let pin = if n.pinned { " 📌" } else { "" };
+        // Checkbox lines become Markdown task items.
+        let body: Vec<String> = n
+            .text
+            .lines()
+            .map(|l| {
+                let t = l.trim_start();
+                let indent = &l[..l.len() - t.len()];
+                match t.get(..3) {
+                    Some("[ ]") => format!("{indent}- [ ]{}", &t[3..]),
+                    Some("[x]" | "[X]") => format!("{indent}- [x]{}", &t[3..]),
+                    _ => l.to_owned(),
+                }
+            })
+            .collect();
+        out.push_str(&format!(
+            "
+## {when}{pin}
+
+{}
+",
+            body.join(
+                "
+"
+            )
+            .trim_end()
+        ));
+    }
+    out
+}
+
+/// Writes every live note to `path` as Markdown; returns how many were written.
+#[tauri::command]
+pub fn notes_export(notes: State<'_, NotesHandle>, path: String) -> IpcResult<u32> {
+    let all = notes.list("").map_err(db_err)?;
+    std::fs::write(&path, to_markdown(&all))
+        .map_err(|e| IpcError::new("notes.export", e.to_string()))?;
+    Ok(all.len() as u32)
+}
+
 #[tauri::command]
 pub fn notes_list(notes: State<'_, NotesHandle>, query: Option<String>) -> IpcResult<Vec<Note>> {
     notes.list(query.as_deref().unwrap_or("")).map_err(db_err)
@@ -247,6 +299,31 @@ pub fn notes_toggle_check(notes: State<'_, NotesHandle>, id: String, line: u32) 
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn exports_markdown_with_task_items() {
+        let n = super::Note {
+            id: "1".into(),
+            text: "Mua:
+[ ] sữa
+  [x] trứng"
+                .into(),
+            pinned: true,
+            created_at: 0,
+            updated_at: 0,
+        };
+        let md = super::to_markdown(&[n]);
+        assert!(md.starts_with(
+            "# PCisland notes
+"
+        ));
+        assert!(md.contains("📌"));
+        assert!(md.contains(
+            "Mua:
+- [ ] sữa
+  - [x] trứng"
+        ));
+    }
+
     #[test]
     fn toggles_only_the_given_checkbox_line() {
         let t = "Mua:\n[ ] sữa\n  [x] trứng";

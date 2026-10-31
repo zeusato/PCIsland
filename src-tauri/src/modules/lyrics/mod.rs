@@ -1,6 +1,8 @@
-//! Synced lyrics from LRCLIB with a local cache (docs/modules/lyrics-visualizer.md §A).
+//! Synced lyrics from a `.lrc` sidecar or LRCLIB with a local cache, plus a per-track
+//! timing offset (docs/modules/lyrics-visualizer.md §A).
 #![forbid(unsafe_code)]
 
+use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
@@ -9,9 +11,12 @@ use tauri::{AppHandle, Emitter, State};
 use tokio::sync::watch;
 use ts_rs::TS;
 
+use crate::core::events::{AppEvent, EventBus};
 use crate::core::settings::Settings;
 use crate::core::storage::Db;
 use crate::ipc::{events, now_ms};
+use crate::modules::local_player::LocalPlayerHandle;
+use crate::modules::media::LOCAL_SOURCE_ID;
 use crate::modules::media::dto::NowPlayingDto;
 use crate::shared::lrc::{self, LyricLine};
 use crate::shared::nlp_vi::normalize;
@@ -26,7 +31,14 @@ pub struct LyricsDto {
     pub synced: bool,
     pub lines: Vec<LyricLine>,
     pub plain: Option<String>,
+    /// `"file"` for a sidecar next to the local track, `"lrclib"` otherwise.
+    pub source: String,
+    /// Added to every line time; positive shows lines later.
+    #[ts(type = "number")]
+    pub offset_ms: i64,
 }
+
+const OFFSET_LIMIT_MS: i64 = 30_000;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,7 +48,11 @@ struct LrclibResponse {
 }
 
 #[derive(Clone, Default)]
-pub struct LyricsHandle(Arc<Mutex<Option<LyricsDto>>>);
+pub struct LyricsHandle {
+    current: Arc<Mutex<Option<LyricsDto>>>,
+    db: Option<Db>,
+    app: Option<AppHandle>,
+}
 
 /// Strips "(Official MV)", "[Lyrics]", "- Topic" and similar noise from web titles.
 pub fn clean_title(title: &str) -> String {
@@ -75,25 +91,35 @@ fn track_key(np: &NowPlayingDto) -> String {
 pub fn setup(
     app: &AppHandle,
     db: Db,
-    mut now_playing: watch::Receiver<Option<NowPlayingDto>>,
+    bus: EventBus,
     settings: watch::Receiver<Settings>,
+    player: LocalPlayerHandle,
 ) -> LyricsHandle {
-    let handle = LyricsHandle::default();
-    let current = handle.0.clone();
+    let handle = LyricsHandle {
+        current: Arc::default(),
+        db: Some(db.clone()),
+        app: Some(app.clone()),
+    };
+    let current = handle.current.clone();
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let client = reqwest::Client::builder()
             .user_agent(concat!(
                 "PCisland/",
                 env!("CARGO_PKG_VERSION"),
-                " (https://github.com/)"
+                " (https://github.com/zeusato/PCIsland)"
             ))
             .timeout(Duration::from_secs(5))
             .build()
             .ok();
         let mut last_key = String::new();
-        while now_playing.changed().await.is_ok() {
-            let np = now_playing.borrow_and_update().clone();
+        let mut events = bus.subscribe();
+        loop {
+            let np = match events.recv().await {
+                Ok(AppEvent::NowPlayingChanged(np)) => np,
+                Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => return,
+            };
             let s = settings.borrow().lyrics.clone();
             let Some(np) = np.filter(|_| s.enabled) else {
                 if !last_key.is_empty() {
@@ -108,19 +134,34 @@ pub fn setup(
             }
             last_key = key.clone();
             set(&app, &current, None);
-            let dto = match cached(&db, &key) {
-                Some(hit) => hit,
-                None if s.online_enabled => {
-                    let fetched = match &client {
-                        Some(c) => fetch(c, &np).await,
-                        None => None,
-                    };
-                    store(&db, &key, fetched.as_ref());
-                    fetched.map(|(synced, text)| to_dto(&key, synced, &text))
-                }
-                None => None,
+            let sidecar = if np.source_id == LOCAL_SOURCE_ID {
+                let snap = player.snapshot().await;
+                snap.index
+                    .and_then(|i| snap.queue.get(i as usize))
+                    .and_then(|t| read_sidecar(Path::new(&t.path)))
+            } else {
+                None
+            };
+            let dto = match sidecar {
+                Some(text) => Some(to_dto(&key, true, &text, "file")),
+                None => match cached(&db, &key) {
+                    Some(hit) => hit,
+                    None if s.online_enabled => {
+                        let fetched = match &client {
+                            Some(c) => fetch(c, &np).await,
+                            None => None,
+                        };
+                        store(&db, &key, fetched.as_ref());
+                        fetched.map(|(synced, text)| to_dto(&key, synced, &text, "lrclib"))
+                    }
+                    None => None,
+                },
             };
             if last_key == key {
+                let dto = dto.map(|d| LyricsDto {
+                    offset_ms: load_offset(&db, &key),
+                    ..d
+                });
                 set(&app, &current, dto);
             }
         }
@@ -135,13 +176,35 @@ fn set(app: &AppHandle, current: &Mutex<Option<LyricsDto>>, dto: Option<LyricsDt
     }
 }
 
-fn to_dto(key: &str, synced: bool, text: &str) -> LyricsDto {
+fn to_dto(key: &str, synced: bool, text: &str, source: &str) -> LyricsDto {
+    let lines = if synced { lrc::parse(text) } else { Vec::new() };
+    // A sidecar without timestamps is still useful as plain text.
+    let synced = synced && !lines.is_empty();
     LyricsDto {
         track_key: key.into(),
         synced,
-        lines: if synced { lrc::parse(text) } else { Vec::new() },
+        lines,
         plain: (!synced).then(|| text.to_owned()),
+        source: source.into(),
+        offset_ms: 0,
     }
+}
+
+/// `song.lrc` next to `song.mp3`; non-UTF-8 files are decoded lossily.
+fn read_sidecar(track: &Path) -> Option<String> {
+    let bytes = std::fs::read(track.with_extension("lrc")).ok()?;
+    let text = String::from_utf8_lossy(bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&bytes));
+    (!text.trim().is_empty()).then(|| text.into_owned())
+}
+
+fn offset_key(track_key: &str) -> String {
+    format!("lyrics.offset.{track_key}")
+}
+
+fn load_offset(db: &Db, track_key: &str) -> i64 {
+    db.kv_get(&offset_key(track_key))
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0)
 }
 
 /// `Some(dto)` for a hit, `Some(None)`-like miss is represented by returning `None`
@@ -166,7 +229,7 @@ fn cached(db: &Db, key: &str) -> Option<Option<LyricsDto>> {
         if source == "none" {
             (now_ms().saturating_sub(at) < CACHE_MISS_TTL_MS).then_some(None)
         } else {
-            content.map(|t| Some(to_dto(key, synced, &t)))
+            content.map(|t| Some(to_dto(key, synced, &t, "lrclib")))
         }
     })
 }
@@ -233,15 +296,41 @@ async fn fetch(client: &reqwest::Client, np: &NowPlayingDto) -> Option<(bool, St
 #[tauri::command]
 pub fn lyrics_get_current(lyrics: State<'_, LyricsHandle>) -> Option<LyricsDto> {
     lyrics
-        .0
+        .current
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .clone()
 }
 
+/// Shifts the current track's lyrics by `delta_ms` (0 resets) and remembers it per track.
+#[tauri::command]
+pub fn lyrics_adjust_offset(lyrics: State<'_, LyricsHandle>, delta_ms: i64) -> Option<LyricsDto> {
+    let (Some(db), Some(app)) = (&lyrics.db, &lyrics.app) else {
+        return None;
+    };
+    let dto = {
+        let mut cur = lyrics
+            .current
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let dto = cur.as_mut()?;
+        dto.offset_ms = if delta_ms == 0 {
+            0
+        } else {
+            (dto.offset_ms + delta_ms).clamp(-OFFSET_LIMIT_MS, OFFSET_LIMIT_MS)
+        };
+        dto.clone()
+    };
+    let _ = db.kv_set(&offset_key(&dto.track_key), &dto.offset_ms.to_string());
+    for label in ["island", "main"] {
+        let _ = app.emit_to(label, events::LYRICS_CURRENT, &Some(&dto));
+    }
+    Some(dto)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::clean_title;
+    use super::{clean_title, read_sidecar, to_dto};
 
     #[test]
     fn cleans_web_titles() {
@@ -252,5 +341,26 @@ mod tests {
         assert_eq!(clean_title("Song Name [Lyrics]"), "Song Name");
         assert_eq!(clean_title("Artist - Song Official Audio"), "Artist - Song");
         assert_eq!(clean_title("Plain"), "Plain");
+    }
+
+    #[test]
+    fn reads_sidecar_with_bom() {
+        let dir = std::env::temp_dir().join(format!("pcisland-lrc-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let track = dir.join("song.mp3");
+        std::fs::write(dir.join("song.lrc"), b"\xEF\xBB\xBF[00:01.00]Xin chao\n").unwrap();
+        let text = read_sidecar(&track).unwrap();
+        let dto = to_dto("k", true, &text, "file");
+        assert!(dto.synced);
+        assert_eq!(dto.lines[0].text, "Xin chao");
+        assert!(read_sidecar(&dir.join("missing.mp3")).is_none());
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn untimed_sidecar_falls_back_to_plain() {
+        let dto = to_dto("k", true, "just text", "file");
+        assert!(!dto.synced);
+        assert_eq!(dto.plain.as_deref(), Some("just text"));
     }
 }

@@ -334,3 +334,98 @@ pub fn playlist_tracks(db: &Db, playlist: &str) -> Result<Vec<String>, StorageEr
         rows.collect()
     })
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct Station {
+    pub id: String,
+    pub name: String,
+    pub url: String,
+}
+
+const STATIONS_KEY: &str = "local_player.stations";
+
+pub fn stations(db: &Db) -> Vec<Station> {
+    db.kv_get(STATIONS_KEY)
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+pub fn save_stations(db: &Db, list: &[Station]) -> Result<(), StorageError> {
+    db.kv_set(
+        STATIONS_KEY,
+        &serde_json::to_string(list).unwrap_or_else(|_| "[]".into()),
+    )
+}
+
+/// Writes an extended M3U playlist with absolute paths.
+pub fn export_m3u(db: &Db, playlist: &str, dest: &Path) -> Result<u32, StorageError> {
+    let mut out = String::from("#EXTM3U\n");
+    let ids = playlist_tracks(db, playlist)?;
+    for t in ids.iter().filter_map(|id| get(db, id)) {
+        let secs = t.duration_ms.map_or(-1, |d| (d / 1000) as i64);
+        let label = match &t.artist {
+            Some(a) => format!("{a} - {}", t.title),
+            None => t.title.clone(),
+        };
+        out.push_str(&format!("#EXTINF:{secs},{label}\n{}\n", t.path));
+    }
+    std::fs::write(dest, out)?;
+    Ok(ids.len() as u32)
+}
+
+/// Parses M3U/M3U8 lines into file paths (relative entries resolve against the
+/// playlist's folder). Comments and URLs are skipped.
+pub fn parse_m3u(text: &str, base: &Path) -> Vec<std::path::PathBuf> {
+    text.lines()
+        .map(|l| l.trim().trim_start_matches('\u{feff}'))
+        .filter(|l| !l.is_empty() && !l.starts_with('#') && !l.contains("://"))
+        .map(|l| {
+            let p = Path::new(l);
+            if p.is_absolute() {
+                p.to_path_buf()
+            } else {
+                base.join(p)
+            }
+        })
+        .collect()
+}
+
+/// Imports an M3U file as a new playlist named after the file.
+pub fn import_m3u(db: &Db, src: &Path) -> Result<Playlist, StorageError> {
+    let text = std::fs::read_to_string(src)?;
+    let base = src.parent().unwrap_or(Path::new("."));
+    let ids: Vec<String> = parse_m3u(&text, base)
+        .iter()
+        .filter(|p| p.is_file() && is_audio(p))
+        .filter_map(|p| track_for_file(db, p).ok().map(|t| t.id))
+        .collect();
+    let name = src
+        .file_stem()
+        .map_or_else(|| "Playlist".into(), |s| s.to_string_lossy().into_owned());
+    let pl = create_playlist(db, &name)?;
+    add_to_playlist(db, &pl.id, &ids)?;
+    Ok(Playlist {
+        count: ids.len() as u32,
+        ..pl
+    })
+}
+
+#[cfg(test)]
+mod m3u_tests {
+    use super::*;
+
+    #[test]
+    fn parses_relative_absolute_and_skips_comments_and_urls() {
+        let text = "\u{feff}#EXTM3U\n#EXTINF:120,A - B\nsongs/a.mp3\nC:\\Music\\b.flac\nhttp://radio/x\n\n";
+        let got = parse_m3u(text, Path::new("D:\\Lists"));
+        assert_eq!(
+            got,
+            vec![
+                Path::new("D:\\Lists").join("songs/a.mp3"),
+                std::path::PathBuf::from("C:\\Music\\b.flac")
+            ]
+        );
+    }
+}

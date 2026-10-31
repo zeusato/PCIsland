@@ -1,6 +1,6 @@
 # Module: Trình phát file trên máy (`local_player`)
 
-> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P2 (F11), P3 (F13 radio) · Tính năng: F11, F13 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P2 (F11), P3 (F13 radio) · Tính năng: F11, F13 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 
@@ -171,3 +171,4 @@ Module không tự khai báo activity. Nó là một `MediaSource` (`SourceId = 
 | Ngày | Thay đổi |
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
+| 2026-10-31 | SMTC riêng (phím media, flyout Windows); nhập/xuất m3u; radio/stream HTTP; tự mở lại thiết bị âm thanh khi đổi thiết bị mặc định; nhận `MediaIntent` từ Pomodoro |

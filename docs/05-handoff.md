@@ -13,50 +13,50 @@
 | Mục | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 2026-10-31 |
-| Phase | **P1–P3 đã có code cho phần lớn tính năng**; chưa qua kiểm thử tay, Gate G0 chưa đóng |
+| Phase | **P1–P3 đã code đủ đặc tả** (trừ P4: F32–F34, F40–F44); chưa qua kiểm thử tay, Gate G0 chưa đóng |
 | Phiên bản | 0.0.1 (chưa phát hành) |
-| Code | Nhánh `main`, commit `17a8cc6` (P1–P3) |
-| Kiểm tra | 118 test Rust + 15 test frontend xanh; clippy `-D warnings`, svelte-check, eslint, i18n sạch |
-| Bản build gần nhất | `pnpm tauri dev` chạy OK 2026-10-31 (island, launcher, bấm giờ, cửa sổ đầy đủ đã thử bằng ảnh chụp) |
+| Code | Nhánh `main` trên https://github.com/zeusato/PCIsland |
+| Kiểm tra | 148 test Rust + 15 test frontend xanh; clippy `-D warnings`, svelte-check, eslint, i18n (234 khóa) sạch |
+| Bản build gần nhất | `pnpm tauri build` 2026-10-31: exe 17,1 MB, bộ cài 4,66 MB, CPU rảnh 0,25%, RAM private 189 MB (vượt ngân sách 150 MB, xem [báo cáo G0](reports/g0-poc.md)) |
 | Đang chặn | Không có |
 
 **Trạng thái tính năng** (✅ có code + test logic · 🟡 có code, còn thiếu phần trong đặc tả · ⬜ chưa làm):
 
-| ID | Tính năng | Trạng thái | Còn thiếu so với đặc tả |
+| ID | Tính năng | Trạng thái | Ghi chú / còn thiếu |
 |---|---|---|---|
 | F01 | Island 4 trạng thái, click xuyên, morph | ✅ | — |
-| F02 | Cửa sổ đầy đủ | ✅ | Toast lỗi chung; nhớ kích thước/vị trí cửa sổ |
-| F03 | Tray, autostart, single instance, phím tắt, `--cleanup` | ✅ | Hiện lỗi phím tắt trong trang Cài đặt (đang chỉ ghi log) |
+| F02 | Cửa sổ đầy đủ | ✅ | — |
+| F03 | Tray, autostart, single instance, phím tắt, `--cleanup` | ✅ | — |
 | F04 | Fullscreen / phóng to / khóa máy | ✅ | Chưa test tay; virtual desktop chưa kiểm chứng |
-| F05 | Đa màn hình | ⬜ | Đang cố định màn hình chính (đúng ADR-008), chưa có tùy chọn khác |
-| F06 | ActivityHub | ✅ | Payload là JSON thay vì enum có kiểu (xem nợ kỹ thuật) |
-| F07 | Theme / màu nhấn | 🟡 | Có màu nhấn; chưa có glow intensity, island scale |
-| F08 | Bộ âm báo | 🟡 | 4 âm tổng hợp; chưa chọn âm cho từng loại |
+| F05 | Đa màn hình | ✅ | Chưa test tay với 2 màn hình |
+| F06 | ActivityHub | ✅ | — |
+| F07 | Theme / màu nhấn | ✅ | Island scale chưa làm (để P4) |
+| F08 | Bộ âm báo | ✅ | Chọn âm cho hẹn giờ / nhắc việc / Pomodoro; chưa có âm tùy chỉnh từ file (P4) |
 | F09 | i18n vi/en | ✅ | — |
-| F10 | Media app khác (GSMTC) | ✅ | Chip chọn nguồn trên peek |
-| F11 | Trình phát file | 🟡 | Có thư viện, quét, tìm kiếm, hàng đợi, shuffle/repeat, playlist, khôi phục phiên; thiếu SMTC riêng (phím media), m3u, theo dõi đổi thiết bị |
-| F12 | Web player | 🟡 | Phương án 1 webview; chưa có toolbar, tự hủy khi rảnh, xóa dữ liệu |
-| F13 | Radio / stream | ⬜ | |
-| F14 | Lời bài hát | 🟡 | LRCLIB + cache; thiếu `.lrc` cạnh file, chỉnh lệch |
-| F15 | Visualizer thật | ⬜ | Đang dùng sóng giả bằng CSS |
+| F10 | Media app khác (GSMTC) | ✅ | — |
+| F11 | Trình phát file | ✅ | — |
+| F12 | Web player | ✅ | Toolbar đặt ở tab Nhạc › Online (ADR-013); chờ test 5 trang |
+| F13 | Radio / stream | ✅ | Chỉ stream HTTP trực tiếp; HLS mở bằng trình duyệt |
+| F14 | Lời bài hát | ✅ | — |
+| F15 | Visualizer thật | ✅ | — |
 | F20–F22 | Hẹn giờ, bấm giờ, Pomodoro | ✅ | — |
-| F23 | Focus mode | 🟡 | Chặn cảnh báo đúng; chưa có `MediaIntent` (dừng nhạc khi nghỉ) |
-| F24 | Nhắc việc | ✅ | Toast Windows dự phòng |
-| F25 | Câu tiếng Việt tự nhiên | ✅ | 55 test case (đặc tả yêu cầu ≥ 80) |
-| F26 | Ghi chú nhanh | ✅ | Xuất `.md` |
-| F27 | Kệ file | 🟡 | Thả vào, mở, mở thư mục; chưa kéo ra ngoài, chưa thumbnail |
+| F23 | Focus mode | ✅ | — |
+| F24 | Nhắc việc | ✅ | Toast dùng AUMID của PowerShell khi chạy portable/dev |
+| F25 | Câu tiếng Việt tự nhiên | ✅ | 85 test case |
+| F26 | Ghi chú nhanh | ✅ | — |
+| F27 | Kệ file | ✅ | — |
 | F30–F31 | Âm lượng, pin/sạc | ✅ | — |
 | F32–F34 | Mic/cam, theo dõi hệ thống | ⬜ | P4 |
-| F33 | Màn hình chờ đôi mắt / đồng hồ | 🟡 | Chớp mắt có; biểu cảm & nhìn theo chuột (P3) chưa |
-| F45 | Kiểm tra cập nhật | ⬜ | |
+| F33 | Màn hình chờ đôi mắt / đồng hồ | ✅ | — |
+| F45 | Kiểm tra cập nhật | ✅ | Chỉ báo có bản mới và mở trang Release; không tự cập nhật |
 
-**Nợ kỹ thuật so với system design** (cần xử lý hoặc ghi ADR):
-1. Chưa có `Module` trait + supervisor (§4): mỗi module là hàm `setup` + task actor; panic trong task chưa được bắt và khởi động lại.
-2. Chưa có `EventBus`/`AppEvent` (§3): các module nói chuyện qua handle (`media.subscribe()`, `register_control`). Đây đúng tinh thần ranh giới module nhưng khác đặc tả.
-3. Payload Activity là `serde_json::Value` (TS: `unknown`), view tự ép kiểu theo `kind`. ADR-002 yêu cầu enum có kiểu.
+**Nợ kỹ thuật so với system design:**
+1. ~~Module trait + supervisor~~ → đã có `Supervisor` (bắt panic, khởi động lại 1/5/30 s), ADR-011.
+2. ~~EventBus/AppEvent~~ → đã có `core::events`, ADR-011.
+3. ~~Payload Activity không có kiểu~~ → struct payload theo module + bảng `ActivityPayloads`, ADR-010.
 4. Chưa có trait platform giả + `Clock` cho test tích hợp; logic thời gian test bằng tham số `now` truyền vào hàm thuần.
-5. Bản dev đo RAM 222 MB; chưa đo bản release.
-6. Trong lúc test có bật một bộ bấm giờ: nếu còn chạy, vào Hẹn giờ › Bấm giờ › Đặt lại.
+5. RAM release 189 MB > ngân sách 150 MB (phần lớn là nền WebView2). Cần thử `--disable-gpu` hoặc chốt nới ngân sách bằng ADR.
+6. Visualizer, toast, thumbnail, kéo file ra ngoài, nhớ vị trí cửa sổ mới chỉ chạy qua test logic + build; chưa test tay.
 
 ## 3. Việc tiếp theo
 
@@ -71,10 +71,14 @@ Theo thứ tự. Đánh dấu `[x]` khi xong và thêm việc mới phát sinh v
 - [ ] **P0.7** Đo bản release; hoàn thiện `docs/reports/g0-poc.md`; họp Gate G0.
 - [x] Commit đầu tiên `506dba9` trên `main`.
 - [x] Commit phần P1–P3 (`17a8cc6`).
-- [ ] Tạo repo GitHub và push (để CI chạy lần đầu).
+- [x] Tạo repo GitHub và push: https://github.com/zeusato/PCIsland.
 - [ ] **Test tay toàn bộ** theo checklist trong từng module doc (đặc biệt: nhắc việc qua sleep, fullscreen, kéo thả file, phát nhạc file, web player 5 trang).
-- [ ] Xử lý nợ kỹ thuật 1–3 ở §2 trước khi làm thêm tính năng.
-- [ ] Phần còn thiếu theo bảng §2, ưu tiên: SMTC cho trình phát file (phím media) → toolbar web player → visualizer thật → radio → kiểm tra cập nhật.
+- [x] Xử lý nợ kỹ thuật 1–3 ở §2 (ADR-010, ADR-011).
+- [x] Phần còn thiếu theo bảng §2 (SMTC, web player, visualizer, radio, cập nhật, lyrics `.lrc`, toast, xuất `.md`, chip nguồn, âm theo loại, lỗi phím tắt, nhớ cửa sổ).
+- [x] **P0.7 (một phần)** Đo bản release: CPU đạt, RAM chưa đạt.
+- [ ] Giảm RAM WebView2 hoặc ra ADR nới ngân sách (nợ kỹ thuật 5).
+- [ ] Phát hành bản 0.1.0 trên GitHub Releases (bộ cài + portable + SHA256) sau khi test tay.
+- [ ] P4: mic/cam, theo dõi hệ thống (F32, F34), plugin API (F44).
 
 ## 4. Câu hỏi mở
 
@@ -127,6 +131,7 @@ Sổ rủi ro đầy đủ ở [00 §8](00-vision-scope.md#8-sổ-rủi-ro). Nh�
 | 2026-10-31 | Claude + chủ dự án | Chốt Q2 (màn hình chính, mọi virtual desktop), Q3 (dính mép, 04 §5), Q5 (ADR-009: bộ cài + portable, không mua chứng chỉ). ADR-008 chuyển Accepted | P0.1 scaffold repo |
 | 2026-10-31 | Claude | Cài toolchain (Rust 1.99, MSVC Build Tools, pnpm 9); P0.1–P0.6: scaffold, CI, spike island/fullscreen/GSMTC/web player; 33 test Rust + 15 test frontend xanh; app chạy, CPU rảnh 0,18% | Test tay checklist G0; commit đầu tiên |
 | 2026-10-31 | Claude | P1–P3: core (settings, SQLite, log, ActivityHub, audio), timer/stopwatch/Pomodoro/Focus, nhắc việc + NLP tiếng Việt, âm lượng/pin, trình phát file, ghi chú, kệ file, lời bài hát, toàn bộ UI island + cửa sổ đầy đủ; 118 test Rust + 15 test frontend | Test tay; commit; xử lý nợ kỹ thuật §2 |
+| 2026-10-31 | Claude | Hoàn thiện phần còn lại: EventBus + supervisor, payload có kiểu, đa màn hình, glow, SMTC, m3u, radio, visualizer thật, web player tự tắt/xóa dữ liệu, MediaIntent, thumbnail + kéo file ra, biểu cảm mắt, kiểm tra cập nhật, lyrics `.lrc` + chỉnh lệch, toast nhắc việc, xuất ghi chú `.md`, chip nguồn, âm theo loại, lỗi phím tắt, nhớ cửa sổ. ADR-010..013. 148 test Rust | Test tay; giảm RAM |
 
 ## 8. Thuật ngữ
 

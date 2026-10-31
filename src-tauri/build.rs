@@ -8,6 +8,13 @@ const REMOTE_ONLY: &[&str] = &["web_player_report"];
 
 fn main() {
     println!("cargo:rerun-if-changed=src/lib.rs");
+    // One manifest for every linked binary, test harnesses included (see the XML).
+    println!("cargo:rerun-if-changed=windows-app-manifest.xml");
+    let manifest = std::env::current_dir()
+        .expect("build dir")
+        .join("windows-app-manifest.xml");
+    println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+    println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.display());
     let lib = std::fs::read_to_string("src/lib.rs").expect("read src/lib.rs");
     let start = lib
         .find("generate_handler![")
@@ -43,6 +50,7 @@ fn main() {
     let commands: &'static [&'static str] = Box::leak(commands.into_boxed_slice());
     tauri_build::try_build(
         tauri_build::Attributes::new()
+            .windows_attributes(tauri_build::WindowsAttributes::new_without_app_manifest())
             .app_manifest(tauri_build::AppManifest::new().commands(commands)),
     )
     .expect("failed to run tauri-build");

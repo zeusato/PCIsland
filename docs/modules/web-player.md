@@ -1,6 +1,6 @@
 # Module: Trình phát web (`web_player`)
 
-> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P0 (spike D), P2 · Tính năng: F12 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P0 (spike D), P2 · Tính năng: F12 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 
@@ -185,3 +185,4 @@ Closed ──open(site)──▶ Visible ──thu gọn──▶ Hidden ──t
 | Ngày | Thay đổi |
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
+| 2026-10-31 | Tự tắt khi tạm dừng quá N phút; đổi trang, xóa dữ liệu đăng nhập; toolbar đặt ở tab Nhạc › Online (ADR-013) |

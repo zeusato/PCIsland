@@ -1,6 +1,6 @@
 # Module: Activity hub (`activity`)
 
-> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P1 · Tính năng: F06 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P1 · Tính năng: F06 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 
@@ -165,3 +165,4 @@ Arbitration chạy O(n) với n < 50; chỉ chạy khi có thay đổi. Event st
 | Ngày | Thay đổi |
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
+| 2026-10-31 | Payload có kiểu theo từng module (ADR-010); EventBus + supervisor (ADR-011); activity rảnh không còn làm activity phụ |

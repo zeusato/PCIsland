@@ -47,7 +47,10 @@ pub fn run() {
         settings_mod::load(&settings_path)
     };
     initial_settings.validate();
-    if matches!(outcome, LoadOutcome::RecoveredFromBackup | LoadOutcome::ResetToDefaults) {
+    if matches!(
+        outcome,
+        LoadOutcome::RecoveredFromBackup | LoadOutcome::ResetToDefaults
+    ) {
         tracing::warn!(?outcome, "settings were not loaded normally");
     }
 
@@ -56,6 +59,7 @@ pub fn run() {
     let open_route = core::paths::arg_value(&args, "--open").map(str::to_owned);
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_drag::init())
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             let route = core::paths::arg_value(&argv, "--open");
             if let Err(err) = island::open_main(app, route) {
@@ -75,18 +79,30 @@ pub fn run() {
             let handle = app.handle();
             let db = Db::open(&paths.db_file())?;
             let settings = SettingsHandle::start(handle, settings_path.clone(), initial_settings);
-            let hub = ActivityHub::start(handle);
+            let sup = core::supervisor::Supervisor::new(handle);
+            let bus = core::events::EventBus::new();
+            core::events::spawn_resume_detector(bus.clone());
+            let hub = ActivityHub::start(handle, &sup);
             let music_events = modules::local_player::event_bridge();
             let audio = AudioEngine::start(music_events.sink());
 
-            let media = media::setup(handle, artwork.clone(), hub.clone(), settings.subscribe());
-            let web = web_player::setup(handle, media.clone());
+            let media = media::setup(
+                handle,
+                artwork.clone(),
+                hub.clone(),
+                settings.subscribe(),
+                bus.clone(),
+                &sup,
+            );
+            let web = web_player::setup(handle, media.clone(), settings.subscribe());
             let timers = timer::setup(
                 handle,
                 db.clone(),
                 hub.clone(),
                 audio.clone(),
                 settings.subscribe(),
+                bus.clone(),
+                &sup,
             );
             let reminders = reminders::setup(
                 handle,
@@ -94,8 +110,10 @@ pub fn run() {
                 hub.clone(),
                 audio.clone(),
                 settings.subscribe(),
+                bus.clone(),
+                &sup,
             );
-            indicators::setup(hub.clone(), settings.subscribe());
+            indicators::setup(hub.clone(), settings.subscribe(), bus.clone());
             let player = local_player::setup(
                 handle,
                 db.clone(),
@@ -104,6 +122,8 @@ pub fn run() {
                 media.clone(),
                 artwork.clone(),
                 settings.subscribe(),
+                bus.clone(),
+                &sup,
             );
             let notes = notes::setup(
                 handle,
@@ -111,10 +131,25 @@ pub fn run() {
                 hub.clone(),
                 settings.get().notes.trash_days,
             );
-            let shelf = shelf::setup(handle, db.clone(), hub.clone(), settings.subscribe());
-            let lyrics = lyrics::setup(handle, db.clone(), media.subscribe(), settings.subscribe());
-            let island = island::setup(handle, hub.clone(), &settings)?;
+            let shelf = shelf::setup(
+                handle,
+                db.clone(),
+                hub.clone(),
+                settings.subscribe(),
+                artwork.clone(),
+            );
+            let lyrics = lyrics::setup(
+                handle,
+                db.clone(),
+                bus.clone(),
+                settings.subscribe(),
+                player.clone(),
+            );
+            let visualizer = modules::visualizer::setup(bus.clone(), settings.subscribe());
+            let island = island::setup(handle, hub.clone(), &settings, bus.clone())?;
 
+            media.attach_smtc(island.hwnd());
+            app::update::spawn(db.clone(), hub.clone(), settings.subscribe());
             app::sync_autostart(handle, settings.get().app.autostart);
             app::shortcuts::register(handle, &settings.get().app.shortcuts);
             app::tray::setup(handle)?;
@@ -139,6 +174,18 @@ pub fn run() {
                 );
             }
 
+            // Audio follows the default output device.
+            let audio_for_devices = audio.clone();
+            let mut device_events = bus.subscribe();
+            tauri::async_runtime::spawn(async move {
+                while let Ok(event) = device_events.recv().await {
+                    if let core::events::AppEvent::AudioDeviceChanged = event {
+                        audio_for_devices.reopen();
+                    }
+                }
+            });
+            app.manage(sup);
+            app.manage(bus);
             app.manage(paths.clone());
             app.manage(db);
             app.manage(settings);
@@ -153,6 +200,7 @@ pub fn run() {
             app.manage(notes);
             app.manage(shelf);
             app.manage(lyrics);
+            app.manage(visualizer);
             app.manage(island);
             tracing::info!("PCisland started");
             Ok(())
@@ -163,6 +211,10 @@ pub fn run() {
             app::commands::app_open_data_folder,
             app::commands::app_play_sound,
             app::commands::app_pause_alerts,
+            app::commands::app_check_update_now,
+            app::commands::app_open_url,
+            app::commands::app_shortcut_errors,
+            app::commands::app_modules,
             app::commands::settings_get,
             app::commands::settings_update,
             app::commands::activity_get_state,
@@ -175,6 +227,7 @@ pub fn run() {
             island::commands::island_toggle_hidden,
             island::commands::island_request_focus,
             island::commands::island_release_focus,
+            island::commands::island_idle_seconds,
             media::commands::media_get_state,
             media::commands::media_play_pause,
             media::commands::media_next,
@@ -203,8 +256,17 @@ pub fn run() {
             local_player::commands::local_player_playlist_delete,
             local_player::commands::local_player_playlist_add,
             local_player::commands::local_player_playlist_play,
+            local_player::commands::local_player_stations,
+            local_player::commands::local_player_station_add,
+            local_player::commands::local_player_station_remove,
+            local_player::commands::local_player_play_station,
+            local_player::commands::local_player_playlist_import,
+            local_player::commands::local_player_playlist_export,
             lyrics::lyrics_get_current,
+            lyrics::lyrics_adjust_offset,
+            modules::visualizer::visualizer_subscribe,
             notes::notes_list,
+            notes::notes_export,
             notes::notes_save,
             notes::notes_delete,
             notes::notes_restore,
@@ -215,6 +277,7 @@ pub fn run() {
             shelf::shelf_remove,
             shelf::shelf_clear,
             shelf::shelf_open,
+            shelf::shelf_drag_icon,
             reminders::commands::reminders_list,
             reminders::commands::reminders_create,
             reminders::commands::reminders_update,
@@ -229,6 +292,8 @@ pub fn run() {
             web_player::commands::web_player_hide,
             web_player::commands::web_player_close,
             web_player::commands::web_player_report,
+            web_player::commands::web_player_navigate,
+            web_player::commands::web_player_clear_data,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PCisland");

@@ -23,6 +23,22 @@ pub enum SoundId {
     Pop,
 }
 
+/// Names accepted by the per-type sound settings; `"none"` means silent.
+pub const SOUND_NAMES: [&str; 5] = ["chime", "bell", "softTick", "pop", "none"];
+
+impl SoundId {
+    /// Parses a settings value; `None` for "none" or anything unknown.
+    pub fn named(name: &str) -> Option<Self> {
+        match name {
+            "chime" => Some(Self::Chime),
+            "bell" => Some(Self::Bell),
+            "softTick" => Some(Self::SoftTick),
+            "pop" => Some(Self::Pop),
+            _ => None,
+        }
+    }
+}
+
 enum Cmd {
     Play {
         sound: SoundId,
@@ -30,6 +46,8 @@ enum Cmd {
         repeat_until: Option<Instant>,
     },
     StopAlert,
+    /// Default output device changed: rebuild the stream and resume.
+    Reopen,
     Music(crate::modules::local_player::engine::MusicCmd),
 }
 
@@ -65,6 +83,10 @@ impl AudioEngine {
         });
     }
 
+    pub fn reopen(&self) {
+        let _ = self.tx.send(Cmd::Reopen);
+    }
+
     pub fn stop_alert(&self) {
         let _ = self.tx.send(Cmd::StopAlert);
     }
@@ -85,7 +107,7 @@ fn run(rx: &mpsc::Receiver<Cmd>, music_events: &crate::modules::local_player::en
         }
     };
     stream.log_on_drop(false);
-    let alert = rodio::Player::connect_new(stream.mixer());
+    let mut alert = rodio::Player::connect_new(stream.mixer());
     let mut music = crate::modules::local_player::engine::MusicPlayer::new(
         stream.mixer(),
         music_events.clone(),
@@ -108,6 +130,22 @@ fn run(rx: &mpsc::Receiver<Cmd>, music_events: &crate::modules::local_player::en
                 ring = None;
             }
             Ok(Cmd::Music(cmd)) => music.handle(cmd),
+            Ok(Cmd::Reopen) => match rodio::DeviceSinkBuilder::open_default_sink() {
+                Ok(mut next) => {
+                    next.log_on_drop(false);
+                    alert = rodio::Player::connect_new(next.mixer());
+                    music.reattach(next.mixer());
+                    // Dropping the old stream after the swap releases the old device.
+                    drop(std::mem::replace(&mut stream, next));
+                    tracing::info!(
+                        module = "audio",
+                        "reopened output on the new default device"
+                    );
+                }
+                Err(err) => {
+                    tracing::warn!(module = "audio", error = %err, "cannot reopen audio output")
+                }
+            },
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => return,
         }

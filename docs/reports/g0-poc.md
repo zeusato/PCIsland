@@ -29,6 +29,14 @@
 | CPU khi rảnh (30 s) | < 0,5% | **0,37%** | Đạt, nhưng lúc đo có một bộ bấm giờ đang chạy (cập nhật mỗi giây) |
 | RAM lõi (private, exe + 6 tiến trình WebView2) | < 150 MB | **189 MB** | **Chưa đạt.** Hướng xử lý: import icon theo từng file thay vì cả gói `@lucide/svelte`, gộp tiến trình WebView2, đo lại khi không có activity |
 
+**Đo lại** (bản release có đủ module + EventBus/supervisor, visualizer, toast, thumbnail; import icon theo file; `--renderer-process-limit=1`; 2026-10-31, rảnh, không có activity, cửa sổ đầy đủ đóng):
+
+| Chỉ số | Ngân sách | Đo được | Ghi chú |
+|---|---|---|---|
+| Kích thước exe | < 20 MB | **17,1 MB** | Đạt. Bộ cài NSIS 4,66 MB |
+| CPU khi rảnh (20 s) | < 0,5% | **0,25%** | Đạt |
+| RAM lõi (private, exe + 6 tiến trình WebView2) | < 150 MB | **189 MB** | **Vẫn chưa đạt.** Working set tổng 420 MB (phần lớn dùng chung). Riêng `pcisland.exe` ~46 MB; phần còn lại là WebView2 (browser, GPU, network, storage, renderer). Import icon theo file và giới hạn renderer không làm giảm đáng kể → nền WebView2 là phần chính. Hướng tiếp: thử `--disable-gpu` (cần kiểm tra nền trong suốt), cân nhắc nới ngân sách lên 200 MB trong ADR nếu không giảm được |
+
 ## 3. Lỗi đã gặp và sửa
 
 - `$effect` morph đọc `size.current` nên chạy lại mỗi frame của spring (vòng lặp `Spring.set` bị Aborted). Đã sửa bằng `untrack`. Bài học thêm vào checklist review: effect không được đọc giá trị spring đang chạy.
@@ -44,7 +52,7 @@
 - [ ] Win+Tab đổi virtual desktop: island có hiện không (R10, **bắt buộc**)
 - [ ] Spotify / YouTube trên Chrome: island hiện ảnh bìa, tên bài; ⏮ ⏯ ⏭ hoạt động
 - [ ] Web player: điền test matrix trong [web-player §11](../modules/web-player.md#11-kiểm-thử) cho 5 trang
-- [ ] Đo RAM/CPU bằng bản release (`pnpm tauri build`)
+- [x] Đo RAM/CPU bằng bản release (`pnpm tauri build`) — xem §2; RAM chưa đạt ngân sách
 
 ## 5. Kết luận tạm
 

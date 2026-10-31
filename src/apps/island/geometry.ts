@@ -20,7 +20,7 @@ const PEEK_HEIGHT: Record<string, number> = {
   timer: 168,
   reminders: 140,
   notes: 176,
-  shelf: 184,
+  shelf: 196,
   launcher: 176,
 };
 

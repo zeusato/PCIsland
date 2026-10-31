@@ -11,5 +11,7 @@ import type { RemindersSettings } from "./RemindersSettings";
 import type { ShelfSettings } from "./ShelfSettings";
 import type { TimerSettings } from "./TimerSettings";
 import type { UiSettings } from "./UiSettings";
+import type { VisualizerSettings } from "./VisualizerSettings";
+import type { WebPlayerSettings } from "./WebPlayerSettings";
 
-export type Settings = { schemaVersion: number, app: AppSettings, island: IslandSettings, timer: TimerSettings, pomodoro: PomodoroSettings, reminders: RemindersSettings, indicators: IndicatorsSettings, media: MediaSettings, localPlayer: LocalPlayerSettings, lyrics: LyricsSettings, notes: NotesSettings, shelf: ShelfSettings, ui: UiSettings, };
+export type Settings = { schemaVersion: number, app: AppSettings, island: IslandSettings, timer: TimerSettings, pomodoro: PomodoroSettings, reminders: RemindersSettings, indicators: IndicatorsSettings, media: MediaSettings, localPlayer: LocalPlayerSettings, lyrics: LyricsSettings, visualizer: VisualizerSettings, webPlayer: WebPlayerSettings, notes: NotesSettings, shelf: ShelfSettings, ui: UiSettings, };

@@ -3,7 +3,8 @@
   // (docs/modules/island-window.md §4–§5, docs/modules/activity-hub.md).
   import { untrack } from 'svelte';
   import { Spring } from 'svelte/motion';
-  import { Music, Package } from '@lucide/svelte';
+  import Music from '@lucide/svelte/icons/music';
+  import Package from '@lucide/svelte/icons/package';
   import { activityCommands, inTauri, islandCommands, playerCommands, shelfCommands } from '$lib/ipc/commands';
   import { onDragDrop, onIslandHotkey, onIslandPointer, onIslandVisibility } from '$lib/ipc/events';
   import { morphPreset } from '$lib/motion/springs';
@@ -13,6 +14,7 @@
   import { t } from '$lib/i18n/index.svelte';
   import IdleEyes from '../../features/indicators/views/IdleEyes.svelte';
   import Launcher from './Launcher.svelte';
+  import { flashMood } from '$lib/stores/eyes.svelte';
   import { BUBBLE, geometryFor, hitRects, union, type Content, type Geometry } from './geometry';
   import { initialIslandState, islandMachine, type IslandEvent } from './islandMachine';
 
@@ -38,6 +40,7 @@
     const id = alert?.id ?? null;
     if (id === lastAlertId) return;
     lastAlertId = id;
+    if (id) flashMood('surprised', 400);
     untrack(() => dispatch(id ? { type: 'alertShown', critical: alert ? isLargeAlert(alert) : false } : { type: 'alertEnded' }));
   });
 
@@ -85,6 +88,7 @@
   function onEnter() {
     clearTimeout(timer);
     dispatch({ type: 'pointerEnter' });
+    if (idle && ui.mode === 'compact') flashMood('happy', 600);
     timer = setTimeout(() => dispatch({ type: 'pointerDwell' }), hoverDelay);
   }
   function onLeave() {

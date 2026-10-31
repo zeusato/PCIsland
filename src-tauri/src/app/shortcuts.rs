@@ -1,21 +1,36 @@
 //! Global shortcuts (docs/modules/app-lifecycle.md §5). Failures are reported, never fatal.
 
+use std::sync::{Mutex, PoisonError};
+
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+use ts_rs::TS;
 
 use crate::core::settings::Shortcuts;
 use crate::modules::island::{self, IslandHandle};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
 #[serde(rename_all = "camelCase")]
-struct ShortcutError {
-    action: &'static str,
-    accelerator: String,
-    reason: String,
+pub struct ShortcutError {
+    pub action: String,
+    pub accelerator: String,
+    pub reason: String,
+}
+
+/// Failures of the last registration, read by the settings page.
+static LAST_ERRORS: Mutex<Vec<ShortcutError>> = Mutex::new(Vec::new());
+
+pub fn last_errors() -> Vec<ShortcutError> {
+    LAST_ERRORS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone()
 }
 
 pub fn register(app: &AppHandle, shortcuts: &Shortcuts) {
+    let mut errors = Vec::new();
     let gs = app.global_shortcut();
     let _ = gs.unregister_all();
     let bindings: [(&'static str, &str); 4] = [
@@ -41,17 +56,15 @@ pub fn register(app: &AppHandle, shortcuts: &Shortcuts) {
             });
         if let Err(reason) = result {
             tracing::warn!(module = "app", action, accelerator = accel, %reason, "shortcut registration failed");
-            let _ = app.emit_to(
-                "main",
-                "app://shortcut-error",
-                ShortcutError {
-                    action,
-                    accelerator: accel.into(),
-                    reason,
-                },
-            );
+            errors.push(ShortcutError {
+                action: action.into(),
+                accelerator: accel.into(),
+                reason,
+            });
         }
     }
+    let _ = app.emit_to("main", "app://shortcut-errors", &errors);
+    *LAST_ERRORS.lock().unwrap_or_else(PoisonError::into_inner) = errors;
 }
 
 fn run(app: &AppHandle, action: &str) {

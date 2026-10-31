@@ -17,6 +17,7 @@
     "i18n:build": "node scripts/i18n-build.mjs"
   },
   "dependencies": {
+    "@crabnebula/tauri-plugin-drag": "2.1.0",
     "@lucide/svelte": "^1.66.0",
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-dialog": "2.8.4"

@@ -3,22 +3,31 @@
 
 use std::time::Duration;
 
-use serde_json::json;
+use crate::core::activity::payload;
 use tokio::sync::watch;
 
 use crate::core::activity::{Activity, ActivityHub};
+use crate::core::events::{AppEvent, EventBus};
 use crate::core::priority;
 use crate::core::settings::Settings;
 use crate::platform::audio_endpoint::{self, PowerStatus};
 
 const POWER_POLL: Duration = Duration::from_secs(5);
 
-pub fn setup(hub: ActivityHub, settings: watch::Receiver<Settings>) {
+pub fn setup(hub: ActivityHub, settings: watch::Receiver<Settings>, bus: EventBus) {
     // Volume: event-driven from the endpoint callback.
     let vol_hub = hub.clone();
     let vol_settings = settings.clone();
     let mut last = (-1.0f32, false);
+    let mut registered = false;
     audio_endpoint::spawn(move |level, muted, initial| {
+        // A re-registration after the first one means the default device changed.
+        if initial {
+            if registered {
+                bus.send(AppEvent::AudioDeviceChanged);
+            }
+            registered = true;
+        }
         let changed = (level - last.0).abs() >= 0.01 || muted != last.1;
         last = (level, muted);
         if initial || !changed || !vol_settings.borrow().indicators.volume_alert {
@@ -30,7 +39,7 @@ pub fn setup(hub: ActivityHub, settings: watch::Receiver<Settings>) {
                 "indicators:volume",
                 "indicators.volume",
                 priority::ALERT,
-                json!({ "level": level, "muted": muted }),
+                payload(&VolumePayload { level, muted }),
             )
             .transient(1_500),
         );
@@ -55,9 +64,18 @@ pub fn setup(hub: ActivityHub, settings: watch::Receiver<Settings>) {
                 if prev.on_ac != now.on_ac && s.power_alert {
                     warned.clear();
                     hub.alert(
-                        Activity::new("indicators", "indicators:power", "indicators.power", priority::ALERT,
-                            json!({ "onAc": now.on_ac, "percent": pct, "secondsLeft": now.seconds_left }))
-                            .transient(3_000),
+                        Activity::new(
+                            "indicators",
+                            "indicators:power",
+                            "indicators.power",
+                            priority::ALERT,
+                            payload(&PowerPayload {
+                                on_ac: now.on_ac,
+                                percent: pct,
+                                seconds_left: now.seconds_left,
+                            }),
+                        )
+                        .transient(3_000),
                     );
                 }
                 if !now.on_ac {
@@ -74,7 +92,10 @@ pub fn setup(hub: ActivityHub, settings: watch::Receiver<Settings>) {
                                 "indicators:battery-low",
                                 "indicators.battery_low",
                                 priority::ALERT,
-                                json!({ "percent": pct, "threshold": threshold }),
+                                payload(&BatteryLowPayload {
+                                    percent: pct,
+                                    threshold,
+                                }),
                             )
                             .transient(if threshold <= 10 {
                                 10_000
@@ -97,8 +118,41 @@ fn publish_idle(hub: &ActivityHub, settings: &Settings) {
             "indicators:idle",
             "indicators.idle",
             priority::IDLE,
-            json!({ "mode": mode }),
+            payload(&IdlePayload { mode: mode.into() }),
         )),
         _ => hub.remove("indicators:idle"),
     }
+}
+
+#[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct VolumePayload {
+    pub level: f32,
+    pub muted: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct PowerPayload {
+    pub on_ac: bool,
+    pub percent: u8,
+    pub seconds_left: Option<u32>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct BatteryLowPayload {
+    pub percent: u8,
+    pub threshold: u8,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct IdlePayload {
+    /// "eyes" | "clock"
+    pub mode: String,
 }

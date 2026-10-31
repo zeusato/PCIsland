@@ -1,13 +1,15 @@
 <script lang="ts">
   import type { Activity } from '$lib/ipc/bindings/Activity';
   import type { Note } from '$lib/ipc/bindings/Note';
-  import { Pin, Check } from '@lucide/svelte';
+  import Pin from '@lucide/svelte/icons/pin';
+  import Check from '@lucide/svelte/icons/check';
   import ActionButtons from '$lib/components/ActionButtons.svelte';
+  import { payload } from '$lib/registry/payloads';
   import { noteCommands } from '$lib/ipc/commands';
   import { t } from '$lib/i18n/index.svelte';
 
   let { activity, variant }: { activity: Activity; variant: string } = $props();
-  const note = $derived(activity.payload as Note);
+  const note: Note = $derived(payload(activity, 'notes.pinned'));
   const lines = $derived(note?.text?.split('\n').slice(0, 6) ?? []);
 </script>
 

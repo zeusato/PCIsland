@@ -163,6 +163,44 @@
   - Bản cài có shortcut Start menu, nên dễ đăng ký AUMID cho toast ([reminders](modules/reminders.md)).
   - Gỡ bản cài bằng trình gỡ cài đặt (cũng xóa khóa autostart). Gỡ bản portable bằng `--cleanup` rồi xóa thư mục.
 
+## ADR-010 · Payload Activity: JSON ở core, có kiểu theo từng module
+
+- **Ngày:** 2026-10-31 · **Trạng thái:** Accepted (thay một phần hệ quả của ADR-002)
+- **Bối cảnh:** ADR-002 yêu cầu payload là enum có kiểu dùng chung. Làm vậy thì `core::activity` phải biết mọi module, trái với ranh giới module (03 §1) và chặn plugin (F44).
+- **Quyết định:**
+  - Trong core, `Activity.payload` vẫn là `serde_json::Value`.
+  - Mỗi module khai báo struct payload riêng có `#[derive(TS)]` (ví dụ `VolumePayload`, `PhaseEndPayload`, `CountPayload`) và tạo payload bằng `activity::payload(&T)`.
+  - Frontend có một bảng `ActivityPayloads` (`src/lib/registry/payloads.ts`) ánh xạ `kind → kiểu`; view lấy payload qua `payloadOf(activity, kind)`, không ép kiểu tự do.
+- **Lý do:** giữ core không phụ thuộc module mà vẫn có kiểu ở hai đầu; thêm module chỉ thêm một dòng vào bảng.
+- **Phương án đã cân nhắc:** enum tổng trong core (vỡ ranh giới module); `unknown` + ép kiểu trong view (tình trạng cũ, dễ lệch).
+- **Hệ quả:** khi đổi struct payload phải chạy lại `pnpm gen:bindings`; CI đã kiểm tra bindings không lệch.
+
+## ADR-011 · EventBus và supervisor cho module
+
+- **Ngày:** 2026-10-31 · **Trạng thái:** Accepted
+- **Bối cảnh:** các module cần phản ứng với sự kiện chung (máy thức dậy, khóa máy, island bị ẩn, đổi bài, đổi thiết bị âm thanh). Panic trong task actor trước đây làm module chết im lặng.
+- **Quyết định:**
+  - `core::events::EventBus` là `tokio::sync::broadcast` của `AppEvent` (`Resumed`, `SessionLocked`, `IslandHidden`, `NowPlayingChanged`, `MediaIntent`, `AudioDeviceChanged`…). Lệnh có địa chỉ vẫn đi qua handle của module.
+  - `core::supervisor::Supervisor::spawn(module, factory)` chạy service, bắt panic và khởi động lại sau 1 s / 5 s / 30 s; lỗi liên tiếp quá ngưỡng thì chuyển `disabled`. Trạng thái phát qua `app://modules` và hiện trong Cài đặt.
+  - Kênh nhận của service bọc trong `Arc<tokio::Mutex<_>>` để lần khởi động lại dùng tiếp, không mất lệnh.
+- **Lý do:** đúng 02 §3–§4 mà không cần trait `Module` nặng; mỗi module vẫn chỉ có `setup`.
+- **Hệ quả:** sự kiện broadcast có thể bị `Lagged` → mọi vòng nhận phải bỏ qua lỗi này; module không được giả định nhận đủ mọi sự kiện cũ.
+
+## ADR-012 · Manifest Common-Controls v6 nhúng qua linker
+
+- **Ngày:** 2026-10-31 · **Trạng thái:** Accepted
+- **Bối cảnh:** plugin dialog dùng `TaskDialogIndirect` (comctl32 v6). Binary test của Cargo không có manifest nên chết với `STATUS_ENTRYPOINT_NOT_FOUND`.
+- **Quyết định:** `build.rs` nhúng `windows-app-manifest.xml` bằng `/MANIFEST:EMBED /MANIFESTINPUT` cho mọi binary (app và test), và tắt manifest mặc định của `tauri-build`.
+- **Hệ quả:** sửa manifest ở một chỗ; `cargo test` chạy được trên máy sạch và CI.
+
+## ADR-013 · Toolbar web player nằm ở cửa sổ đầy đủ
+
+- **Ngày:** 2026-10-31 · **Trạng thái:** Accepted
+- **Bối cảnh:** đặc tả web player có thanh công cụ (về trang chủ, đổi trang, xóa dữ liệu) trong chính cửa sổ web. Cửa sổ đó chạy trang từ xa; muốn vẽ toolbar cục bộ phải dùng multiwebview `unstable` (R9) hoặc mở thêm quyền IPC cho trang từ xa.
+- **Quyết định:** trang từ xa chỉ được gọi `web_player_report`. Toolbar đặt ở tab **Nhạc › Online** của cửa sổ đầy đủ (`web_player_navigate`, `web_player_clear_data`, hiện/ẩn cửa sổ). Điều khiển phát vẫn qua island và phím media (SMTC).
+- **Lý do:** giữ bề mặt tấn công nhỏ nhất; không phụ thuộc tính năng `unstable`.
+- **Xét lại khi:** multiwebview của Tauri ổn định.
+
 ---
 
 ## Template

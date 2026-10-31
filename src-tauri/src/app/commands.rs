@@ -106,3 +106,27 @@ pub fn activity_dismiss(app: AppHandle, hub: State<'_, ActivityHub>, activity_id
 pub fn activity_pin(hub: State<'_, ActivityHub>, activity_id: Option<String>) {
     hub.pin(activity_id);
 }
+
+#[tauri::command]
+pub async fn app_check_update_now(
+    db: State<'_, crate::core::storage::Db>,
+) -> IpcResult<Option<super::update::UpdateInfo>> {
+    Ok(super::update::check(true, &db).await)
+}
+
+#[tauri::command]
+pub fn app_shortcut_errors() -> Vec<super::shortcuts::ShortcutError> {
+    super::shortcuts::last_errors()
+}
+
+#[tauri::command]
+pub fn app_open_url(url: String) {
+    super::update::open_url(&url);
+}
+
+#[tauri::command]
+pub fn app_modules(
+    sup: State<'_, crate::core::supervisor::Supervisor>,
+) -> std::collections::BTreeMap<String, crate::core::supervisor::ModuleState> {
+    sup.states()
+}

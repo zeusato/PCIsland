@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-local-player-play-station"
+description = "Enables the local_player_play_station command without any pre-configured scope."
+commands.allow = ["local_player_play_station"]
+
+[[permission]]
+identifier = "deny-local-player-play-station"
+description = "Denies the local_player_play_station command without any pre-configured scope."
+commands.deny = ["local_player_play_station"]

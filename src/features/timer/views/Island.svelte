@@ -4,8 +4,11 @@
   import type { Countdown } from '$lib/ipc/bindings/Countdown';
   import type { Stopwatch } from '$lib/ipc/bindings/Stopwatch';
   import type { Pomodoro } from '$lib/ipc/bindings/Pomodoro';
-  import { Timer, Coffee, Brain } from '@lucide/svelte';
+  import Timer from '@lucide/svelte/icons/timer';
+  import Coffee from '@lucide/svelte/icons/coffee';
+  import Brain from '@lucide/svelte/icons/brain';
   import ActionButtons from '$lib/components/ActionButtons.svelte';
+  import { payloadOf } from '$lib/registry/payloads';
   import ProgressRing from '$lib/components/ProgressRing.svelte';
   import { useTicker, now } from '$lib/stores/clock.svelte';
   import { ceilSeconds, formatDuration, formatTime } from '$lib/format';
@@ -33,37 +36,45 @@
 
   const view = $derived.by(() => {
     const at = now();
-    const p = activity.payload as Record<string, unknown>;
+    const running = payloadOf(activity, 'timer.running');
+    const finished = payloadOf(activity, 'timer.finished');
+    const stopwatch = payloadOf(activity, 'stopwatch.running');
+    const pomodoro = payloadOf(activity, 'pomodoro.running') ?? payloadOf(activity, 'pomodoro.phase_end');
     switch (activity.kind) {
       case 'timer.running': {
-        const c = p.timer as Countdown;
+        if (!running) break;
+        const c = running.timer;
         const rem = countdownRemaining(c, at);
         return {
           time: formatDuration(ceilSeconds(rem)),
           progress: 1 - rem / Math.max(1, c.durationMs),
           title: c.label ?? t('timer.title'),
-          sub: (p.count as number) > 1 ? t('timer.more', { n: (p.count as number) - 1 }) : '',
+          sub: running.count > 1 ? t('timer.more', { n: running.count - 1 }) : '',
           tone: 'accent',
           icon: Timer,
           paused: c.state.kind === 'paused',
         };
       }
       case 'timer.finished': {
-        const c = p as unknown as Countdown;
+        if (!finished) break;
+        const c = finished;
         const ended = c.state.kind === 'ringing' ? c.state.endedAt : at;
         return { time: '0:00', progress: 1, title: t('timer.finished', { label: c.label ?? '' }), sub: t('timer.endedAt', { time: formatTime(ended) }), tone: 'accent', icon: Timer, paused: false };
       }
       case 'stopwatch.running': {
-        const s = p as unknown as Stopwatch;
+        if (!stopwatch) break;
+        const s = stopwatch;
         const el = stopwatchElapsed(s, at);
         const lap = s.laps.at(-1);
         return { time: formatDuration(el, variant === 'peek'), progress: (el % 60000) / 60000, title: t('stopwatch.title'), sub: lap ? t('stopwatch.lastLap', { time: formatDuration(lap) }) : '', tone: 'accent', icon: Timer, paused: !s.startedAt };
       }
       case 'pomodoro.running':
       case 'pomodoro.phase_end': {
-        const pm = p as unknown as Pomodoro & { next?: string; finished?: string };
+        if (!pomodoro) break;
+        // Running/waiting Pomodoro, or the transient phase-end alert payload.
+        const pm: Partial<Pomodoro> & { next?: string } = pomodoro;
         const phase = pm.phase ?? pm.next ?? 'work';
-        const rem = pm.run ? pomodoroRemaining(pm, at) : 0;
+        const rem = pm.run ? pomodoroRemaining(pm as Pomodoro, at) : 0;
         const waiting = activity.kind === 'pomodoro.phase_end';
         return {
           time: formatDuration(ceilSeconds(rem)),
@@ -75,9 +86,8 @@
           paused: pm.run?.kind === 'paused',
         };
       }
-      default:
-        return { time: '', progress: 0, title: activity.kind, sub: '', tone: 'accent', icon: Timer, paused: false };
     }
+    return { time: '', progress: 0, title: activity.kind, sub: '', tone: 'accent', icon: Timer, paused: false };
   });
   const color = $derived(view.tone === 'break' ? 'var(--c-accent-bright)' : 'var(--c-accent)');
 </script>

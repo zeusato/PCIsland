@@ -1,6 +1,6 @@
 # Module: Kệ file (`shelf`)
 
-> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P3 · Tính năng: F27 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P3 · Tính năng: F27 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 
@@ -123,3 +123,4 @@ Thumbnail tạo một lần khi thả và cache theo hash. Công việc dọn d�
 | Ngày | Thay đổi |
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
+| 2026-10-31 | Thumbnail qua IShellItemImageFactory (cache theo đường dẫn); kéo file từ kệ ra app khác (plugin drag) |

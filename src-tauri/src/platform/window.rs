@@ -109,6 +109,25 @@ pub fn left_button_down() -> bool {
     state < 0
 }
 
+/// Bounds and work area of the monitor containing (or nearest to) a screen point.
+pub fn monitor_at(x: i32, y: i32) -> Option<MonitorRects> {
+    use windows::Win32::Graphics::Gdi::MONITOR_DEFAULTTONEAREST;
+    // SAFETY: as in `primary_monitor`.
+    unsafe {
+        let hmon = MonitorFromPoint(POINT { x, y }, MONITOR_DEFAULTTONEAREST);
+        let mut info = MONITORINFO {
+            cbSize: size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+        GetMonitorInfoW(hmon, &mut info)
+            .as_bool()
+            .then(|| MonitorRects {
+                monitor: info.rcMonitor.into(),
+                work_area: info.rcWork.into(),
+            })
+    }
+}
+
 /// Bounds and work area of the primary monitor (docs/06-decision-log.md ADR-008).
 pub fn primary_monitor() -> Option<MonitorRects> {
     // SAFETY: MonitorFromPoint with DEFAULTTOPRIMARY always returns a valid handle;

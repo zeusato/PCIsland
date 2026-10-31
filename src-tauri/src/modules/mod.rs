@@ -7,4 +7,5 @@ pub mod notes;
 pub mod reminders;
 pub mod shelf;
 pub mod timer;
+pub mod visualizer;
 pub mod web_player;

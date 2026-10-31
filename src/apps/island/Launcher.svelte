@@ -1,7 +1,7 @@
 <script lang="ts">
   // Peek content when nothing is going on (docs/modules/island-window.md §4).
   import type { Component } from 'svelte';
-  import { ChevronLeft } from '@lucide/svelte';
+  import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import { t, getLocale } from '$lib/i18n/index.svelte';
   import { quickActions, type QuickAction } from '$lib/registry/quickActions.svelte';
 

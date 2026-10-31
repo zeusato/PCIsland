@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Timer, Bell } from '@lucide/svelte';
+  import Timer from '@lucide/svelte/icons/timer';
+  import Bell from '@lucide/svelte/icons/bell';
   import Card from '$lib/components/Card.svelte';
   import { t } from '$lib/i18n/index.svelte';
   import { live } from '$lib/stores/live.svelte';

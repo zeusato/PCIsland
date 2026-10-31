@@ -3,10 +3,12 @@
 pub mod activity;
 pub mod artwork;
 pub mod audio;
+pub mod events;
 pub mod id;
 pub mod paths;
 pub mod settings;
 pub mod storage;
+pub mod supervisor;
 
 /// Activity priority levels (docs/modules/activity-hub.md §4).
 pub mod priority {

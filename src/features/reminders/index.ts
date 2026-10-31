@@ -1,4 +1,4 @@
-import { Bell } from '@lucide/svelte';
+import Bell from '@lucide/svelte/icons/bell';
 import { registerQuickAction } from '$lib/registry/quickActions.svelte';
 import QuickPanel from './views/QuickPanel.svelte';
 

@@ -25,7 +25,7 @@ export function viewFor(activity: Activity): View {
   return bySource[activity.source] ?? (GenericActivity as View);
 }
 
-/** Alerts that need room for buttons (critical activities). */
+/** Alerts that need room for buttons: critical activities and alerts with actions. */
 export function isLargeAlert(a: Activity): boolean {
-  return a.priority >= 100;
+  return a.priority >= 100 || a.actions.length > 0;
 }

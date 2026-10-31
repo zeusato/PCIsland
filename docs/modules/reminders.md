@@ -1,6 +1,6 @@
 # Module: Nhắc việc (`reminders`)
 
-> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P2 (F24), P3 (F25) · Tính năng: F24, F25 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P2 (F24), P3 (F25) · Tính năng: F24, F25 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 
@@ -168,3 +168,4 @@ Scheduler chỉ thức dậy đúng mốc. Hàm `parse` < 1 ms cho câu ≤ 100 
 | Ngày | Thay đổi |
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
+| 2026-10-31 | Toast Windows dự phòng khi island đang ẩn; chỉ phát trạng thái khi có thay đổi; đánh giá lại ngay khi máy thức dậy |

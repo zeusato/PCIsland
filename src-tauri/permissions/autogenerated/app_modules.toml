@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-app-modules"
+description = "Enables the app_modules command without any pre-configured scope."
+commands.allow = ["app_modules"]
+
+[[permission]]
+identifier = "deny-app-modules"
+description = "Denies the app_modules command without any pre-configured scope."
+commands.deny = ["app_modules"]

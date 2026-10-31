@@ -16,6 +16,11 @@ pub enum MusicCmd {
         start_ms: u64,
         autoplay: bool,
     },
+    /// Internet radio or any direct HTTP audio stream.
+    LoadUrl {
+        url: String,
+        autoplay: bool,
+    },
     Play,
     Pause,
     Seek(u64),
@@ -48,6 +53,9 @@ pub struct MusicPlayer {
     events: EventSink,
     loaded: bool,
     ended_reported: bool,
+    /// Last loaded file, so playback can move to a new output device.
+    current: Option<PathBuf>,
+    current_url: Option<String>,
 }
 
 impl MusicPlayer {
@@ -59,11 +67,14 @@ impl MusicPlayer {
             events,
             loaded: false,
             ended_reported: false,
+            current: None,
+            current_url: None,
         }
     }
 
     pub fn handle(&mut self, cmd: MusicCmd) {
         match cmd {
+            MusicCmd::LoadUrl { url, autoplay } => self.load_url(url, autoplay),
             MusicCmd::Load {
                 path,
                 start_ms,
@@ -92,7 +103,69 @@ impl MusicPlayer {
         }
     }
 
+    /// Moves playback to `mixer` (new default device), keeping track, position and state.
+    pub fn reattach(&mut self, mixer: &rodio::mixer::Mixer) {
+        let resume = self.loaded.then(|| {
+            (
+                self.current.clone(),
+                self.position_ms(),
+                !self.sink.is_paused(),
+            )
+        });
+        let volume = self.sink.volume();
+        self.sink.stop();
+        self.sink = Sink::connect_new(mixer);
+        self.sink.set_volume(volume);
+        self.sink.pause();
+        if let Some(url) = self.current_url.clone().filter(|_| resume.is_some()) {
+            let playing = resume.as_ref().is_some_and(|r| r.2);
+            self.load_url(url, playing);
+        } else if let Some((Some(path), pos, playing)) = resume {
+            self.load(path, pos, playing);
+        }
+    }
+
+    fn load_url(&mut self, url: String, autoplay: bool) {
+        self.sink.stop();
+        self.loaded = false;
+        self.current = None;
+        self.current_url = Some(url.clone());
+        let built = super::stream::HttpStream::open(&url).and_then(|(stream, ct)| {
+            let mut builder = Decoder::builder()
+                .with_data(stream)
+                .with_seekable(false)
+                .with_gapless(false);
+            if let Some(hint) = super::stream::hint_for(ct.as_deref()) {
+                builder = builder.with_hint(hint);
+            }
+            builder.build().map_err(|e| e.to_string())
+        });
+        match built {
+            Ok(source) => {
+                self.sink.append(source);
+                if autoplay {
+                    self.sink.play();
+                } else {
+                    self.sink.pause();
+                }
+                self.loaded = true;
+                self.ended_reported = false;
+                (self.events)(MusicEvent::Loaded {
+                    duration_ms: None,
+                    playing: autoplay,
+                    position_ms: 0,
+                });
+            }
+            Err(message) => (self.events)(MusicEvent::Failed {
+                path: PathBuf::from(url),
+                message,
+            }),
+        }
+    }
+
     fn load(&mut self, path: PathBuf, start_ms: u64, autoplay: bool) {
+        self.current_url = None;
+        self.current = Some(path.clone());
         self.sink.stop();
         self.loaded = false;
         let decoded = File::open(&path)

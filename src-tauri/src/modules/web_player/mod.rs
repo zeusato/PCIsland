@@ -26,6 +26,8 @@ const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreen
 pub struct WebPlayerHandle {
     state: Arc<Mutex<WebPlayerSnapshot>>,
     media: MediaHandle,
+    /// Last time (epoch ms) the page reported playing; drives auto-unload.
+    last_playing: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl WebPlayerHandle {
@@ -49,7 +51,11 @@ impl WebPlayerHandle {
     }
 }
 
-pub fn setup(app: &AppHandle, media: MediaHandle) -> WebPlayerHandle {
+pub fn setup(
+    app: &AppHandle,
+    media: MediaHandle,
+    settings: tokio::sync::watch::Receiver<crate::core::settings::Settings>,
+) -> WebPlayerHandle {
     let handle = WebPlayerHandle {
         state: Arc::new(Mutex::new(WebPlayerSnapshot {
             lifecycle: Lifecycle::Closed,
@@ -58,7 +64,9 @@ pub fn setup(app: &AppHandle, media: MediaHandle) -> WebPlayerHandle {
             rev: 0,
         })),
         media: media.clone(),
+        last_playing: Arc::new(std::sync::atomic::AtomicU64::new(0)),
     };
+    spawn_auto_unload(app.clone(), handle.clone(), settings);
     let app_for_control = app.clone();
     media.register_web_control(Arc::new(move |cmd| {
         let action = match cmd {
@@ -219,6 +227,14 @@ pub fn report(
             is_ad: msg.is_ad,
         }),
     };
+    if state
+        .as_ref()
+        .is_some_and(|s| s.status == PlaybackStatus::Playing)
+    {
+        handle
+            .last_playing
+            .store(now_ms(), std::sync::atomic::Ordering::Relaxed);
+    }
     handle.media.update_web_source(state);
     Ok(())
 }
@@ -231,4 +247,75 @@ fn web_data_dir() -> std::path::PathBuf {
     let base =
         std::env::var_os("LOCALAPPDATA").map_or_else(std::env::temp_dir, std::path::PathBuf::from);
     base.join("PCisland").join("WebView2").join("web-player")
+}
+
+/// Destroys a hidden, paused player after `web_player.unload_after_paused_min` to give
+/// its RAM back (docs/modules/web-player.md §3, step 6). 0 disables it.
+fn spawn_auto_unload(
+    app: AppHandle,
+    handle: WebPlayerHandle,
+    settings: tokio::sync::watch::Receiver<crate::core::settings::Settings>,
+) {
+    tauri::async_runtime::spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+            let minutes = u64::from(settings.borrow().web_player.unload_after_paused_min);
+            let hidden = handle.snapshot().lifecycle == Lifecycle::Hidden;
+            let last = handle
+                .last_playing
+                .load(std::sync::atomic::Ordering::Relaxed);
+            if minutes > 0 && hidden && now_ms().saturating_sub(last) > minutes * 60_000 {
+                tracing::info!(module = "web_player", "unloading idle web player");
+                let _ = close(&app, &handle);
+            }
+        }
+    });
+}
+
+/// Back / forward / reload / home inside the player page.
+pub fn navigate(
+    app: &AppHandle,
+    handle: &WebPlayerHandle,
+    action: &str,
+) -> Result<(), crate::ipc::IpcError> {
+    let Some(win) = app.get_webview_window(LABEL) else {
+        return Err(crate::ipc::IpcError::new(
+            "web_player.closed",
+            "player is not open",
+        ));
+    };
+    match action {
+        "back" => win.eval("history.back()")?,
+        "forward" => win.eval("history.forward()")?,
+        "reload" => win.eval("location.reload()")?,
+        "home" => {
+            let site = handle.snapshot().site_id.and_then(|id| sites::find(&id));
+            if let Some(site) = site {
+                win.navigate(
+                    site.home_url
+                        .parse()
+                        .map_err(|_| crate::ipc::IpcError::new("web_player.bad_url", "home"))?,
+                )?;
+            }
+        }
+        other => return Err(crate::ipc::IpcError::new("web_player.bad_action", other)),
+    }
+    Ok(())
+}
+
+/// Signs out of every site: closes the player and deletes its WebView2 profile.
+pub fn clear_data(app: &AppHandle, handle: &WebPlayerHandle) -> Result<(), crate::ipc::IpcError> {
+    close(app, handle)?;
+    let dir = web_data_dir();
+    // WebView2 releases its files shortly after the window is destroyed.
+    for _ in 0..10 {
+        if !dir.exists() || std::fs::remove_dir_all(&dir).is_ok() {
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(300));
+    }
+    Err(crate::ipc::IpcError::new(
+        "web_player.clear_failed",
+        "profile is still in use",
+    ))
 }

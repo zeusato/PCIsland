@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { Pin, PinOff, Trash2, Plus } from '@lucide/svelte';
+  import Pin from '@lucide/svelte/icons/pin';
+  import PinOff from '@lucide/svelte/icons/pin-off';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Plus from '@lucide/svelte/icons/plus';
+  import Download from '@lucide/svelte/icons/download';
+  import { saveMarkdown } from '$lib/ipc/dialog';
   import Card from '$lib/components/Card.svelte';
   import Button from '$lib/components/Button.svelte';
   import { inTauri, noteCommands } from '$lib/ipc/commands';
@@ -40,6 +45,11 @@
     editing = null;
     load();
   }
+  let exported = $state<number | null>(null);
+  async function exportAll() {
+    const dest = await saveMarkdown('pcisland-notes');
+    if (dest) exported = await noteCommands.exportMarkdown(dest);
+  }
   async function remove(id: string) {
     await noteCommands.remove(id);
     if (undo) clearTimeout(undo.timer);
@@ -54,8 +64,10 @@
   <textarea rows="3" placeholder={t('notes.placeholder')} bind:value={draft}></textarea>
   <div class="bar">
     <input placeholder={t('notes.search')} bind:value={search} />
+    <Button variant="ghost" title={t('notes.export')} onclick={exportAll} disabled={!notes.length}><Download size={14} />.md</Button>
     <Button variant="primary" onclick={create} disabled={!draft.trim()}><Plus size={14} />{t('common.add')}</Button>
   </div>
+  {#if exported !== null}<p class="undo">{t('notes.exported', { n: exported })}</p>{/if}
   {#if undo}
     <p class="undo">{t('notes.deleted')} <button onclick={async () => { if (undo) { await noteCommands.restore(undo.id); undo = null; load(); } }}>{t('common.undo')}</button></p>
   {/if}

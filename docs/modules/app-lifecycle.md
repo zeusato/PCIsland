@@ -1,6 +1,6 @@
 # Module: Vòng đời app (`app`)
 
-> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P1 (lõi), P3 (âm báo tùy chỉnh, cập nhật) · Tính năng: F03, F08, F45 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P1 (lõi), P3 (âm báo tùy chỉnh, cập nhật) · Tính năng: F03, F08, F45 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 
@@ -169,3 +169,4 @@ Không có. Q4 đã chốt: giữ phím tắt mặc định, người dùng tự
 | Ngày | Thay đổi |
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
+| 2026-10-31 | Kiểm tra cập nhật từ GitHub Releases (hằng ngày + nút trong Cài đặt); manifest Common-Controls v6 nhúng qua linker (ADR-012); trạng thái module trong Cài đặt |

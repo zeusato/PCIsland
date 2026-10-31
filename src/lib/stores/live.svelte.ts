@@ -52,13 +52,25 @@ export async function startLiveStores(): Promise<void> {
   if (started || !inTauri) return;
   started = true;
   await Promise.all([
-    onIslandState((s) => newer(live.island, s) && (live.island = s)),
+    onIslandState((s) => {
+      if (newer(live.island, s)) live.island = s;
+    }),
     onSettings(applySettings),
-    onTimerState((s) => newer(live.timer, s) && (live.timer = s)),
-    onRemindersState((s) => (live.reminders = s)),
-    onShelfState((s) => (live.shelf = s)),
-    onPlayerState((s) => newer(live.player, s) && (live.player = s)),
-    onLyrics((l) => (live.lyrics = l)),
+    onTimerState((s) => {
+      if (newer(live.timer, s)) live.timer = s;
+    }),
+    onRemindersState((s) => {
+      live.reminders = s;
+    }),
+    onShelfState((s) => {
+      live.shelf = s;
+    }),
+    onPlayerState((s) => {
+      if (newer(live.player, s)) live.player = s;
+    }),
+    onLyrics((l) => {
+      live.lyrics = l;
+    }),
   ]);
   const [island, settings, timer, player, lyrics] = await Promise.all([
     activityCommands.getState(),

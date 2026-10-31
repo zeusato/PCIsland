@@ -1,6 +1,16 @@
 <script lang="ts">
   // Full window shell: title bar, sidebar, hash router (docs/modules/full-window.md).
-  import { Bell, Clock, Globe, House, Minus, Music, NotebookPen, Package, Settings, Square, X } from '@lucide/svelte';
+  import Bell from '@lucide/svelte/icons/bell';
+  import Clock from '@lucide/svelte/icons/clock';
+  import Globe from '@lucide/svelte/icons/globe';
+  import House from '@lucide/svelte/icons/house';
+  import Minus from '@lucide/svelte/icons/minus';
+  import Music from '@lucide/svelte/icons/music';
+  import NotebookPen from '@lucide/svelte/icons/notebook-pen';
+  import Package from '@lucide/svelte/icons/package';
+  import Settings from '@lucide/svelte/icons/settings';
+  import Square from '@lucide/svelte/icons/square';
+  import X from '@lucide/svelte/icons/x';
   import { t } from '$lib/i18n/index.svelte';
   import { inTauri } from '$lib/ipc/commands';
   import { currentWindow } from '$lib/ipc/window';

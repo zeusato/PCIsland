@@ -162,3 +162,69 @@ pub fn local_player_playlist_play(
     player.send(Cmd::PlayTracks(ids, 0));
     Ok(())
 }
+
+#[tauri::command]
+pub fn local_player_stations(player: State<'_, LocalPlayerHandle>) -> Vec<library::Station> {
+    library::stations(&player.db)
+}
+
+#[tauri::command]
+pub fn local_player_station_add(
+    player: State<'_, LocalPlayerHandle>,
+    name: String,
+    url: String,
+) -> IpcResult<Vec<library::Station>> {
+    let url = url.trim().to_owned();
+    if !(url.starts_with("http://") || url.starts_with("https://")) {
+        return Err(IpcError::new("local_player.bad_url", url));
+    }
+    let mut list = library::stations(&player.db);
+    list.push(library::Station {
+        id: crate::core::id::new_id(),
+        name: name.trim().chars().take(80).collect(),
+        url,
+    });
+    library::save_stations(&player.db, &list).map_err(db_err)?;
+    Ok(list)
+}
+
+#[tauri::command]
+pub fn local_player_station_remove(
+    player: State<'_, LocalPlayerHandle>,
+    id: String,
+) -> IpcResult<Vec<library::Station>> {
+    let mut list = library::stations(&player.db);
+    list.retain(|s| s.id != id);
+    library::save_stations(&player.db, &list).map_err(db_err)?;
+    Ok(list)
+}
+
+#[tauri::command]
+pub fn local_player_play_station(
+    player: State<'_, LocalPlayerHandle>,
+    id: String,
+) -> IpcResult<()> {
+    let station = library::stations(&player.db)
+        .into_iter()
+        .find(|s| s.id == id)
+        .ok_or_else(|| IpcError::new("local_player.no_station", id))?;
+    player.send(Cmd::PlayStation(station));
+    Ok(())
+}
+
+#[tauri::command]
+pub fn local_player_playlist_import(
+    player: State<'_, LocalPlayerHandle>,
+    path: String,
+) -> IpcResult<Playlist> {
+    library::import_m3u(&player.db, std::path::Path::new(&path)).map_err(db_err)
+}
+
+#[tauri::command]
+pub fn local_player_playlist_export(
+    player: State<'_, LocalPlayerHandle>,
+    id: String,
+    path: String,
+) -> IpcResult<u32> {
+    library::export_m3u(&player.db, &id, std::path::Path::new(&path)).map_err(db_err)
+}

@@ -15,6 +15,7 @@ use tauri::{
 use tokio::sync::{mpsc, watch};
 
 use crate::core::activity::ActivityHub;
+use crate::core::events::{AppEvent, EventBus};
 use crate::core::priority;
 use crate::core::settings::{IslandSettings, Settings, SettingsHandle};
 use crate::ipc::events;
@@ -24,6 +25,9 @@ use dto::{HitRect, PointerEvent, VisibilityEvent, VisibilityMode};
 use policy::{AlertOverFullscreen, PolicyInput, PolicySettings};
 
 pub const LABEL: &str = "island";
+/// WebView2 flags shared by the island and main windows (same environment, so they must
+/// match). One renderer process for both keeps RAM within budget (docs/02 §13).
+pub const APP_BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --renderer-process-limit=1 --disable-background-networking";
 /// Fixed logical size of the island window (docs/04-design-system.md §5).
 const WINDOW_W: f64 = 480.0;
 const WINDOW_H: f64 = 264.0;
@@ -43,6 +47,8 @@ struct Shared {
     hwnd: RawHwnd,
     /// Window origin in physical screen px, set whenever we move the window.
     origin: Mutex<(i32, i32)>,
+    /// Monitor the island currently sits on.
+    monitor: Mutex<PhysRect>,
     /// Hit regions in physical px relative to the window origin.
     hits: Mutex<Vec<PhysRect>>,
     visibility: Mutex<VisibilityEvent>,
@@ -69,6 +75,10 @@ impl IslandHandle {
             .collect();
         *lock(&self.0.hits) = phys;
         Ok(())
+    }
+
+    pub fn hwnd(&self) -> RawHwnd {
+        self.0.hwnd
     }
 
     pub fn visibility(&self) -> VisibilityEvent {
@@ -103,9 +113,11 @@ pub fn setup(
     app: &AppHandle,
     hub: ActivityHub,
     settings: &SettingsHandle,
+    bus: EventBus,
 ) -> tauri::Result<IslandHandle> {
     let window = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("island.html".into()))
         .title("PCisland")
+        .additional_browser_args(APP_BROWSER_ARGS)
         .inner_size(WINDOW_W, WINDOW_H)
         .transparent(true)
         .decorations(false)
@@ -125,6 +137,7 @@ pub fn setup(
         window: window.clone(),
         hwnd,
         origin: Mutex::new((0, 0)),
+        monitor: Mutex::new(PhysRect::default()),
         hits: Mutex::new(Vec::new()),
         visibility: Mutex::new(VisibilityEvent {
             mode: VisibilityMode::Normal,
@@ -135,7 +148,9 @@ pub fn setup(
         commands: cmd_tx,
         focus_owner: Mutex::new(None),
     });
-    place_on_primary(&shared)?;
+    if let Some(mon) = win::primary_monitor() {
+        place_on(&shared, mon)?;
+    }
     window.show()?;
     win::reassert_topmost(hwnd);
 
@@ -148,25 +163,63 @@ pub fn setup(
         cmd_rx,
         hub,
         settings.subscribe(),
+        bus,
     ));
-    tauri::async_runtime::spawn(cursor_poller(app.clone(), shared.clone()));
+    tauri::async_runtime::spawn(cursor_poller(
+        app.clone(),
+        shared.clone(),
+        settings.subscribe(),
+    ));
 
     Ok(IslandHandle(shared))
 }
 
-/// Centers the window horizontally on the primary monitor, flush with the top of
-/// its work area (docs/modules/island-window.md §5).
-fn place_on_primary(shared: &Shared) -> tauri::Result<()> {
-    let Some(mon) = win::primary_monitor() else {
-        return Ok(());
-    };
+/// Centers the window horizontally on `mon`, flush with the top of its work area
+/// (docs/modules/island-window.md §5).
+fn place_on(shared: &Shared, mon: win::MonitorRects) -> tauri::Result<()> {
     let scale = shared.window.scale_factor()?;
     let width = (WINDOW_W * scale).round() as i32;
     let x = mon.monitor.left + (mon.monitor.width() - width) / 2;
     let y = mon.work_area.top;
     shared.window.set_position(PhysicalPosition::new(x, y))?;
     *lock(&shared.origin) = (x, y);
+    *lock(&shared.monitor) = mon.monitor;
     Ok(())
+}
+
+/// "cursor" mode: move to the monitor under the cursor after it rests there for 1 s.
+/// "primary" mode: return to the primary monitor if we are elsewhere.
+fn follow_monitor(
+    shared: &Shared,
+    mode: &str,
+    cx: i32,
+    cy: i32,
+    since: &mut Option<(PhysRect, std::time::Instant)>,
+) {
+    let current = *lock(&shared.monitor);
+    let target = if mode == "cursor" {
+        win::monitor_at(cx, cy)
+    } else {
+        win::primary_monitor()
+    };
+    let Some(target) = target else { return };
+    if target.monitor == current {
+        *since = None;
+        return;
+    }
+    let wait = if mode == "cursor" {
+        std::time::Duration::from_secs(1)
+    } else {
+        std::time::Duration::ZERO
+    };
+    match since {
+        Some((m, t)) if *m == target.monitor && t.elapsed() >= wait => {
+            let _ = place_on(shared, target);
+            *since = None;
+        }
+        Some((m, _)) if *m == target.monitor => {}
+        _ => *since = Some((target.monitor, std::time::Instant::now())),
+    }
 }
 
 async fn visibility_loop(
@@ -176,8 +229,10 @@ async fn visibility_loop(
     mut commands: mpsc::UnboundedReceiver<Command>,
     hub: ActivityHub,
     mut settings: watch::Receiver<Settings>,
+    bus: EventBus,
 ) {
     let mut top = hub.top();
+    let mut was_locked = false;
     let mut user_hidden = false;
     let mut last_fg = ForegroundState::default();
     let mut tick = tokio::time::interval(RECHECK);
@@ -200,12 +255,18 @@ async fn visibility_loop(
             _ = tick.tick() => {}
         }
         let fg = foreground::foreground_state(shared.hwnd);
+        let locked = crate::platform::foreground::session_locked();
+        if locked != was_locked {
+            was_locked = locked;
+            bus.send(AppEvent::SessionLocked(locked));
+        }
         let info = *top.borrow();
+        let previous_mode = lock(&shared.visibility).mode;
         let policy_settings = policy_settings(&settings.borrow().island);
         let mode = policy::decide(
             PolicyInput {
                 user_hidden,
-                session_locked: crate::platform::foreground::session_locked(),
+                session_locked: locked,
                 fullscreen: fg.fullscreen,
                 maximized: fg.maximized,
                 top_priority: info.priority,
@@ -215,6 +276,9 @@ async fn visibility_loop(
         );
         let has_live = info.priority >= priority::LIVE;
         hub.set_island_hidden(mode == VisibilityMode::Hidden);
+        if (mode == VisibilityMode::Hidden) != (previous_mode == VisibilityMode::Hidden) {
+            bus.send(AppEvent::IslandHidden(mode == VisibilityMode::Hidden));
+        }
         let previous = lock(&shared.visibility).clone();
         if mode == previous.mode && has_live == previous.has_live_activity && fg == last_fg {
             continue;
@@ -250,8 +314,10 @@ fn apply_visibility(
     }
 }
 
-async fn cursor_poller(app: AppHandle, shared: Arc<Shared>) {
+async fn cursor_poller(app: AppHandle, shared: Arc<Shared>, settings: watch::Receiver<Settings>) {
     let mut inside = false;
+    let mut other_monitor_since: Option<(PhysRect, std::time::Instant)> = None;
+    let mut last_gaze = (0i8, 0i8);
     let mut was_pressed = false;
     let mut period = POLL_FAR;
     loop {
@@ -263,16 +329,49 @@ async fn cursor_poller(app: AppHandle, shared: Arc<Shared>) {
         let Some((cx, cy)) = win::cursor_pos() else {
             continue;
         };
+        let (follow, monitor_mode) = {
+            let s = settings.borrow();
+            (
+                s.indicators.eyes_follow_cursor && s.island.idle_display == "eyes",
+                s.island.monitor.clone(),
+            )
+        };
+        follow_monitor(&shared, &monitor_mode, cx, cy, &mut other_monitor_since);
         let (ox, oy) = *lock(&shared.origin);
         let (rx, ry) = (cx - ox, cy - oy);
         let scale = shared.window.scale_factor().unwrap_or(1.0);
+        if follow {
+            // Eyes look toward the cursor within 240 px of the island (docs/04 §11).
+            let (ex, ey) = ((WINDOW_W * scale / 2.0) as i32, (15.0 * scale) as i32);
+            let reach = (240.0 * scale) as i32;
+            let (dx, dy) = (rx - ex, ry - ey);
+            let gaze = if dx.abs() <= reach && dy.abs() <= reach {
+                (
+                    (dx * 100 / reach.max(1)) as i8,
+                    (dy * 100 / reach.max(1)) as i8,
+                )
+            } else {
+                (0, 0)
+            };
+            if gaze != last_gaze {
+                last_gaze = gaze;
+                let _ = app.emit_to(LABEL, "island://gaze", (gaze.0, gaze.1));
+            }
+        }
         let bounds = PhysRect {
             left: -NEAR_MARGIN,
             top: -NEAR_MARGIN,
             right: (WINDOW_W * scale) as i32 + NEAR_MARGIN,
             bottom: (WINDOW_H * scale) as i32 + NEAR_MARGIN,
         };
-        period = if bounds.contains(rx, ry) {
+        let near = if follow { NEAR_MARGIN * 5 } else { NEAR_MARGIN };
+        let wide = PhysRect {
+            left: bounds.left - near + NEAR_MARGIN,
+            top: bounds.top,
+            right: bounds.right + near - NEAR_MARGIN,
+            bottom: bounds.bottom + near - NEAR_MARGIN,
+        };
+        period = if wide.contains(rx, ry) {
             POLL_NEAR
         } else {
             POLL_FAR
@@ -321,14 +420,16 @@ pub fn open_main(app: &AppHandle, route: Option<&str>) -> tauri::Result<()> {
         "main.html{}",
         route.map(|r| format!("#{r}")).unwrap_or_default()
     );
-    WebviewWindowBuilder::new(app, "main", WebviewUrl::App(url.into()))
+    let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::App(url.into()))
         .title("PCisland")
+        .additional_browser_args(APP_BROWSER_ARGS)
         .inner_size(1120.0, 720.0)
         .min_inner_size(960.0, 640.0)
         .decorations(false)
         .background_color(tauri::window::Color(11, 11, 13, 255))
-        .center()
+        .visible(false)
         .build()?;
+    crate::app::main_window::restore_and_track(&window);
     Ok(())
 }
 

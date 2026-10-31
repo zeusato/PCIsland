@@ -642,6 +642,71 @@ mod tests {
                 ),
             ),
             ("tomorrow 9am standup", "Standup", at(31, 9, 0)),
+            // More coverage (≥ 80 cases in total, docs/modules/reminders.md §11)
+            ("gọi lại sau 5 phút", "Gọi lại", at(30, 14, 5)),
+            ("30p nữa họp", "Họp", at(30, 14, 30)),
+            ("uống thuốc sau 2 tiếng", "Uống thuốc", at(30, 16, 0)),
+            ("stretch in 2 hours", "Stretch", at(30, 16, 0)),
+            ("tắt máy trong 10 phút nữa", "Tắt máy", at(30, 14, 10)),
+            ("đón con 17h30", "Đón con", at(30, 17, 30)),
+            ("nấu cơm 18:00", "Nấu cơm", at(30, 18, 0)),
+            ("gửi mail lúc 9 giờ sáng mai", "Gửi mail", at(31, 9, 0)),
+            ("gọi điện 10h tối", "Gọi điện", at(30, 22, 0)),
+            ("ngủ trưa 12h30", "Ngủ trưa", at(31, 12, 30)),
+            ("dậy sớm 5h sáng", "Dậy sớm", at(31, 5, 0)),
+            ("họp 8h", "Họp", at(30, 20, 0)),
+            ("đi chơi 7h tối nay", "Đi chơi", at(30, 19, 0)),
+            ("thứ 7 đi dã ngoại", "Đi dã ngoại", at(31, 9, 0)),
+            (
+                "thứ 4 tuần sau họp",
+                "Họp",
+                Some(
+                    NaiveDate::from_ymd_opt(2026, 11, 4)
+                        .and_then(|d| d.and_hms_opt(9, 0, 0))
+                        .expect("d"),
+                ),
+            ),
+            (
+                "cn đi chùa",
+                "Đi chùa",
+                Some(
+                    NaiveDate::from_ymd_opt(2026, 11, 1)
+                        .and_then(|d| d.and_hms_opt(9, 0, 0))
+                        .expect("d"),
+                ),
+            ),
+            (
+                "20/11 sinh nhật mẹ",
+                "Sinh nhật mẹ",
+                Some(
+                    NaiveDate::from_ymd_opt(2026, 11, 20)
+                        .and_then(|d| d.and_hms_opt(9, 0, 0))
+                        .expect("d"),
+                ),
+            ),
+            (
+                "1/1/2027 đặt vé",
+                "Đặt vé",
+                Some(
+                    NaiveDate::from_ymd_opt(2027, 1, 1)
+                        .and_then(|d| d.and_hms_opt(9, 0, 0))
+                        .expect("d"),
+                ),
+            ),
+            (
+                "ngày 15 trả nợ",
+                "Trả nợ",
+                Some(
+                    NaiveDate::from_ymd_opt(2026, 11, 15)
+                        .and_then(|d| d.and_hms_opt(9, 0, 0))
+                        .expect("d"),
+                ),
+            ),
+            ("hôm nay 20h xem bóng đá", "Xem bóng đá", at(30, 20, 0)),
+            ("today 6pm gym", "Gym", at(30, 18, 0)),
+            ("tomorrow buy milk", "Buy milk", at(31, 9, 0)),
+            ("ngày mai 7h30 họp", "Họp", at(31, 7, 30)),
+            ("mai 2h chiều khám răng", "Khám răng", at(31, 14, 0)),
             // No time
             ("mua sữa", "Mua sữa", None),
             ("nhắc tôi mua sữa", "Mua sữa", None),
@@ -697,6 +762,28 @@ mod tests {
                 "đóng tiền điện ngày 10 hàng tháng",
                 Repeat::Monthly { day: 10 },
                 "Đóng tiền điện",
+            ),
+            (
+                "uống nước mỗi 30 phút",
+                Repeat::Every { minutes: 30 },
+                "Uống nước",
+            ),
+            ("tập thể dục mỗi ngày 7h", Repeat::Daily, "Tập thể dục"),
+            (
+                "họp giao ban thứ 2 hàng tuần",
+                Repeat::Weekly { days: vec![0] },
+                "Họp giao ban",
+            ),
+            ("báo cáo các ngày làm việc 17h", Repeat::Weekdays, "Báo cáo"),
+            (
+                "đóng học phí ngày 5 hàng tháng",
+                Repeat::Monthly { day: 5 },
+                "Đóng học phí",
+            ),
+            (
+                "check mail every 15 min",
+                Repeat::Every { minutes: 15 },
+                "Check mail",
             ),
         ];
         for (input, repeat, title) in cases {

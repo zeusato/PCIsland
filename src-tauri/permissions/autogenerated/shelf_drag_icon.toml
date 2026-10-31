@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-shelf-drag-icon"
+description = "Enables the shelf_drag_icon command without any pre-configured scope."
+commands.allow = ["shelf_drag_icon"]
+
+[[permission]]
+identifier = "deny-shelf-drag-icon"
+description = "Denies the shelf_drag_icon command without any pre-configured scope."
+commands.deny = ["shelf_drag_icon"]

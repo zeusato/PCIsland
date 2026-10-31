@@ -24,6 +24,10 @@ import type { Folder } from './bindings/Folder';
 import type { Playlist } from './bindings/Playlist';
 import type { ScanSummary } from './bindings/ScanSummary';
 import type { LyricsDto } from './bindings/LyricsDto';
+import type { UpdateInfo } from './bindings/UpdateInfo';
+import type { ShortcutError } from './bindings/ShortcutError';
+import type { ModuleState } from './bindings/ModuleState';
+import type { Station } from './bindings/Station';
 
 /** False when the UI runs in a plain browser (e.g. `pnpm dev` preview). */
 export const inTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -34,6 +38,10 @@ export const appCommands = {
   openDataFolder: () => invoke<void>('app_open_data_folder'),
   playSound: (sound: SoundId) => invoke<void>('app_play_sound', { sound }),
   pauseAlerts: (minutes: number | null) => invoke<void>('app_pause_alerts', { minutes }),
+  checkUpdateNow: () => invoke<UpdateInfo | null>('app_check_update_now'),
+  openUrl: (url: string) => invoke<void>('app_open_url', { url }),
+  modules: () => invoke<Record<string, ModuleState>>('app_modules'),
+  shortcutErrors: () => invoke<ShortcutError[]>('app_shortcut_errors'),
 };
 
 export const settingsCommands = {
@@ -56,6 +64,7 @@ export const islandCommands = {
   toggleHidden: () => invoke<VisibilityMode>('island_toggle_hidden'),
   requestFocus: () => invoke<void>('island_request_focus'),
   releaseFocus: () => invoke<void>('island_release_focus'),
+  idleSeconds: () => invoke<number>('island_idle_seconds'),
 };
 
 export const mediaCommands = {
@@ -92,6 +101,8 @@ export const noteCommands = {
   list: (query?: string) => invoke<Note[]>('notes_list', { query: query ?? null }),
   save: (text: string, id?: string) => invoke<Note>('notes_save', { id: id ?? null, text }),
   remove: (id: string) => invoke<void>('notes_delete', { id }),
+  /** Writes all notes to a Markdown file; resolves to the count written. */
+  exportMarkdown: (path: string) => invoke<number>('notes_export', { path }),
   restore: (id: string) => invoke<void>('notes_restore', { id }),
   pin: (id: string | null) => invoke<void>('notes_pin', { id }),
   toggleCheck: (id: string, line: number) => invoke<Note>('notes_toggle_check', { id, line }),
@@ -103,6 +114,7 @@ export const shelfCommands = {
   remove: (id: string) => invoke<void>('shelf_remove', { id }),
   clear: () => invoke<void>('shelf_clear'),
   open: (path: string, reveal = false) => invoke<void>('shelf_open', { path, reveal }),
+  dragIcon: () => invoke<string>('shelf_drag_icon'),
 };
 
 export const playerCommands = {
@@ -122,10 +134,18 @@ export const playerCommands = {
   deletePlaylist: (id: string) => invoke<void>('local_player_playlist_delete', { id }),
   addToPlaylist: (id: string, trackIds: string[]) => invoke<void>('local_player_playlist_add', { id, trackIds }),
   playPlaylist: (id: string) => invoke<void>('local_player_playlist_play', { id }),
+  importPlaylist: (path: string) => invoke<Playlist>('local_player_playlist_import', { path }),
+  exportPlaylist: (id: string, path: string) => invoke<number>('local_player_playlist_export', { id, path }),
+  stations: () => invoke<Station[]>('local_player_stations'),
+  addStation: (name: string, url: string) => invoke<Station[]>('local_player_station_add', { name, url }),
+  removeStation: (id: string) => invoke<Station[]>('local_player_station_remove', { id }),
+  playStation: (id: string) => invoke<void>('local_player_play_station', { id }),
 };
 
 export const lyricsCommands = {
   current: () => invoke<LyricsDto | null>('lyrics_get_current'),
+  /** Shifts the current lyrics by deltaMs; 0 resets the offset. */
+  adjustOffset: (deltaMs: number) => invoke<LyricsDto | null>('lyrics_adjust_offset', { deltaMs }),
 };
 
 export const webPlayerCommands = {
@@ -135,4 +155,6 @@ export const webPlayerCommands = {
   show: () => invoke<void>('web_player_show'),
   hide: () => invoke<void>('web_player_hide'),
   close: () => invoke<void>('web_player_close'),
+  navigate: (action: 'back' | 'forward' | 'reload' | 'home') => invoke<void>('web_player_navigate', { action }),
+  clearData: () => invoke<void>('web_player_clear_data'),
 };

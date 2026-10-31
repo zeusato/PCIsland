@@ -2,8 +2,10 @@
 //! (docs/modules/app-lifecycle.md).
 
 pub mod commands;
+pub mod main_window;
 pub mod shortcuts;
 pub mod tray;
+pub mod update;
 
 use std::path::Path;
 

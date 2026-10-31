@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-visualizer-subscribe"
+description = "Enables the visualizer_subscribe command without any pre-configured scope."
+commands.allow = ["visualizer_subscribe"]
+
+[[permission]]
+identifier = "deny-visualizer-subscribe"
+description = "Denies the visualizer_subscribe command without any pre-configured scope."
+commands.deny = ["visualizer_subscribe"]

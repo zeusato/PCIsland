@@ -14,10 +14,12 @@ use ts_rs::TS;
 
 use crate::core::activity::{Activity, ActivityAction, ActivityHub};
 use crate::core::audio::{AudioEngine, SoundId};
+use crate::core::events::{AppEvent, EventBus, MediaIntent};
 use crate::core::id::new_id;
 use crate::core::priority;
 use crate::core::settings::Settings;
 use crate::core::storage::Db;
+use crate::core::supervisor::{Shared, Supervisor, shared};
 use crate::ipc::{events, now_ms};
 use logic::{Countdown, CountdownState, Phase, Pomodoro, PomodoroConfig, PomodoroRun, Stopwatch};
 
@@ -118,6 +120,8 @@ pub fn setup(
     hub: ActivityHub,
     audio: AudioEngine,
     settings: watch::Receiver<Settings>,
+    bus: EventBus,
+    sup: &Supervisor,
 ) -> TimerHandle {
     let (tx, rx) = mpsc::unbounded_channel();
     let handle = TimerHandle { tx, db: db.clone() };
@@ -149,21 +153,23 @@ pub fn setup(
             Ok(())
         }),
     );
-    let initial: TimerSnapshot = db
-        .kv_get(STATE_KEY)
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default();
-    tauri::async_runtime::spawn(service(
-        app.clone(),
-        rx,
-        Ctx {
-            db,
-            hub,
-            audio,
-            settings,
-        },
-        initial,
-    ));
+    let rx = shared(rx);
+    let app = app.clone();
+    // Restartable: state is reloaded from the database on every (re)start.
+    sup.spawn("timer", move || {
+        let initial: TimerSnapshot = db
+            .kv_get(STATE_KEY)
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
+        let ctx = Ctx {
+            db: db.clone(),
+            hub: hub.clone(),
+            audio: audio.clone(),
+            settings: settings.clone(),
+            bus: bus.clone(),
+        };
+        service(app.clone(), rx.clone(), ctx, initial)
+    });
     handle
 }
 
@@ -172,6 +178,7 @@ struct Ctx {
     hub: ActivityHub,
     audio: AudioEngine,
     settings: watch::Receiver<Settings>,
+    bus: EventBus,
 }
 
 impl Ctx {
@@ -188,22 +195,21 @@ impl Ctx {
     }
     fn ring(&self) {
         let s = self.settings.borrow();
-        self.audio.ring(
-            SoundId::Bell,
-            s.app.sound_volume,
-            Duration::from_secs(u64::from(s.timer.ring_max_sec)),
-        );
+        if let Some(sound) = SoundId::named(&s.app.sound_timer) {
+            self.audio.ring(
+                sound,
+                s.app.sound_volume,
+                Duration::from_secs(u64::from(s.timer.ring_max_sec)),
+            );
+        }
     }
 }
 
-async fn service(
-    app: AppHandle,
-    mut rx: mpsc::UnboundedReceiver<Cmd>,
-    ctx: Ctx,
-    mut s: TimerSnapshot,
-) {
+async fn service(app: AppHandle, rx: Shared<Cmd>, ctx: Ctx, mut s: TimerSnapshot) {
     // Anything that ended while the app was closed rings now.
     let mut dirty = true;
+    let mut events = ctx.bus.subscribe();
+    let mut focus_was = !s.focus_active;
     loop {
         let now = now_ms();
         for t in &mut s.timers {
@@ -217,10 +223,18 @@ async fn service(
         if let Some(p) = s.pomodoro.as_mut() {
             if let Some(end) = p.check(&cfg, now) {
                 record_phase(&ctx.db, &end);
-                let vol = ctx.settings.borrow().app.sound_volume;
-                ctx.audio.play(SoundId::SoftTick, vol);
+                let (sound, vol) = {
+                    let a = &ctx.settings.borrow().app;
+                    (SoundId::named(&a.sound_pomodoro), a.sound_volume)
+                };
+                if let Some(sound) = sound {
+                    ctx.audio.play(sound, vol);
+                }
                 if end.auto_started {
                     ctx.hub.alert(phase_alert(&end).transient(5_000));
+                }
+                if end.next != Phase::Work && ctx.settings.borrow().pomodoro.pause_media_on_break {
+                    ctx.bus.send(AppEvent::MediaIntent(MediaIntent::Pause));
                 }
                 dirty = true;
             }
@@ -230,6 +244,10 @@ async fn service(
                 || (ctx.settings.borrow().pomodoro.focus_with_pomodoro
                     && s.pomodoro.as_ref().is_some_and(Pomodoro::in_work));
             ctx.hub.set_focus(s.focus_active);
+            if focus_was != s.focus_active {
+                focus_was = s.focus_active;
+                ctx.bus.send(AppEvent::FocusModeChanged(s.focus_active));
+            }
             s.rev += 1;
             publish(&app, &ctx, &s, now);
             if let Ok(json) = serde_json::to_string(&s) {
@@ -248,7 +266,9 @@ async fn service(
             Duration::from_millis(d.saturating_sub(now_ms())).min(FALLBACK_CHECK)
         });
         let cmd = tokio::select! {
-            cmd = rx.recv() => match cmd { Some(c) => c, None => return },
+            cmd = async { rx.lock().await.recv().await } => match cmd { Some(c) => c, None => return },
+            // Wake-ups (sleep/resume, clock change) re-check every deadline.
+            Ok(AppEvent::Resumed) = events.recv() => continue,
             () = tokio::time::sleep(sleep) => continue,
         };
         let now = now_ms();
@@ -285,7 +305,16 @@ async fn service(
             Cmd::StopwatchPause => s.stopwatch.pause(now),
             Cmd::StopwatchReset => s.stopwatch = Stopwatch::default(),
             Cmd::StopwatchLap => s.stopwatch.lap(now),
-            Cmd::PomodoroStart => s.pomodoro = Some(Pomodoro::start(&ctx.pomodoro_config(), now)),
+            Cmd::PomodoroStart => {
+                s.pomodoro = Some(Pomodoro::start(&ctx.pomodoro_config(), now));
+                let playlist = ctx.settings.borrow().pomodoro.focus_playlist_id.clone();
+                if !playlist.is_empty() {
+                    ctx.bus
+                        .send(AppEvent::MediaIntent(MediaIntent::PlayLocalPlaylist(
+                            playlist,
+                        )));
+                }
+            }
             Cmd::PomodoroPause => s.pomodoro.iter_mut().for_each(|p| p.pause(now)),
             Cmd::PomodoroResume => s.pomodoro.iter_mut().for_each(|p| p.resume(now)),
             Cmd::PomodoroNext => s.pomodoro.iter_mut().for_each(|p| p.start_waiting(now)),
@@ -333,7 +362,11 @@ fn phase_alert(end: &logic::PhaseEnd) -> Activity {
         "timer:pomodoro-end",
         "pomodoro.phase_end",
         priority::ALERT,
-        serde_json::json!({ "finished": end.finished, "next": end.next, "autoStarted": end.auto_started }),
+        crate::core::activity::payload(&PhaseEndPayload {
+            finished: end.finished,
+            next: end.next,
+            auto_started: end.auto_started,
+        }),
     )
 }
 
@@ -353,7 +386,11 @@ fn publish(app: &AppHandle, ctx: &Ctx, s: &TimerSnapshot, now: u64) {
                 "timer:countdowns",
                 "timer.running",
                 priority::LIVE,
-                serde_json::json!({ "timer": t, "count": active.len(), "all": active }),
+                crate::core::activity::payload(&CountdownsPayload {
+                    timer: (*t).clone(),
+                    count: active.len() as u32,
+                    all: active.iter().map(|c| (*c).clone()).collect(),
+                }),
             )
             .with_actions(vec![
                 ActivityAction::new(
@@ -463,4 +500,23 @@ fn publish(app: &AppHandle, ctx: &Ctx, s: &TimerSnapshot, now: u64) {
     for label in ["island", "main"] {
         let _ = app.emit_to(label, events::TIMER_STATE, s);
     }
+}
+
+#[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct PhaseEndPayload {
+    pub finished: Phase,
+    pub next: Phase,
+    pub auto_started: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct CountdownsPayload {
+    /// The timer ending soonest.
+    pub timer: Countdown,
+    pub count: u32,
+    pub all: Vec<Countdown>,
 }

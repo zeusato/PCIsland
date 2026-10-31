@@ -1,6 +1,6 @@
 # Module: Hẹn giờ, bấm giờ, Pomodoro, Focus (`timer`)
 
-> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P1 (F20, F21), P2 (F22), P3 (F23) · Tính năng: F20–F23 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P1 (F20, F21), P2 (F22), P3 (F23) · Tính năng: F20–F23 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 
@@ -167,3 +167,4 @@ Lệnh nhanh trên island đi qua `activity_invoke`.
 | Ngày | Thay đổi |
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
+| 2026-10-31 | Pomodoro dừng nhạc khi nghỉ và tự phát playlist tập trung (qua `MediaIntent`); bộ đếm đúng sau sleep/resume |

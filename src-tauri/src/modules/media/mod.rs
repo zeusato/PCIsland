@@ -14,8 +14,10 @@ use tokio::sync::{mpsc, watch};
 
 use crate::core::activity::{Activity, ActivityAction, ActivityHub};
 use crate::core::artwork::ArtworkCache;
+use crate::core::events::{AppEvent, EventBus, MediaIntent};
 use crate::core::priority;
 use crate::core::settings::Settings;
+use crate::core::supervisor::{Shared, Supervisor, shared};
 use crate::ipc::{events, now_ms};
 use crate::platform::gsmtc::{self, GsmtcCommand, SessionInfo};
 use dto::{MediaCaps, MediaSnapshot, NowPlayingDto, PlaybackStatus, SourceSummary};
@@ -55,7 +57,7 @@ pub struct MediaHandle {
     input: mpsc::UnboundedSender<Input>,
     snapshot: Arc<Mutex<MediaSnapshot>>,
     controls: Arc<Mutex<HashMap<String, SourceControl>>>,
-    now_playing: watch::Receiver<Option<NowPlayingDto>>,
+    smtc: Arc<Mutex<Option<crate::platform::smtc::AppSmtc>>>,
 }
 
 impl MediaHandle {
@@ -65,10 +67,38 @@ impl MediaHandle {
             .unwrap_or_else(PoisonError::into_inner)
             .clone()
     }
-    /// Current track for consumers such as lyrics (AppEvent::NowPlayingChanged in the design).
-    pub fn subscribe(&self) -> watch::Receiver<Option<NowPlayingDto>> {
-        self.now_playing.clone()
+    /// Registers PCisland's own SMTC on the island window: media keys then reach the
+    /// local and web players. External apps keep their own SMTC sessions.
+    pub fn attach_smtc(&self, window: crate::platform::window::RawHwnd) {
+        use crate::platform::smtc::{AppSmtc, Button};
+        let for_keys = self.clone();
+        match AppSmtc::new(window, move |b| {
+            for_keys.command(match b {
+                Button::PlayPause => MediaCommand::PlayPause,
+                Button::Next => MediaCommand::Next,
+                Button::Previous => MediaCommand::Previous,
+            });
+        }) {
+            Ok(smtc) => *self.smtc.lock().unwrap_or_else(PoisonError::into_inner) = Some(smtc),
+            Err(err) => {
+                tracing::warn!(module = "media", error = %err, "app SMTC unavailable; media keys only reach external apps")
+            }
+        }
     }
+
+    fn update_smtc(&self, np: Option<&NowPlayingDto>) {
+        let guard = self.smtc.lock().unwrap_or_else(PoisonError::into_inner);
+        let Some(smtc) = guard.as_ref() else { return };
+        let own = np.filter(|n| n.source_id == LOCAL_SOURCE_ID || n.source_id == WEB_SOURCE_ID);
+        let _ = smtc.update(own.map(|n| {
+            (
+                n.title.as_str(),
+                n.artist.as_deref(),
+                n.status == PlaybackStatus::Playing,
+            )
+        }));
+    }
+
     pub fn command(&self, cmd: MediaCommand) {
         let _ = self.input.send(Input::Command(cmd));
     }
@@ -98,9 +128,10 @@ pub fn setup(
     artwork: Arc<ArtworkCache>,
     hub: ActivityHub,
     settings: watch::Receiver<Settings>,
+    bus: EventBus,
+    sup: &Supervisor,
 ) -> MediaHandle {
     let (tx, rx) = mpsc::unbounded_channel();
-    let (np_tx, np_rx) = watch::channel(None);
     let forward = tx.clone();
     let gsmtc_tx = gsmtc::spawn(move |sessions| {
         let _ = forward.send(Input::External(sessions));
@@ -113,7 +144,7 @@ pub fn setup(
             rev: 0,
         })),
         controls: Arc::new(Mutex::new(HashMap::new())),
-        now_playing: np_rx,
+        smtc: Arc::new(Mutex::new(None)),
     };
     let for_actions = handle.clone();
     hub.register_handler(
@@ -129,16 +160,31 @@ pub fn setup(
             Ok(())
         }),
     );
-    tauri::async_runtime::spawn(service(
-        app.clone(),
-        handle.clone(),
-        rx,
-        gsmtc_tx,
-        artwork,
-        hub,
-        settings,
-        np_tx,
-    ));
+    // Focus mode asks media to pause through the EventBus.
+    let for_intents = handle.clone();
+    let mut intents = bus.subscribe();
+    tauri::async_runtime::spawn(async move {
+        while let Ok(event) = intents.recv().await {
+            if let AppEvent::MediaIntent(MediaIntent::Pause) = event {
+                for_intents.command(MediaCommand::Pause);
+            }
+        }
+    });
+    let rx = shared(rx);
+    let app = app.clone();
+    let for_service = handle.clone();
+    sup.spawn("media", move || {
+        service(
+            app.clone(),
+            for_service.clone(),
+            rx.clone(),
+            gsmtc_tx.clone(),
+            artwork.clone(),
+            hub.clone(),
+            settings.clone(),
+            bus.clone(),
+        )
+    });
     handle
 }
 
@@ -149,12 +195,12 @@ pub fn setup(
 async fn service(
     app: AppHandle,
     handle: MediaHandle,
-    mut rx: mpsc::UnboundedReceiver<Input>,
+    rx: Shared<Input>,
     gsmtc_tx: std::sync::mpsc::Sender<GsmtcCommand>,
     artwork: Arc<ArtworkCache>,
     hub: ActivityHub,
     settings: watch::Receiver<Settings>,
-    np_tx: watch::Sender<Option<NowPlayingDto>>,
+    bus: EventBus,
 ) {
     let own_exe = std::env::current_exe()
         .ok()
@@ -164,7 +210,7 @@ async fn service(
     let mut current: Option<String> = None;
     let mut pinned: Option<String> = None;
 
-    while let Some(input) = rx.recv().await {
+    while let Some(input) = rx.lock().await.recv().await {
         let now = now_ms();
         match input {
             Input::External(sessions) => {
@@ -239,7 +285,8 @@ async fn service(
             };
             (snap.clone(), previous)
         };
-        np_tx.send_replace(snapshot.now_playing.clone());
+        bus.send(AppEvent::NowPlayingChanged(snapshot.now_playing.clone()));
+        handle.update_smtc(snapshot.now_playing.as_ref());
         publish_activity(
             &hub,
             &snapshot,

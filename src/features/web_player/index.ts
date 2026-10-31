@@ -1,4 +1,4 @@
-import { Globe } from '@lucide/svelte';
+import Globe from '@lucide/svelte/icons/globe';
 import { registerQuickAction } from '$lib/registry/quickActions.svelte';
 import QuickPanel from './views/QuickPanel.svelte';
 

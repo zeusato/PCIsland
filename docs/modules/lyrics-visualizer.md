@@ -1,6 +1,6 @@
 # Module: Lời bài hát & visualizer (`lyrics`, `visualizer`)
 
-> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P3 · Tính năng: F14, F15 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P3 · Tính năng: F14, F15 · Cập nhật: 2026-10-31
 
 Hai module nhỏ cùng "tiêu thụ" `NowPlaying` và không phụ thuộc vào nhau, nên dùng chung một tài liệu.
 
@@ -164,3 +164,4 @@ Không có.
 | Ngày | Thay đổi |
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
+| 2026-10-31 | Lời từ file `.lrc` cạnh bài hát (ưu tiên hơn LRCLIB); chỉnh lệch ±0,5 s ngay trên peek, nhớ theo bài; visualizer thật qua WASAPI loopback (16 dải, chỉ chạy khi có nhạc và island đang hiện) |

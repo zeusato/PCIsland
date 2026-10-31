@@ -1,31 +1,40 @@
 <script lang="ts">
-  // Volume / power / battery alerts and the idle clock (docs/modules/system-indicators.md §4).
+  // Volume / power / battery alerts and the idle screen (docs/modules/system-indicators.md §4).
   import type { Activity } from '$lib/ipc/bindings/Activity';
-  import { BatteryCharging, BatteryLow, BatteryMedium, Volume2, VolumeX, TriangleAlert } from '@lucide/svelte';
+  import BatteryCharging from '@lucide/svelte/icons/battery-charging';
+  import BatteryLow from '@lucide/svelte/icons/battery-low';
+  import BatteryMedium from '@lucide/svelte/icons/battery-medium';
+  import Volume2 from '@lucide/svelte/icons/volume-2';
+  import VolumeX from '@lucide/svelte/icons/volume-x';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import { t } from '$lib/i18n/index.svelte';
+  import { payloadOf } from '$lib/registry/payloads';
   import IdleEyes from './IdleEyes.svelte';
   import IdleClock from './IdleClock.svelte';
 
   let { activity }: { activity: Activity; variant: string } = $props();
-  const p = $derived(activity.payload as Record<string, number | boolean | null>);
+  const idle = $derived(payloadOf(activity, 'indicators.idle'));
+  const volume = $derived(payloadOf(activity, 'indicators.volume'));
+  const power = $derived(payloadOf(activity, 'indicators.power'));
+  const low = $derived(payloadOf(activity, 'indicators.battery_low'));
 </script>
 
-{#if activity.kind === 'indicators.idle'}
-  {#if (activity.payload as { mode: string }).mode === 'clock'}<IdleClock />{:else}<IdleEyes />{/if}
-{:else if activity.kind === 'indicators.volume'}
+{#if idle}
+  {#if idle.mode === 'clock'}<IdleClock />{:else}<IdleEyes />{/if}
+{:else if volume}
   <div class="row">
-    {#if p.muted}<VolumeX size={16} />{:else}<Volume2 size={16} />{/if}
-    <div class="bar"><div class="fill" style:transform={`scaleX(${p.muted ? 0 : (p.level as number)})`}></div></div>
-    <span class="tabular pct">{Math.round((p.level as number) * 100)}</span>
+    {#if volume.muted}<VolumeX size={16} />{:else}<Volume2 size={16} />{/if}
+    <div class="bar"><div class="fill" style:transform={`scaleX(${volume.muted ? 0 : volume.level})`}></div></div>
+    <span class="tabular pct">{Math.round(volume.level * 100)}</span>
   </div>
-{:else if activity.kind === 'indicators.power'}
+{:else if power}
   <div class="row">
-    {#if p.onAc}<BatteryCharging size={16} />{:else}<BatteryMedium size={16} />{/if}
-    <span>{p.onAc ? t('indicators.charging') : t('indicators.onBattery')} · {p.percent}%</span>
+    {#if power.onAc}<BatteryCharging size={16} />{:else}<BatteryMedium size={16} />{/if}
+    <span>{power.onAc ? t('indicators.charging') : t('indicators.onBattery')} · {power.percent}%</span>
   </div>
-{:else if activity.kind === 'indicators.battery_low'}
-  <div class="row warn" class:danger={(p.percent as number) <= 10}>
-    <BatteryLow size={16} /><span>{t('indicators.batteryLow', { n: p.percent as number })}</span>
+{:else if low}
+  <div class="row warn" class:danger={low.percent <= 10}>
+    <BatteryLow size={16} /><span>{t('indicators.batteryLow', { n: low.percent })}</span>
   </div>
 {:else}
   <div class="row"><TriangleAlert size={16} /><span>{t(`alerts.${activity.kind}`)}</span></div>

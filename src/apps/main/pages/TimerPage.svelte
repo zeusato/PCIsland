@@ -1,5 +1,12 @@
 <script lang="ts">
-  import { Play, Pause, X, Plus, RotateCcw, Flag, SkipForward, Square } from '@lucide/svelte';
+  import Play from '@lucide/svelte/icons/play';
+  import Pause from '@lucide/svelte/icons/pause';
+  import X from '@lucide/svelte/icons/x';
+  import Plus from '@lucide/svelte/icons/plus';
+  import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+  import Flag from '@lucide/svelte/icons/flag';
+  import SkipForward from '@lucide/svelte/icons/skip-forward';
+  import Square from '@lucide/svelte/icons/square';
   import Card from '$lib/components/Card.svelte';
   import Button from '$lib/components/Button.svelte';
   import Toggle from '$lib/components/form/Toggle.svelte';

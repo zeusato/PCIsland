@@ -1,4 +1,4 @@
-import { NotebookPen } from '@lucide/svelte';
+import NotebookPen from '@lucide/svelte/icons/notebook-pen';
 import { registerQuickAction } from '$lib/registry/quickActions.svelte';
 import QuickPanel from './views/QuickPanel.svelte';
 

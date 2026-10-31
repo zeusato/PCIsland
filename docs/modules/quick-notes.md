@@ -1,6 +1,6 @@
 # Module: Ghi chú nhanh (`notes`)
 
-> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P3 · Tính năng: F26 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P3 · Tính năng: F26 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 
@@ -104,3 +104,4 @@ Không có.
 | Ngày | Thay đổi |
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
+| 2026-10-31 | Xuất toàn bộ ghi chú ra một file Markdown (checkbox thành task list) |

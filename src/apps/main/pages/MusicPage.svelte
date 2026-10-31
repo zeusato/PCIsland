@@ -1,26 +1,35 @@
 <script lang="ts">
   // Music: now playing, library, playlists, online sites (docs/modules/full-window.md §5).
-  import { FolderPlus, RefreshCw, Play, ListPlus, Trash2, Shuffle, Repeat, Repeat1, FileMusic, Globe } from '@lucide/svelte';
-  import Card from '$lib/components/Card.svelte';
+  import FolderPlus from '@lucide/svelte/icons/folder-plus';
+  import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+  import Play from '@lucide/svelte/icons/play';
+  import ListPlus from '@lucide/svelte/icons/list-plus';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Shuffle from '@lucide/svelte/icons/shuffle';
+  import Repeat from '@lucide/svelte/icons/repeat';
+  import Repeat1 from '@lucide/svelte/icons/repeat-1';
+  import FileMusic from '@lucide/svelte/icons/file-music';
+    import Card from '$lib/components/Card.svelte';
   import Button from '$lib/components/Button.svelte';
-  import { inTauri, playerCommands, webPlayerCommands } from '$lib/ipc/commands';
+  import { inTauri, playerCommands } from '$lib/ipc/commands';
   import { pickAudioFiles, pickFolder } from '$lib/ipc/dialog';
   import type { Track } from '$lib/ipc/bindings/Track';
   import type { Folder } from '$lib/ipc/bindings/Folder';
   import type { Playlist } from '$lib/ipc/bindings/Playlist';
-  import type { SiteDto } from '$lib/ipc/bindings/SiteDto';
   import { live } from '$lib/stores/live.svelte';
   import { formatDuration } from '$lib/format';
   import { t } from '$lib/i18n/index.svelte';
   import MediaPeek from '../../../features/media/views/Peek.svelte';
+  import RadioPanel from '../../../features/local_player/views/RadioPanel.svelte';
+  import WebPlayerPanel from '../../../features/web_player/views/Panel.svelte';
+  import { pickM3u, saveM3u } from '$lib/ipc/dialog';
   import { nowPlaying } from '../../../features/media/store.svelte';
 
-  let tab = $state<'library' | 'playlists' | 'online'>('library');
+  let tab = $state<'library' | 'playlists' | 'radio' | 'online'>('library');
   let search = $state('');
   let tracks = $state<Track[]>([]);
   let folders = $state<Folder[]>([]);
   let playlists = $state<Playlist[]>([]);
-  let sites = $state<SiteDto[]>([]);
   let scanning = $state(false);
   let message = $state('');
   let newPlaylist = $state('');
@@ -30,7 +39,7 @@
 
   async function refresh() {
     if (!inTauri) return;
-    [folders, playlists, sites] = await Promise.all([playerCommands.folders(), playerCommands.playlists(), webPlayerCommands.listSites()]);
+    [folders, playlists] = await Promise.all([playerCommands.folders(), playerCommands.playlists()]);
     tracks = await playerCommands.query(search);
   }
   $effect(() => {
@@ -96,6 +105,7 @@
 <div class="tabs">
   <button class:active={tab === 'library'} onclick={() => (tab = 'library')}>{t('music.library')}</button>
   <button class:active={tab === 'playlists'} onclick={() => (tab = 'playlists')}>{t('music.playlists')}</button>
+  <button class:active={tab === 'radio'} onclick={() => (tab = 'radio')}>{t('radio.title')}</button>
   <button class:active={tab === 'online'} onclick={() => (tab = 'online')}>{t('main.nav.online')}</button>
 </div>
 
@@ -150,12 +160,14 @@
     <div class="new">
       <input placeholder={t('music.newPlaylist')} bind:value={newPlaylist} onkeydown={(e) => e.key === 'Enter' && createPlaylist()} />
       <Button onclick={createPlaylist}>{t('common.create')}</Button>
+      <Button onclick={async () => { const p = await pickM3u(); if (p) { await playerCommands.importPlaylist(p); playlists = await playerCommands.playlists(); } }}>{t('music.importM3u')}</Button>
     </div>
     {#each playlists as p (p.id)}
       <div class="playlist">
         <span>{p.name} <span class="muted">· {t('music.trackCount', { n: p.count })}</span></span>
         <span>
           <Button variant="ghost" onclick={() => playerCommands.playPlaylist(p.id)}><Play size={14} /></Button>
+          <Button variant="ghost" title={t('music.exportM3u')} onclick={async () => { const dest = await saveM3u(p.name); if (dest) await playerCommands.exportPlaylist(p.id, dest); }}>m3u</Button>
           <Button variant="ghost" onclick={async () => { await playerCommands.deletePlaylist(p.id); playlists = await playerCommands.playlists(); }}><Trash2 size={14} /></Button>
         </span>
       </div>
@@ -163,15 +175,10 @@
       <p class="muted">{t('music.noPlaylists')}</p>
     {/each}
   </Card>
+{:else if tab === 'radio'}
+  <Card><RadioPanel /></Card>
 {:else}
-  <Card>
-    <p class="muted">{t('music.onlineHint')}</p>
-    <div class="sites">
-      {#each sites as site (site.id)}
-        <Button onclick={() => webPlayerCommands.open(site.id)}><Globe size={14} />{site.name}</Button>
-      {/each}
-    </div>
-  </Card>
+  <Card><WebPlayerPanel /></Card>
 {/if}
 
 <style>
@@ -297,10 +304,5 @@
     align-items: center;
     padding: var(--sp-3) 0;
     border-bottom: 1px solid var(--c-border);
-  }
-  .sites {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-4);
   }
 </style>

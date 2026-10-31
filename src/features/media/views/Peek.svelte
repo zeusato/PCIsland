@@ -1,9 +1,13 @@
 <script lang="ts">
   import type { NowPlayingDto } from '$lib/ipc/bindings/NowPlayingDto';
-  import { mediaCommands } from '$lib/ipc/commands';
+  import { lyricsCommands, mediaCommands } from '$lib/ipc/commands';
   import { t } from '$lib/i18n/index.svelte';
-  import { Music, Pause, Play, SkipBack, SkipForward } from '@lucide/svelte';
-  import { formatTime, positionAt } from '../store.svelte';
+  import Music from '@lucide/svelte/icons/music';
+  import Pause from '@lucide/svelte/icons/pause';
+  import Play from '@lucide/svelte/icons/play';
+  import SkipBack from '@lucide/svelte/icons/skip-back';
+  import SkipForward from '@lucide/svelte/icons/skip-forward';
+  import { formatTime, media, positionAt } from '../store.svelte';
   import { live } from '$lib/stores/live.svelte';
 
   let { np }: { np: NowPlayingDto } = $props();
@@ -26,12 +30,20 @@
     if (!l?.synced || position === null || !live.settings?.lyrics.enabled) return null;
     let line: string | null = null;
     for (const x of l.lines) {
-      if (x.timeMs <= position) line = x.text;
+      if (x.timeMs + l.offsetMs <= position) line = x.text;
       else break;
     }
     return line;
   });
-  const subtitle = $derived([np.artist, np.appName].filter(Boolean).join(' · '));
+  const subtitle = $derived(np.artist ?? '');
+  // Several players at once: the chip cycles which one the island follows.
+  const sources = $derived(media.snapshot?.sources ?? []);
+  function nextSource() {
+    if (sources.length < 2) return;
+    const i = sources.findIndex((s) => s.sourceId === np.sourceId);
+    const next = sources[(i + 1) % sources.length];
+    if (next) mediaCommands.selectSource(next.sourceId);
+  }
 </script>
 
 <div class="peek">
@@ -43,11 +55,24 @@
     {/if}
     <div class="text">
       <div class="title">{np.isAd ? t('media.peek.ad') : np.title}</div>
-      <div class="subtitle">{subtitle}</div>
+      <div class="subtitle">
+        {#if sources.length > 1}
+          <button class="chip" title={t('media.peek.switchSource')} onclick={nextSource}>{np.appName} · {sources.length}</button>
+        {:else}
+          <span class="app">{np.appName}</span>
+        {/if}
+        {#if subtitle}<span>{subtitle}</span>{/if}
+      </div>
     </div>
   </div>
 
-  {#if lyric}<div class="lyric">{lyric}</div>{/if}
+  {#if lyric}
+    <div class="lyric-row">
+      <button class="nudge" aria-label={t('lyrics.earlier')} title={t('lyrics.earlier')} onclick={() => lyricsCommands.adjustOffset(-500)}>−</button>
+      <div class="lyric">{lyric}</div>
+      <button class="nudge" aria-label={t('lyrics.later')} title={t('lyrics.later')} onclick={() => lyricsCommands.adjustOffset(500)}>+</button>
+    </div>
+  {/if}
 
   {#if progress !== null && position !== null && np.durationMs}
     <div class="progress">
@@ -108,13 +133,55 @@
     text-overflow: ellipsis;
   }
   .subtitle {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
     color: var(--c-text-2);
     font-size: var(--fs-small);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .subtitle > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .app {
+    flex: none;
+    color: var(--c-text-3);
+  }
+  .subtitle .chip {
+    display: inline-flex;
+    flex: none;
+    width: auto;
+    height: 18px;
+    padding: 0 var(--sp-3);
+    border-radius: var(--r-pill);
+    background: var(--c-accent-soft);
+    color: var(--c-accent-bright);
+    font-size: var(--fs-caption);
+  }
+  .lyric-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-width: 0;
+  }
+  .lyric-row .nudge {
+    width: 20px;
+    height: 20px;
+    flex: none;
+    color: var(--c-text-3);
+    font-size: var(--fs-small);
+    opacity: 0;
+    transition: opacity 120ms;
+  }
+  .lyric-row:hover .nudge {
+    opacity: 1;
+  }
   .lyric {
+    flex: 1;
+    min-width: 0;
     color: var(--c-accent-bright);
     font-size: var(--fs-small);
     text-align: center;

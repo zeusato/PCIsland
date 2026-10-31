@@ -1,3 +1,4 @@
+import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import type { VisibilityEvent } from './bindings/VisibilityEvent';
@@ -8,6 +9,7 @@ import type { IslandState } from './bindings/IslandState';
 import type { Settings } from './bindings/Settings';
 import type { TimerSnapshot } from './bindings/TimerSnapshot';
 import type { RemindersSnapshot } from './bindings/RemindersSnapshot';
+import type { ShortcutError } from './bindings/ShortcutError';
 import type { Note } from './bindings/Note';
 import type { ShelfItem } from './bindings/ShelfItem';
 import type { LocalPlayerSnapshot } from './bindings/LocalPlayerSnapshot';
@@ -47,3 +49,14 @@ export function onDragDrop(handler: (e: DragDrop) => void): Promise<UnlistenFn> 
     handler({ type: p.type, x: p.position.x, y: p.position.y, paths });
   });
 }
+
+/** Visualizer frames (16 bands, 0–255), pushed only while the backend captures audio. */
+export function onVisualizerFrame(handler: (bands: number[]) => void): Promise<void> {
+  const channel = new Channel<number[]>();
+  channel.onmessage = handler;
+  return invoke<void>('visualizer_subscribe', { channel });
+}
+
+/** Eye gaze toward the cursor, x/y in -100..100 (only when the setting is on). */
+export const onShortcutErrors = on<ShortcutError[]>('app://shortcut-errors');
+export const onIslandGaze = on<[number, number]>('island://gaze');

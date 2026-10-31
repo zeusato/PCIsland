@@ -1,4 +1,6 @@
-import { Timer, Watch, Brain } from '@lucide/svelte';
+import Timer from '@lucide/svelte/icons/timer';
+  import Watch from '@lucide/svelte/icons/watch';
+  import Brain from '@lucide/svelte/icons/brain';
 import { timerCommands } from '$lib/ipc/commands';
 import { registerQuickAction } from '$lib/registry/quickActions.svelte';
 import QuickPanel from './views/QuickPanel.svelte';

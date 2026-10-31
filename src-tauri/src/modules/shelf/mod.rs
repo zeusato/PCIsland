@@ -28,6 +28,8 @@ pub struct ShelfItem {
     #[ts(type = "number")]
     pub added_at: u64,
     pub missing: bool,
+    /// Shell thumbnail served by the artwork protocol.
+    pub thumbnail_url: Option<String>,
 }
 
 #[derive(Clone)]
@@ -36,6 +38,9 @@ pub struct ShelfHandle {
     hub: ActivityHub,
     app: AppHandle,
     settings: watch::Receiver<Settings>,
+    artwork: std::sync::Arc<crate::core::artwork::ArtworkCache>,
+    /// path → thumbnail URL, computed once per item.
+    thumbs: std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, Option<String>>>>,
 }
 
 pub fn setup(
@@ -43,12 +48,15 @@ pub fn setup(
     db: Db,
     hub: ActivityHub,
     settings: watch::Receiver<Settings>,
+    artwork: std::sync::Arc<crate::core::artwork::ArtworkCache>,
 ) -> ShelfHandle {
     let handle = ShelfHandle {
         db,
         hub: hub.clone(),
         app: app.clone(),
         settings,
+        artwork,
+        thumbs: std::sync::Arc::default(),
     };
     let for_actions = handle.clone();
     hub.register_handler(
@@ -71,12 +79,49 @@ pub fn setup(
 
 impl ShelfHandle {
     fn items(&self) -> Result<Vec<ShelfItem>, StorageError> {
+        let mut items = self.raw_items()?;
+        // Thumbnails are cached per session; compute missing ones once (e.g. after restart).
+        let missing: Vec<String> = {
+            let cache = self
+                .thumbs
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            items
+                .iter()
+                .filter(|i| !cache.contains_key(&i.path))
+                .map(|i| i.path.clone())
+                .collect()
+        };
+        for path in &missing {
+            self.thumbnail(path);
+        }
+        let thumbs = self
+            .thumbs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for item in &mut items {
+            item.thumbnail_url = thumbs.get(&item.path).cloned().flatten();
+        }
+        Ok(items)
+    }
+
+    fn thumbnail(&self, path: &str) {
+        let url = crate::platform::shell::thumbnail(path, 96)
+            .map(|bmp| self.artwork.put(std::sync::Arc::new(bmp)));
+        self.thumbs
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(path.to_owned(), url);
+    }
+
+    fn raw_items(&self) -> Result<Vec<ShelfItem>, StorageError> {
         self.db.call(|c| {
             let mut s = c.prepare("SELECT id, path, name, size, is_dir, added_at FROM shelf_items ORDER BY added_at DESC")?;
             let rows = s.query_map([], |r| {
                 let path: String = r.get(1)?;
                 Ok(ShelfItem {
                     missing: !Path::new(&path).exists(),
+                    thumbnail_url: None,
                     id: r.get(0)?,
                     path,
                     name: r.get(2)?,
@@ -113,6 +158,7 @@ impl ShelfHandle {
                 )
             })?;
             added += 1;
+            self.thumbnail(p);
         }
         self.publish();
         Ok(added)
@@ -147,7 +193,10 @@ impl ShelfHandle {
                     "shelf:items",
                     "shelf.items",
                     priority::AMBIENT,
-                    serde_json::json!({ "count": items.len(), "items": items }),
+                    crate::core::activity::payload(&ShelfPayload {
+                        count: items.len() as u32,
+                        items: items.clone(),
+                    }),
                 )
                 .with_actions(vec![ActivityAction::new(
                     "clear",
@@ -181,7 +230,9 @@ pub fn shelf_add(shelf: State<'_, ShelfHandle>, paths: Vec<String>) -> IpcResult
                 "shelf:dropped",
                 "shelf.dropped",
                 priority::ALERT,
-                serde_json::json!({ "count": added }),
+                crate::core::activity::payload(&crate::modules::reminders::CountPayload {
+                    count: added,
+                }),
             )
             .transient(1_500),
         );
@@ -216,4 +267,23 @@ pub fn shelf_open(path: String, reveal: bool) -> IpcResult<()> {
     cmd.spawn()
         .map(|_| ())
         .map_err(|e| IpcError::new("shelf.open", e.to_string()))
+}
+
+#[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ShelfPayload {
+    pub count: u32,
+    pub items: Vec<ShelfItem>,
+}
+
+/// Preview image shown under the cursor while dragging items out of the shelf.
+#[tauri::command]
+pub fn shelf_drag_icon() -> IpcResult<String> {
+    let path = std::env::temp_dir().join("pcisland-drag.png");
+    if !path.exists() {
+        std::fs::write(&path, include_bytes!("../../../icons/32x32.png"))
+            .map_err(|e| IpcError::new("shelf.drag_icon", e.to_string()))?;
+    }
+    Ok(path.to_string_lossy().into_owned())
 }

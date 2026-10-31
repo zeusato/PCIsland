@@ -1,18 +1,20 @@
 <script lang="ts">
   import type { Activity } from '$lib/ipc/bindings/Activity';
   import type { Reminder } from '$lib/ipc/bindings/Reminder';
-  import { Bell, BellRing } from '@lucide/svelte';
+  import Bell from '@lucide/svelte/icons/bell';
+  import BellRing from '@lucide/svelte/icons/bell-ring';
   import ActionButtons from '$lib/components/ActionButtons.svelte';
+  import { payload, payloadOf } from '$lib/registry/payloads';
   import { formatTime, formatWhen } from '$lib/format';
   import { t } from '$lib/i18n/index.svelte';
 
   let { activity, variant }: { activity: Activity; variant: 'compact' | 'peek' | 'alert' | 'bubble' } = $props();
-  const r = $derived(activity.payload as Reminder);
+  const r: Reminder = $derived(payload(activity, 'reminders.due'));
   const fireAt = $derived(r?.snoozedUntil ?? r?.dueAt ?? 0);
 </script>
 
 {#if activity.kind === 'reminders.missed_summary'}
-  <div class="small"><Bell size={16} /><span>{t('reminders.missed', { n: (activity.payload as { count: number }).count })}</span></div>
+  <div class="small"><Bell size={16} /><span>{t('reminders.missed', { n: payloadOf(activity, 'reminders.missed_summary')?.count ?? 0 })}</span></div>
 {:else if variant === 'bubble'}
   <div class="bubble"><Bell size={14} /></div>
 {:else if variant === 'compact'}

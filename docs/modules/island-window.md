@@ -1,6 +1,6 @@
 # Module: Island window (`island`)
 
-> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P0 (spike), P1 (lõi), P3 (đa màn hình) · Tính năng: F01, F04, F05 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P0 (spike), P1 (lõi), P3 (đa màn hình) · Tính năng: F01, F04, F05 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 
@@ -215,3 +215,4 @@ Không có. Đã chốt: Q1 (đôi mắt khi rảnh), Q2 (luôn hiện, ở màn
 | Ngày | Thay đổi |
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
+| 2026-10-31 | Tùy chọn màn hình "theo chuột" (dừng 1 s mới chuyển); phát sự kiện ánh nhìn cho đôi mắt; phát `IslandHidden`/`SessionLocked` lên EventBus; giảm tiến trình renderer |

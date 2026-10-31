@@ -1,9 +1,12 @@
 <script lang="ts">
   import type { NowPlayingDto } from '$lib/ipc/bindings/NowPlayingDto';
-  import { Music } from '@lucide/svelte';
+  import Music from '@lucide/svelte/icons/music';
+  import { bars, fresh, viz } from '$lib/stores/visualizer.svelte';
 
   let { np }: { np: NowPlayingDto } = $props();
   const playing = $derived(np.status === 'playing');
+  // Real levels while the analyzer runs (F15), CSS waves otherwise.
+  const real = $derived(playing && fresh(viz.at + 1) ? bars(4) : null);
 </script>
 
 <div class="compact">
@@ -13,8 +16,10 @@
     <span class="art placeholder"><Music size={12} /></span>
   {/if}
   <span class="spacer"></span>
-  <span class="bars" class:paused={!playing} aria-hidden="true">
-    <i></i><i></i><i></i><i></i>
+  <span class="bars" class:paused={!playing} class:real={real} aria-hidden="true">
+    {#each [0, 1, 2, 3] as i (i)}
+      <i style:transform={real ? `scaleY(${Math.max(0.15, real[i] ?? 0)})` : undefined}></i>
+    {/each}
   </span>
 </div>
 
@@ -65,6 +70,10 @@
   }
   .bars i:nth-child(4) {
     animation-delay: -150ms;
+  }
+  .bars.real i {
+    animation: none;
+    transition: transform 60ms linear;
   }
   .bars.paused i {
     animation: none;

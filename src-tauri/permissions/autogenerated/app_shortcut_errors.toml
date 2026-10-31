@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-app-shortcut-errors"
+description = "Enables the app_shortcut_errors command without any pre-configured scope."
+commands.allow = ["app_shortcut_errors"]
+
+[[permission]]
+identifier = "deny-app-shortcut-errors"
+description = "Denies the app_shortcut_errors command without any pre-configured scope."
+commands.deny = ["app_shortcut_errors"]
