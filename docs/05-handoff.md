@@ -15,7 +15,7 @@
 | Cập nhật lần cuối | 2026-10-31 |
 | Phase | **P1–P3 đã có code cho phần lớn tính năng**; chưa qua kiểm thử tay, Gate G0 chưa đóng |
 | Phiên bản | 0.0.1 (chưa phát hành) |
-| Code | Nhánh `main`. Commit cuối của chủ dự án: `6e94bb9`; phần P1–P3 **chưa commit** |
+| Code | Nhánh `main`, commit `17a8cc6` (P1–P3) |
 | Kiểm tra | 118 test Rust + 15 test frontend xanh; clippy `-D warnings`, svelte-check, eslint, i18n sạch |
 | Bản build gần nhất | `pnpm tauri dev` chạy OK 2026-10-31 (island, launcher, bấm giờ, cửa sổ đầy đủ đã thử bằng ảnh chụp) |
 | Đang chặn | Không có |
@@ -70,7 +70,7 @@ Theo thứ tự. Đánh dấu `[x]` khi xong và thêm việc mới phát sinh v
 - [~] **P0.6** Spike D đã code (phương án 1 webview); **chờ chủ dự án** đăng nhập và điền test matrix.
 - [ ] **P0.7** Đo bản release; hoàn thiện `docs/reports/g0-poc.md`; họp Gate G0.
 - [x] Commit đầu tiên `506dba9` trên `main`.
-- [ ] Commit phần P1–P3.
+- [x] Commit phần P1–P3 (`17a8cc6`).
 - [ ] Tạo repo GitHub và push (để CI chạy lần đầu).
 - [ ] **Test tay toàn bộ** theo checklist trong từng module doc (đặc biệt: nhắc việc qua sleep, fullscreen, kéo thả file, phát nhạc file, web player 5 trang).
 - [ ] Xử lý nợ kỹ thuật 1–3 ở §2 trước khi làm thêm tính năng.
