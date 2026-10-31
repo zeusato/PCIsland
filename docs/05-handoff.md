@@ -15,7 +15,7 @@
 | Cập nhật lần cuối | 2026-10-31 |
 | Phase | **P0 · Nền móng & PoC**, phần code xong, chờ test tay để đóng Gate G0 |
 | Phiên bản | 0.0.1 (chưa phát hành) |
-| Code | Đã `git init` (nhánh `main`), **chưa commit**. Scaffold + 4 spike chạy được |
+| Code | Nhánh `main`, commit đầu `506dba9`. Scaffold + 4 spike chạy được |
 | Bản build gần nhất | `pnpm tauri dev` chạy OK ngày 2026-10-31; chưa build release |
 | Đang chặn | Không có. Mọi câu hỏi mở đã được chốt |
 
@@ -36,7 +36,8 @@ Theo thứ tự. Đánh dấu `[x]` khi xong và thêm việc mới phát sinh v
 - [~] **P0.5** Spike C đã code; **chờ test tay** với Spotify/Chrome.
 - [~] **P0.6** Spike D đã code (phương án 1 webview); **chờ chủ dự án** đăng nhập và điền test matrix.
 - [ ] **P0.7** Đo bản release; hoàn thiện `docs/reports/g0-poc.md`; họp Gate G0.
-- [ ] Tạo repo GitHub + commit đầu tiên (chờ chủ dự án đồng ý).
+- [x] Commit đầu tiên `506dba9` trên `main`.
+- [ ] Tạo repo GitHub và push (để CI chạy lần đầu).
 
 ## 4. Câu hỏi mở
 
