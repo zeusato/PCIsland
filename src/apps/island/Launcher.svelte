@@ -56,9 +56,10 @@
   {:else}
     <div class="grid">
       {#each quickActions() as action (action.id)}
-        <button class="action" onclick={(e) => { e.stopPropagation(); choose(action); }}>
+        <button class="action" data-state={action.state?.() ?? undefined} aria-pressed={action.state ? !!action.state() : undefined} disabled={action.busy?.() ?? false} onclick={(e) => { e.stopPropagation(); choose(action); }} ondblclick={(event) => event.stopPropagation()}>
           <action.icon size={18} />
           <span>{t(action.labelKey)}</span>
+          {#if action.status}<span class="status">{action.status()}</span>{/if}
         </button>
       {/each}
     </div>
@@ -72,6 +73,7 @@
     gap: var(--sp-5);
     padding: var(--sp-6) var(--sp-7);
     height: 100%;
+    min-height: 0;
   }
   .header {
     display: flex;
@@ -119,4 +121,9 @@
     background: var(--c-surface-3);
     color: var(--c-accent-bright);
   }
+  .action[data-state='active'] { color: var(--c-accent-bright); background: var(--c-accent-soft); box-shadow: inset 0 0 0 1px var(--c-accent); }
+  .action[data-state='break'] { color: var(--c-success); box-shadow: inset 0 0 0 1px var(--c-success); }
+  .action[data-state='paused'] { color: var(--c-warning); box-shadow: inset 0 0 0 1px var(--c-warning); }
+  .status { font-size: var(--fs-caption); }
+  .action:disabled { opacity: 0.5; cursor: default; }
 </style>

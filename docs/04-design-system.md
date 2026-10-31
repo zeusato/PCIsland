@@ -103,6 +103,7 @@ Cột "Bo góc" dưới đây là bán kính 2 góc dưới; ở kiểu nổi th
 | Compact có activity | 160–280 × 32 | 16 | Trái: icon/ảnh bìa 20 px; phải: thông tin ngắn hoặc sóng nhạc |
 | Phần phụ (secondary) | 32 × 32 | 16 | Một "tab" riêng cũng dính mép, cách pill 6 px, nằm bên phải |
 | Peek | 400 × 120–200 | 28 | Chiều cao theo nội dung, tối đa 200 |
+| Peek có điều hướng tính năng (2026-11-01) | 400 × (nội dung + 28) | 28 | Launcher 220 (tổng 248) để đủ ghi chú tương tác; activity tối đa 196; hàng Tính năng / Quay lại tác vụ cao 28; vẫn trong cửa sổ 480×264 |
 | Alert nhỏ | 260 × 40 | 20 | Âm lượng, sạc, đổi bài |
 | Alert lớn | 400 × 112 | 28 | Nhắc việc, hết giờ: có nút hành động |
 

@@ -12,6 +12,7 @@
 
   let { np }: { np: NowPlayingDto } = $props();
   let now = $state(Date.now());
+  let failedArtwork = $state('');
 
   // Progress only ticks while the peek is mounted and the track plays.
   $effect(() => {
@@ -48,8 +49,8 @@
 
 <div class="peek">
   <div class="top">
-    {#if np.artworkUrl}
-      <img class="art" src={np.artworkUrl} alt="" />
+    {#if np.artworkUrl && np.artworkUrl !== failedArtwork}
+      <img class="art" src={np.artworkUrl} alt="" onerror={(event) => failedArtwork = event.currentTarget.getAttribute('src') ?? ''} />
     {:else}
       <span class="art placeholder"><Music size={24} /></span>
     {/if}

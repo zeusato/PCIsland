@@ -77,6 +77,8 @@
   --island-peek-h: 160px;
   --island-minimal-w: 96px;
   --island-minimal-h: 4px;
+  --island-switcher-h: 28px;
+  --media-progress-h: 3px;
 
   /* Idle eyes (docs/04-design-system.md §11) */
   --eye-w: 7px;

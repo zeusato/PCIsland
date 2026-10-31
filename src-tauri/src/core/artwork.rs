@@ -75,7 +75,7 @@ pub fn url(key: &str) -> String {
     format!("http://artwork.localhost/{key}")
 }
 
-fn sniff_mime(bytes: &[u8]) -> &'static str {
+pub(crate) fn sniff_mime(bytes: &[u8]) -> &'static str {
     match bytes {
         [0x89, b'P', b'N', b'G', ..] => "image/png",
         [0xFF, 0xD8, 0xFF, ..] => "image/jpeg",

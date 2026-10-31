@@ -100,6 +100,9 @@
     <SettingRow label={t('settings.hideFullscreen')}>
       <Toggle label={t('settings.hideFullscreen')} checked={s.island.hideInFullscreen} onchange={set('island', 'hideInFullscreen')} />
     </SettingRow>
+    <SettingRow label={t('settings.hideWhileActive')} hint={t('settings.hideWhileActiveHint')}>
+      <Toggle label={t('settings.hideWhileActive')} checked={s.island.hideWhileActive} onchange={set('island', 'hideWhileActive')} />
+    </SettingRow>
     <SettingRow label={t('settings.alertOverFullscreen')}>
       <Select
         label={t('settings.alertOverFullscreen')}

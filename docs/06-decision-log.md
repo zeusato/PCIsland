@@ -203,6 +203,14 @@
 
 ---
 
+## ADR-014 · Giữ island tối giản khi còn tác vụ
+
+- **Ngày:** 2026-11-01 · **Trạng thái:** Accepted theo yêu cầu chủ dự án; thay phần mặc định ẩn tác vụ trong ADR-008.
+- **Bối cảnh:** nhạc/tác vụ đang chạy bị mất island khi vào fullscreen; người dùng muốn luôn theo dõi và dùng tính năng khác ngay trên island.
+- **Quyết định:** thêm `island.hide_while_active = false`. Khi fullscreen hoặc dùng lệnh ẩn, còn activity không phải Idle/alert thì giữ minimal; bật công tắc mới mới cho phép ẩn hẳn. Khóa máy vẫn ẩn. Quy tắc alert fullscreen hiện có được giữ.
+- **Giao diện:** compact media và minimal có tiến trình khi biết thời lượng; peek có nút mở launcher và quay lại tác vụ mà không mở main.
+- **Hệ quả:** settings cũ tự nhận giá trị mặc định false qua serde; không thay lựa chọn hide_in_fullscreen cũ. Không áp dụng cam kết hiển thị trên màn hình khóa/secure desktop.
+
 ## Template
 
 ```markdown

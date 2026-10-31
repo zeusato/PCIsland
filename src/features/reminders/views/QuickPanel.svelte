@@ -24,16 +24,23 @@
       preview = null;
       return;
     }
-    const id = setTimeout(async () => (preview = await reminderCommands.parse(value)), 150);
-    return () => clearTimeout(id);
+    let cancelled = false;
+    preview = null;
+    const id = setTimeout(async () => {
+      const result = await reminderCommands.parse(value);
+      if (!cancelled) preview = result;
+    }, 150);
+    return () => { cancelled = true; clearTimeout(id); };
   });
 
   async function save() {
-    if (!preview?.title || preview.dueAt === null) {
+    if (!text.trim()) return;
+    const parsed = await reminderCommands.parse(text);
+    if (parsed.dueAt === null) {
       error = t('reminders.needTime');
       return;
     }
-    await reminderCommands.create({ title: preview.title, note: null, dueAt: preview.dueAt, repeat: preview.repeat, leadMin: 0 });
+    await reminderCommands.create({ title: parsed.title || t('reminders.defaultTitle'), note: null, dueAt: parsed.dueAt, repeat: parsed.repeat, leadMin: 0 });
     close();
   }
 </script>
@@ -51,7 +58,7 @@
   />
   <div class="preview" class:muted={!preview?.dueAt}>
     {#if preview}
-      <strong>{preview.title || '…'}</strong> ·
+      <strong>{preview.title || t('reminders.defaultTitle')}</strong> ·
       {preview.dueAt ? formatWhen(preview.dueAt) : t('reminders.noTime')}
       {#if preview.repeat.kind !== 'none'} · {t(`reminders.repeat.${preview.repeat.kind}`)}{/if}
     {:else}

@@ -1,0 +1,33 @@
+import { expect, it, vi } from 'vitest';
+import { flushSync, mount, unmount } from 'svelte';
+import { reminderCommands } from '$lib/ipc/commands';
+import RemindersPage from './RemindersPage.svelte';
+
+it('creates a time-only reminder and starts the offset from the click, not the preview', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-11-01T00:00:00Z'));
+  vi.spyOn(reminderCommands, 'parse').mockImplementation(async () => ({ title: '', dueAt: Date.now() + 10000, repeat: { kind: 'none' } }));
+  const create = vi.spyOn(reminderCommands, 'create').mockResolvedValue({ id: 'r1', title: 'Nhắc việc', note: null, dueAt: 0, repeat: { kind: 'none' }, leadMin: 0, snoozedUntil: null, status: 'pending', completedAt: null });
+  const target = document.createElement('div');
+  document.body.append(target);
+  const component = mount(RemindersPage, { target });
+  flushSync();
+  const input = target.querySelector<HTMLInputElement>('input.text');
+  if (!input) throw new Error('reminder input missing');
+  input.value = 'nhắc tao sau 10 giây';
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  flushSync();
+  await vi.advanceTimersByTimeAsync(150);
+  flushSync();
+  const add = [...target.querySelectorAll('button')].find((button) => button.textContent === 'Thêm');
+  expect(add?.disabled).toBe(false);
+  await vi.advanceTimersByTimeAsync(20000);
+  const clickedAt = Date.now();
+  add?.click();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(create).toHaveBeenCalledWith(expect.objectContaining({ title: 'Nhắc việc', dueAt: clickedAt + 10000 }));
+  await unmount(component);
+  target.remove();
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+});

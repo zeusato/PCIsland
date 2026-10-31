@@ -1,6 +1,6 @@
 # Module: Trình phát web (`web_player`)
 
-> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P0 (spike D), P2 · Tính năng: F12 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P0 (spike D), P2 · Tính năng: F12 · Cập nhật: 2026-11-01
 
 ## 1. Mục đích
 
@@ -83,6 +83,7 @@ Danh sách test ở G0 (đã chốt với chủ dự án ngày 2026-10-31): **Zi
 - `permissions`: **chỉ** `allow-web-player-report`.
 - `web_player_report` kiểm tra schema chặt (độ dài chuỗi ≤ 512, URL ảnh phải là `https`), từ chối nếu origin không thuộc trang đang mở.
 - Ảnh bìa từ URL được backend tải về (giới hạn 2 MB, timeout 5 s) rồi đưa vào `ArtworkCache`.
+- Hiện thực từ 2026-11-01: tải bất đồng bộ, chỉ HTTPS (kể cả redirect), tối đa 3 redirect; giới hạn dung lượng cả khi không có Content-Length. Metadata phát ngay với placeholder, sau đó cập nhật URL `http://artwork.localhost/...`. Gộp yêu cầu cùng URL; kết quả tải muộn không được ghi đè bài mới hoặc khôi phục nguồn đã đóng. URL ảnh không bị cắt còn 512 ký tự vì có thể chứa chữ ký dài. Không nới CSP của UI.
 
 **Chính sách điều hướng:**
 - **Popup** (`window.open`, `target=_blank`): domain thuộc `allowed_domains` hoặc nhà cung cấp đăng nhập đã biết của trang (ví dụ `accounts.spotify.com`, `id.zalo.me`) thì mở cửa sổ popup con dùng cùng hồ sơ. Còn lại mở trình duyệt hệ thống. Đã kiểm chứng (2026-11-01): Tauri 2.12 mặc định **chặn** mọi popup, nên phải đặt `on_new_window`. `about:blank` được mở trong app vì Zing (và nhiều luồng OAuth) mở `about:blank` trước rồi mới điều hướng; nếu bị chặn, Zing chuyển cả trang chính sang `about:blank` (màn hình trắng). Popup trong app dùng cửa sổ popup mặc định của WebView2: giữ `window.opener`, không có Tauri IPC. Danh sách nhà cung cấp đăng nhập: `sites::LOGIN_PROVIDERS`.
@@ -187,3 +188,4 @@ Closed ──open(site)──▶ Visible ──thu gọn──▶ Hidden ──t
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Tự tắt khi tạm dừng quá N phút; đổi trang, xóa dữ liệu đăng nhập; toolbar đặt ở tab Nhạc › Online (ADR-013) |
 | 2026-11-01 | Sửa: popup đăng nhập bị chặn (SoundCloud "enable popup windows", Zing màn hình trắng). Thêm `sites::popup_policy` theo §5; `web_player_open` chạy async |
+| 2026-11-01 | Ảnh online tải bất đồng bộ qua ArtworkCache; giới hạn 2 MB/5 s, bảo toàn signed URL, gộp tải và bỏ kết quả cũ. |

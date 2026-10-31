@@ -8,6 +8,7 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig({
   plugins: [svelte()],
   resolve: {
+    conditions: process.env.VITEST ? ['browser'] : undefined,
     alias: { $lib: fileURLToPath(new URL('./src/lib', import.meta.url)) },
   },
   clearScreen: false,

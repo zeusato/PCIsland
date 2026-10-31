@@ -1,6 +1,6 @@
 # Module: Nhắc việc (`reminders`)
 
-> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P2 (F24), P3 (F25) · Tính năng: F24, F25 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P2 (F24), P3 (F25) · Tính năng: F24, F25 · Cập nhật: 2026-11-01
 
 ## 1. Mục đích
 
@@ -19,6 +19,8 @@ Nhắc đúng giờ và **không bao giờ mất nhắc**: tạo nhanh, lặp l�
 - Công việc nhiều bước, dự án, thẻ: không phải app todo.
 
 ## 3. Hành vi & luồng người dùng
+
+Form soạn nhắc việc trên island giữ mở khi rời chuột, kể cả ô trống hoặc mất focus; đóng form thì trở lại quy tắc thu gọn bình thường (cơ chế chung của island).
 
 1. **Tạo nhanh:** launcher › 🔔 Nhắc việc → ô nhập (island xin focus) → gõ "nộp báo cáo 17h" → chip xem trước "Nộp báo cáo · Hôm nay 17:00" → `Enter` lưu, `Esc` hủy.
    - Trước P3 (chưa có NLP): ô nhập tiêu đề + chip giờ nhanh (`+15 phút`, `+1 giờ`, `Chiều nay 17:00`, `Sáng mai 9:00`, Tùy chỉnh…).
@@ -40,6 +42,8 @@ Nhắc đúng giờ và **không bao giờ mất nhắc**: tạo nhanh, lặp l�
 **Hành động nhanh** (launcher): 🔔 Nhắc việc (mở ô nhập).
 
 ## 5. Thiết kế kỹ thuật
+
+**Bổ sung 2026-11-01:** NLP nhận thời gian tương đối theo giây (`sau 10 giây`, `10 giay nua`, `trong 10s`, `in 10 seconds`) cùng giờ/phút đã có. Tiền tố `nhắc tao`/`nhắc tớ` được bỏ khỏi nội dung. Câu chỉ có thời gian dùng tiêu đề i18n mặc định **Nhắc việc / Reminder**. Cả form đầy đủ và quick panel phân tích lại khi lưu để `sau N giây` tính từ lúc tạo, không từ lúc gõ preview; bỏ kết quả preview cũ khi input đã đổi.
 
 **Mô hình:**
 
@@ -169,3 +173,5 @@ Scheduler chỉ thức dậy đúng mốc. Hàm `parse` < 1 ms cho câu ≤ 100 
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Toast Windows dự phòng khi island đang ẩn; chỉ phát trạng thái khi có thay đổi; đánh giá lại ngay khi máy thức dậy |
+| 2026-11-01 | Nhận giây và tiền tố nhắc tao/tớ; tiêu đề mặc định, tính lại mốc tương đối khi tạo, bỏ preview cũ. |
+| 2026-11-01 | Form nhắc việc không tự thu gọn khi rời chuột; kiểm thử tích hợp giữ nội dung sau blur và trở lại thu gọn sau hủy. |

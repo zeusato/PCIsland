@@ -1,6 +1,6 @@
 # Module: Island window (`island`)
 
-> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P0 (spike), P1 (lõi), P3 (đa màn hình) · Tính năng: F01, F04, F05 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P0 (spike), P1 (lõi), P3 (đa màn hình) · Tính năng: F01, F04, F05 · Cập nhật: 2026-11-01
 
 ## 1. Mục đích
 
@@ -21,12 +21,12 @@ Sở hữu cửa sổ island: tạo, đặt vị trí, giữ luôn nổi trên c
 ## 3. Hành vi & luồng người dùng
 
 1. **Lướt chuột qua:** chuột đi ngang island để tới tab trình duyệt. Island giữ compact vì chuột chưa dừng đủ `hover_delay_ms` (250 ms). Click đi xuyên xuống tab bên dưới.
-2. **Hover để xem:** chuột dừng trên pill ≥ 250 ms thì morph sang peek. Chuột rời vùng peek ≥ `collapse_delay_ms` (400 ms) thì thu về compact.
+2. **Hover để xem:** chuột dừng trên pill ≥ 250 ms thì morph sang peek. Chuột rời vùng peek ≥ `collapse_delay_ms` (400 ms) thì thu về compact, trừ khi đang mở một form soạn thảo.
 3. **Click:** click pill thì mở peek và ghim lại, peek không tự thu khi rời chuột. Click ra ngoài, nhấn `Esc` hoặc gọi lại phím tắt thì thu về.
 4. **Mở cửa sổ đầy đủ:** double-click pill hoặc bấm nút ⤢ trong peek mở `main` ở đúng trang của activity đang hiện.
-5. **Xem phim toàn màn hình:** island ẩn hẳn. Có Critical (nhắc việc) thì xử lý theo cài đặt `allow_alert_over_fullscreen`.
+5. **Xem phim toàn màn hình:** còn tác vụ thì mặc định giữ minimal; chỉ ẩn hẳn khi cho phép `hide_while_active` hoặc không còn tác vụ. Có Critical (nhắc việc) thì xử lý theo cài đặt `allow_alert_over_fullscreen`.
 6. **Cửa sổ phóng to và island rảnh:** island thu thành vạch mảnh. Hover vào vạch thì bung lại compact.
-7. **Nhập chữ (ghi chú nhanh, nhắc việc):** island xin focus, người dùng gõ, nhấn `Enter` hoặc `Esc` thì trả focus về app trước đó.
+7. **Nhập chữ (ghi chú mới/sửa, thêm ô tick, nhắc việc):** island xin focus; chừng nào editor còn mở thì rời chuột không thu gọn, kể cả ô trống, đã blur hoặc tạm disabled khi lưu. Kiểm tra editor tại thời điểm hết delay để bảo vệ cả form vừa mở khi timer rời chuột đã chạy. Khi lưu/hủy đóng editor, quy tắc hover bình thường áp dụng lại. Input/textarea/contenteditable được nhận diện chung, không cần từng module đăng ký riêng; checkbox, range, nút và trường readonly/hidden không giữ mở.
 
 ## 4. Activity
 
@@ -39,12 +39,12 @@ Module này không khai báo activity. Nó render những gì hub gửi qua `isl
 | compact | `pointerDwell(≥ hover_delay_ms)` | peek |
 | compact | `click` | peek (pinned) |
 | compact | `doubleClick` | gửi `island_open_main`; giữ compact |
-| peek | `pointerLeave(≥ collapse_delay_ms)` và không pinned | compact |
+| peek | `pointerLeave(≥ collapse_delay_ms)`, không pinned và không mở editor | compact |
 | peek (pinned) | `clickOutside` / `escape` / `hotkeyToggle` | compact |
 | compact, peek | `alertShown` | alert (nhớ trạng thái trước đó) |
 | alert | `alertEnded` | trạng thái trước đó |
 | bất kỳ | `visibility(hidden)` | hidden (giữ trạng thái để khôi phục) |
-| bất kỳ | `visibility(minimal)` và không có activity ≥ Live | minimal |
+| compact, hidden | `visibility(minimal)` từ backend (kể cả có Live) | minimal |
 | minimal | `pointerEnter` / `visibility(normal)` | compact |
 
 Alert lớn (Critical) chặn việc thu về compact cho tới khi người dùng xác nhận.
@@ -105,13 +105,19 @@ y = monitor.work_area.top   // equals monitor.top unless the taskbar is docked a
 | Cài đặt | `hide_in_fullscreen`, `minimal_when_maximized`, `idle_display`, `allow_alert_over_fullscreen` |
 
 **Luật, theo thứ tự ưu tiên:**
-1. `session_locked` hoặc `user_hidden` → `hidden`.
+1. `session_locked` → `hidden`. `user_hidden` → `minimal` nếu còn activity không phải Idle và `hide_while_active = false`; nếu không thì `hidden`.
 2. Fullscreen và `hide_in_fullscreen`:
    - Có Critical và `allow_alert_over_fullscreen ∈ {critical, all}` → `normal` (chỉ hiện alert).
-   - Ngược lại → `hidden`.
+   - Ngược lại, còn activity không phải Idle hoặc alert và `hide_while_active = false` → `minimal`; nếu không thì `hidden`.
 3. `idle_display == "hidden"` và không có activity ≥ Ambient → `hidden` (vẫn giữ vùng hover vô hình ở mép trên để gọi ra).
 4. Cửa sổ phóng to, `minimal_when_maximized` và activity cao nhất < Live → `minimal`.
 5. Còn lại → `normal`.
+
+`island.hide_while_active` mặc định `false` (ADR-014). Công tắc **Cho phép ẩn hẳn khi có tác vụ** trong Cài đặt cho phép hành vi ẩn cũ. Frontend tuân theo minimal từ backend kể cả khi có Live activity; sau khi hover/peek hoặc alert kết thúc phải trở lại minimal.
+
+Ở minimal, vạch 96×4 hiển thị tiến trình của media/countdown/Pomodoro chính nếu có thời lượng. Media compact cũng có thanh tiến trình giữa ảnh bìa và sóng nhạc. Stream không biết thời lượng không hiển thị phần trăm giả.
+
+Peek có hàng điều hướng cao 28 px với nút **Tính năng** khi có activity: mở launcher/panel ngay trên island, giữ tác vụ và nhạc chạy; **Quay lại tác vụ** trở về activity chính. Chiều cao peek tăng thêm 28 px, vẫn nằm trong cửa sổ 480×264. Launcher không còn chỉ dành cho trạng thái rảnh.
 
 Các loại cửa sổ không bao giờ tính là fullscreen/phóng to: desktop (`Progman`, `WorkerW`), taskbar (`Shell_TrayWnd`), chính các cửa sổ của PCisland.
 
@@ -216,3 +222,6 @@ Không có. Đã chốt: Q1 (đôi mắt khi rảnh), Q2 (luôn hiện, ở màn
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Tùy chọn màn hình "theo chuột" (dừng 1 s mới chuyển); phát sự kiện ánh nhìn cho đôi mắt; phát `IslandHidden`/`SessionLocked` lên EventBus; giảm tiến trình renderer |
+| 2026-11-01 | Thêm hide_while_active mặc định false (ADR-014), progress minimal/compact và launcher từ mọi activity; trở lại minimal sau hover/alert. |
+| 2026-11-01 | Launcher cao 220 + hàng điều hướng 28 để xem/tick ghi chú; nút Pomodoro phản ánh trạng thái, toast nằm ngoài nội dung activity để giữ khi activity đổi. |
+| 2026-11-01 | Giữ peek khi rời chuột trong mọi form soạn thảo; test tích hợp ghi chú mới/sửa/thêm ô tick và nhắc việc, gồm ô trống, blur, timeout đang chờ và thu gọn lại sau hủy. |

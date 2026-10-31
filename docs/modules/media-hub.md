@@ -1,6 +1,6 @@
 # Module: Media hub (`media`)
 
-> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P0 (spike C), P1 · Tính năng: F10 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P0 (spike C), P1 · Tính năng: F10 · Cập nhật: 2026-11-01
 
 ## 1. Mục đích
 
@@ -24,6 +24,7 @@ Một điểm duy nhất cho "đang phát gì". Module gom mọi nguồn (app kh
 2. **Đổi bài:** alert nhỏ "▶ Tên bài – Ca sĩ" trong 2,5 s (tắt được).
 3. **Vừa có Spotify vừa có YouTube trên Chrome:** dùng nguồn vừa bắt đầu phát gần nhất. Peek có hàng chip nguồn (icon app) để đổi; chọn tay là ghim nguồn đó.
 4. **Tạm dừng:** sau 30 phút không phát, activity rơi khỏi island.
+   - Compact có thanh tiến trình khi nguồn báo vị trí/thời lượng, nội suy trong frontend; khi tạm dừng thì giữ nguyên. Minimal cũng hiển thị tiến trình. Ảnh tải lỗi dùng icon nhạc thay cho hình ảnh hỏng.
 5. **Bấm ảnh bìa trong peek:** mở `main` tại `#/media`. Nếu nguồn là app ngoài thì có thêm nút "Mở app" (đưa cửa sổ app đó lên trước).
 
 ## 4. Activity
@@ -169,3 +170,4 @@ Không có bảng DB.
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Phát `NowPlayingChanged` qua EventBus; chip chọn nguồn trên peek khi có nhiều trình phát; `MediaIntent::Pause` |
 | 2026-11-01 | Ẩn phiên GSMTC `msedgewebview2` khi web player đang báo qua bridge, tránh trùng nguồn và mất nút next/previous |
+| 2026-11-01 | Tiến trình compact; fallback ảnh hỏng; ảnh nguồn web qua cache nội bộ. |

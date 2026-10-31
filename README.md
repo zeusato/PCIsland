@@ -2,11 +2,21 @@
 
 Dynamic Island cho Windows. Một "hòn đảo" nhỏ nằm giữa mép trên màn hình, luôn nổi trên cùng, khởi động cùng Windows và chạy ngầm. Nó gom các tương tác nhanh vào một chỗ: nhạc (file trên máy, trang nhạc online, app khác), hẹn giờ, Pomodoro, nhắc việc, ghi chú, kệ file và chỉ báo hệ thống.
 
-> **Trạng thái: Phase 0, chưa có code.** Bộ tài liệu thiết kế đã xong. Bắt đầu từ [Handoff](docs/05-handoff.md).
+> **v0.1.0:** đã triển khai các tính năng P1–P3. Một số kịch bản tích hợp Windows và web player còn cần kiểm thử tay; xem [ghi chú phát hành](docs/releases/v0.1.0.md) và [Handoff](docs/05-handoff.md).
+
+## Tải và chạy
+
+Tải từ [GitHub Releases](https://github.com/zeusato/PCIsland/releases/tag/v0.1.0):
+
+- **Bộ cài:** `PCisland-0.1.0-setup.exe`, cài theo tài khoản Windows hiện tại.
+- **Portable:** giải nén `PCisland-0.1.0-portable.zip`, chạy `PCisland.exe`; thư mục `data` cạnh exe giữ dữ liệu portable.
+- Mỗi gói có file `.sha256` để đối chiếu bằng `Get-FileHash <tên-file> -Algorithm SHA256`.
+
+Yêu cầu Windows 11 x64 và Microsoft Edge WebView2 Runtime. Khi nâng cấp, thoát bản cũ từ tray trước; giữ nguyên thư mục `data` nếu dùng portable. Bản v0.x chưa ký số. Nếu SmartScreen hiện cảnh báo, chỉ tiếp tục sau khi kiểm tra nguồn tải và SHA256; chọn **More info → Run anyway** để chạy bản đã kiểm tra.
 
 ## Điểm chính
 
-- **4 trạng thái hiển thị:** thu gọn (compact), mở rộng nhỏ khi hover (peek), cửa sổ đầy đủ (full window). Thêm vạch mảnh (minimal) khi cửa sổ khác đang phóng to, và ẩn hẳn khi có app toàn màn hình.
+- **Các trạng thái hiển thị:** thu gọn (compact), mở rộng khi hover (peek), vạch mảnh (minimal), ẩn (hidden) và cửa sổ đầy đủ. Mặc định còn tác vụ thì giữ island ở minimal khi cần; ẩn hoàn toàn là tùy chọn. Khi đang soạn thảo, rời chuột không làm thu gọn island.
 - **Portable:** một file exe, không cần cài, không cần quyền admin.
 - **Giao diện:** nền đen, neon cam, bo góc, chuyển động spring.
 - **Stack:** Tauri 2 · Rust · Svelte 5 · TypeScript · WebView2 (xem [ADR-001](docs/06-decision-log.md#adr-001--stack-tauri-2--rust--svelte-5)).

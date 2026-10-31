@@ -12,12 +12,12 @@
 
 | Mục | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 2026-10-31 |
+| Cập nhật lần cuối | 2026-11-01 |
 | Phase | **P1–P3 đã code đủ đặc tả** (trừ P4: F32–F34, F40–F44); chưa qua kiểm thử tay, Gate G0 chưa đóng |
-| Phiên bản | 0.0.1 (chưa phát hành) |
+| Phiên bản | 0.1.0 · [GitHub Release](https://github.com/zeusato/PCIsland/releases/tag/v0.1.0) · [ghi chú phát hành](releases/v0.1.0.md) |
 | Code | Nhánh `main` trên https://github.com/zeusato/PCIsland |
-| Kiểm tra | 148 test Rust + 15 test frontend xanh; clippy `-D warnings`, svelte-check, eslint, i18n (234 khóa) sạch |
-| Bản build gần nhất | `pnpm tauri build` 2026-10-31: exe 17,1 MB, bộ cài 4,66 MB, CPU rảnh 0,25%, RAM private 189 MB (vượt ngân sách 150 MB, xem [báo cáo G0](reports/g0-poc.md)) |
+| Kiểm tra | 2026-11-01: 156 test Rust xanh; 33 test frontend xanh (thêm 4 luồng giữ mở editor khi rời chuột); clippy `-D warnings`, fmt, svelte-check, eslint, i18n (260 khóa), frontend build sạch. Chờ chạy tay bản exe mới cho các sửa trong phiên Codex |
+| Bản build gần nhất | 2026-11-01: `pnpm tauri build` v0.1.0; installer 4.913.695 byte, portable ZIP 6.704.723 byte và SHA256 trong `release/`. Exe chuẩn: `src-tauri/target/release/pcisland.exe` (ProductVersion/FileVersion 0.1.0). Đã xóa các exe thử và cache debug (~17,3 GB), giữ dữ liệu app. Số đo bản 2026-10-31: CPU rảnh 0,25%, RAM private 189 MB; chưa đo lại v0.1.0 |
 | Đang chặn | Không có |
 
 **Trạng thái tính năng** (✅ có code + test logic · 🟡 có code, còn thiếu phần trong đặc tả · ⬜ chưa làm):
@@ -73,14 +73,19 @@ Theo thứ tự. Đánh dấu `[x]` khi xong và thêm việc mới phát sinh v
 - [x] Commit phần P1–P3 (`17a8cc6`).
 - [x] Tạo repo GitHub và push: https://github.com/zeusato/PCIsland.
 - [ ] **Test tay toàn bộ** theo checklist trong từng module doc (đặc biệt: nhắc việc qua sleep, fullscreen, kéo thả file, phát nhạc file, web player 5 trang).
+- [ ] Kiểm tra sửa 2026-11-01: thumbnail Zing/YouTube thực; tiến trình compact/minimal; fullscreen và công tắc `hideWhileActive`; từ peek nhạc mở Tính năng → hẹn giờ/ghi chú; “nhắc tao sau 10 giây”; tick/sửa ghi chú cũ dạng `[]`.
+- [ ] Kiểm tra bổ sung: mở Ghi chú thấy bản gần nhất, tick/thêm mục/chọn ghi chú cũ/Tạo mới; Pomodoro đổi màu theo pha, bấm lại pause/resume, toast đúng tùy chọn Focus/nhạc và bộ gõ tiếng Việt trên island.
+- [ ] Hover mở island → soạn ghi chú mới/sửa/thêm ô tick/nhắc việc → rời chuột: editor phải giữ mở và giữ nội dung, kể cả ô trống; hủy rồi rời chuột thì thu lại bình thường.
 - [x] Xử lý nợ kỹ thuật 1–3 ở §2 (ADR-010, ADR-011).
 - [x] Phần còn thiếu theo bảng §2 (SMTC, web player, visualizer, radio, cập nhật, lyrics `.lrc`, toast, xuất `.md`, chip nguồn, âm theo loại, lỗi phím tắt, nhớ cửa sổ).
 - [x] **P0.7 (một phần)** Đo bản release: CPU đạt, RAM chưa đạt.
 - [ ] Giảm RAM WebView2 hoặc ra ADR nới ngân sách (nợ kỹ thuật 5).
-- [ ] Phát hành bản 0.1.0 trên GitHub Releases (bộ cài + portable + SHA256) sau khi test tay.
+- [x] Phát hành v0.1.0 trên GitHub Releases theo yêu cầu trực tiếp của chủ dự án (bộ cài + portable + SHA256); release notes nêu rõ phần test tay còn thiếu, Gate G0 chưa đóng.
 - [ ] P4: mic/cam, theo dõi hệ thống (F32, F34), plugin API (F44).
 
 ## 4. Câu hỏi mở
+
+Quyết định bổ sung của chủ dự án 2026-11-01: khi còn tác vụ mặc định không ẩn hoàn toàn island, có tùy chọn cho phép ẩn (ADR-014); phát hành bản mới nhất lên GitHub sau khi dọn output/cache build. Các giới hạn kiểm thử tay được giữ rõ trong release notes.
 
 | # | Câu hỏi | Đề xuất mặc định | Cần chốt trước | Trạng thái |
 |---|---|---|---|---|
@@ -134,6 +139,10 @@ Sổ rủi ro đầy đủ ở [00 §8](00-vision-scope.md#8-sổ-rủi-ro). Nh�
 | 2026-10-31 | Claude | Hoàn thiện phần còn lại: EventBus + supervisor, payload có kiểu, đa màn hình, glow, SMTC, m3u, radio, visualizer thật, web player tự tắt/xóa dữ liệu, MediaIntent, thumbnail + kéo file ra, biểu cảm mắt, kiểm tra cập nhật, lyrics `.lrc` + chỉnh lệch, toast nhắc việc, xuất ghi chú `.md`, chip nguồn, âm theo loại, lỗi phím tắt, nhớ cửa sổ. ADR-010..013. 148 test Rust | Test tay; giảm RAM |
 | 2026-11-01 | Claude | Sửa lỗi nghiêm trọng: mở cửa sổ đầy đủ từ island làm treo toàn bộ IPC (tạo cửa sổ WebView2 trong command đồng bộ bị deadlock) → `island_open_main`, `web_player_open` chuyển sang async. Kiểm tra bản release qua CDP: 22 command + 8 trang chạy đúng. Thêm favicon rỗng | Test tay |
 | 2026-11-01 | Claude | Mắt chờ về hình gốc (biểu cảm mặc định tắt). Web player: cho phép popup đăng nhập theo chính sách §5 (sửa Zing trắng màn hình, SoundCloud/Google báo chặn popup); bỏ nguồn trùng `msedgewebview2` khi phát YouTube. Đã kiểm qua CDP: popup Google/Zalo hiện đúng, island dừng/phát YouTube được | Chủ dự án thử đăng nhập thật |
+| 2026-11-01 | Codex | Sửa thumbnail online qua cache, tiến trình compact/minimal, tùy chọn ẩn (ADR-014), launcher khi đang phát nhạc, NLP giây, checklist và editor ghi chú. 156 test Rust; dọn cache incremental khi ổ D đầy | Kiểm tra tay bản exe mới theo §3 |
+| 2026-11-01 | Codex | Ghi chú ưu tiên xem/tương tác gần nhất, thêm checklist vào ghi chú hiện tại, Tạo mới riêng; Pomodoro có màu/nhãn trạng thái và toast mô tả phạm vi Focus/cấu hình nhạc. 29 test frontend + 156 Rust xanh | Test tay bản notes-pomodoro, không đóng phiên app cũ tự động |
+| 2026-11-01 | Codex | Giữ island mở khi có editor dù chuột rời vùng: kiểm tra chung input/textarea/contenteditable ngay khi hết collapse delay. 4 test tích hợp cho tạo/sửa ghi chú, thêm checklist và nhắc việc; tổng 33 frontend + 156 Rust xanh | Test tay bản editing với bộ gõ tiếng Việt |
+| 2026-11-01 | Codex | Nâng phiên bản đồng bộ lên 0.1.0, cập nhật README/release notes, build installer + portable + SHA256, dọn ~17,3 GB cache/artifact thử và đưa mã nguồn/gói phát hành lên GitHub theo yêu cầu chủ dự án | Hoàn thiện kiểm thử tay và đo RAM cho bản phát hành |
 
 ## 8. Thuật ngữ
 

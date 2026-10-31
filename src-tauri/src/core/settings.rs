@@ -95,6 +95,7 @@ section!(IslandSettings {
     hover_delay_ms: u32 = 250,
     collapse_delay_ms: u32 = 400,
     hide_in_fullscreen: bool = true,
+    hide_while_active: bool = false,
     minimal_when_maximized: bool = true,
     alert_over_fullscreen: String = "critical".into(),
     reduce_motion: String = "system".into(),

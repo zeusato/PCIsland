@@ -47,9 +47,9 @@ describe('islandMachine', () => {
     expect(s.mode).toBe('peek');
   });
 
-  it('becomes minimal only without a live activity', () => {
+  it('honors backend minimal policy even with a live activity', () => {
     expect(run([{ type: 'visibility', mode: 'minimal', hasLiveActivity: false }]).mode).toBe('minimal');
-    expect(run([{ type: 'visibility', mode: 'minimal', hasLiveActivity: true }]).mode).toBe('compact');
+    expect(run([{ type: 'visibility', mode: 'minimal', hasLiveActivity: true }]).mode).toBe('minimal');
   });
 
   it('wakes from minimal on pointer enter', () => {
@@ -60,5 +60,12 @@ describe('islandMachine', () => {
   it('does not shrink an open peek into minimal', () => {
     const s = run([{ type: 'click' }, { type: 'visibility', mode: 'minimal', hasLiveActivity: false }]);
     expect(s.mode).toBe('peek');
+  });
+
+  it('returns to minimal after hovering, closing a peek, or ending an alert', () => {
+    const minimal = run([{ type: 'visibility', mode: 'minimal', hasLiveActivity: true }]);
+    expect(run([{ type: 'pointerEnter' }, { type: 'pointerLeaveTimeout' }], minimal).mode).toBe('minimal');
+    expect(run([{ type: 'click' }, { type: 'escape' }], minimal).mode).toBe('minimal');
+    expect(run([{ type: 'alertShown', critical: false }, { type: 'alertEnded' }], minimal).mode).toBe('minimal');
   });
 });

@@ -10,6 +10,8 @@
   import Card from '$lib/components/Card.svelte';
   import Button from '$lib/components/Button.svelte';
   import Toggle from '$lib/components/form/Toggle.svelte';
+  import FeedbackToast from '$lib/components/FeedbackToast.svelte';
+  import { controlPomodoro, pomodoroLabel, pomodoroUi } from '../../../features/timer/pomodoro.svelte';
   import { inTauri, timerCommands } from '$lib/ipc/commands';
   import type { Countdown } from '$lib/ipc/bindings/Countdown';
   import type { PomodoroStats } from '$lib/ipc/bindings/PomodoroStats';
@@ -43,6 +45,7 @@
 </script>
 
 <h1>{t('main.nav.timer')}</h1>
+<FeedbackToast />
 
 <Card title={t('timer.title')}>
   <div class="new">
@@ -95,16 +98,16 @@
       <span class="big tabular">{formatDuration(ceilSeconds(pomodoroLeft))}</span>
       <span class="grow">{t(`pomodoro.phase.${timer.pomodoro.phase}`)} · {'●'.repeat(timer.pomodoro.completedWork % 4)}{'○'.repeat(4 - (timer.pomodoro.completedWork % 4))}</span>
       {#if timer.pomodoro.run.kind === 'running'}
-        <Button onclick={() => timerCommands.pomodoro('pause')}><Pause size={14} /></Button>
+        <Button variant={timer.pomodoro.phase === 'work' ? 'primary' : 'success'} disabled={pomodoroUi.busy} title={t('timer.action.pause')} onclick={() => controlPomodoro('pause')}><Pause size={14} />{pomodoroLabel()}</Button>
       {:else if timer.pomodoro.run.kind === 'paused'}
-        <Button onclick={() => timerCommands.pomodoro('resume')}><Play size={14} /></Button>
+        <Button variant="warning" disabled={pomodoroUi.busy} title={t('timer.action.resume')} onclick={() => controlPomodoro('resume')}><Play size={14} />{pomodoroLabel()}</Button>
       {:else}
         <Button variant="primary" onclick={() => timerCommands.pomodoro('next')}><Play size={14} />{t('timer.action.startNext')}</Button>
       {/if}
       <Button variant="ghost" onclick={() => timerCommands.pomodoro('skip')}><SkipForward size={14} /></Button>
       <Button variant="ghost" onclick={() => timerCommands.pomodoro('stop')}><Square size={14} /></Button>
     {:else}
-      <Button variant="primary" onclick={() => timerCommands.pomodoro('start')}><Play size={14} />{t('pomodoro.start')}</Button>
+      <Button variant="primary" disabled={pomodoroUi.busy} onclick={() => controlPomodoro('start')}><Play size={14} />{t('pomodoro.start')}</Button>
       <span class="grow"></span>
     {/if}
   </div>

@@ -1,6 +1,6 @@
 # Module: Hẹn giờ, bấm giờ, Pomodoro, Focus (`timer`)
 
-> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P1 (F20, F21), P2 (F22), P3 (F23) · Tính năng: F20–F23 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P1 (F20, F21), P2 (F22), P3 (F23) · Tính năng: F20–F23 · Cập nhật: 2026-11-01
 
 ## 1. Mục đích
 
@@ -28,6 +28,7 @@ Mọi thứ liên quan tới đếm thời gian: hẹn giờ đếm ngược (nh
 6. **Pomodoro:** Bắt đầu → làm 25 phút (cam) → hết pha: âm `soft-tick` + alert → nghỉ 5 phút (xanh lá) → … → sau 4 lần làm thì nghỉ dài 15 phút. Peek hiện tên pha, chấm chu kỳ `●●○○`, ⏸, Bỏ qua pha, Dừng.
 7. **Focus mode:** bật khi vào pha làm (nếu `focus.with_pomodoro`), hoặc bật tay từ peek/`main`. Trong Focus, alert không quan trọng bị chặn ([activity-hub](activity-hub.md)); island có viền cam mảnh để báo đang Focus.
 8. **Máy sleep 10 phút trong lúc hẹn 5 phút:** khi wake, alert hết giờ hiện ngay, ghi chú "đã hết lúc 14:05".
+9. **Phản hồi Pomodoro:** nút launcher có màu và nhãn theo snapshot backend: cam tập trung, xanh nghỉ, vàng tạm dừng/chờ; bấm lại tạm dừng/tiếp tục hoặc bắt đầu pha đang chờ, không reset phiên. Trang đầy đủ cũng tô màu nút theo pha. Khi bắt đầu, toast 10 giây (đóng sớm được) nêu thời lượng, Focus có bật không, tùy chọn tạm dừng nhạc và playlist nếu có. Focus chỉ lọc cảnh báo thường trên island; timer và cảnh báo Critical vẫn hiện, không đổi thông báo Windows/app khác. Toast sống ngoài nội dung activity để không mất khi activity chính đổi.
 
 ## 4. Activity
 
@@ -160,7 +161,7 @@ Lệnh nhanh trên island đi qua `activity_invoke`.
 
 ## 12. Câu hỏi mở
 
-- Màu pha nghỉ của Pomodoro dùng xanh lá `--c-success` có lạc tông neon cam không? Đề xuất thử trong P2: nghỉ dùng cam nhạt `--c-accent-bright`, viền đứt nét.
+Không có. Nút trạng thái dùng cam khi tập trung, xanh khi nghỉ, vàng khi tạm dừng/chờ; luôn đi kèm nhãn.
 
 ## 13. Lịch sử thay đổi
 
@@ -168,3 +169,4 @@ Lệnh nhanh trên island đi qua `activity_invoke`.
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Pomodoro dừng nhạc khi nghỉ và tự phát playlist tập trung (qua `MediaIntent`); bộ đếm đúng sau sleep/resume |
+| 2026-11-01 | Nút Pomodoro có màu/nhãn theo trạng thái trên launcher/main; thao tác lại không reset phiên; toast bắt đầu nêu đúng phạm vi Focus và tùy chọn nhạc. |

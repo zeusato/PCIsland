@@ -238,6 +238,7 @@ async fn visibility_loop(
     let mut tick = tokio::time::interval(RECHECK);
     loop {
         let mut reason = "recheck";
+        let mut visibility_reply = None;
         tokio::select! {
             Some(()) = foreground_changed.recv() => {
                 reason = "foreground";
@@ -247,7 +248,7 @@ async fn visibility_loop(
                 Command::ToggleHidden(reply) => {
                     user_hidden = !user_hidden;
                     reason = "user";
-                    let _ = reply.send(if user_hidden { VisibilityMode::Hidden } else { VisibilityMode::Normal });
+                    visibility_reply = Some(reply);
                 }
             },
             Ok(()) = top.changed() => reason = "activity",
@@ -275,6 +276,9 @@ async fn visibility_loop(
             policy_settings,
         );
         let has_live = info.priority >= priority::LIVE;
+        if let Some(reply) = visibility_reply {
+            let _ = reply.send(mode);
+        }
         hub.set_island_hidden(mode == VisibilityMode::Hidden);
         if (mode == VisibilityMode::Hidden) != (previous_mode == VisibilityMode::Hidden) {
             bus.send(AppEvent::IslandHidden(mode == VisibilityMode::Hidden));
@@ -436,6 +440,7 @@ pub fn open_main(app: &AppHandle, route: Option<&str>) -> tauri::Result<()> {
 fn policy_settings(s: &IslandSettings) -> PolicySettings {
     PolicySettings {
         hide_in_fullscreen: s.hide_in_fullscreen,
+        hide_while_active: s.hide_while_active,
         minimal_when_maximized: s.minimal_when_maximized,
         hide_when_idle: s.idle_display == "hidden",
         alert_over_fullscreen: match s.alert_over_fullscreen.as_str() {

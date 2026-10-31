@@ -5,6 +5,8 @@
   import { Spring } from 'svelte/motion';
   import Music from '@lucide/svelte/icons/music';
   import Package from '@lucide/svelte/icons/package';
+  import LayoutGrid from '@lucide/svelte/icons/layout-grid';
+  import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import { activityCommands, inTauri, islandCommands, playerCommands, shelfCommands } from '$lib/ipc/commands';
   import { onDragDrop, onIslandHotkey, onIslandPointer, onIslandVisibility } from '$lib/ipc/events';
   import { morphPreset } from '$lib/motion/springs';
@@ -14,13 +16,17 @@
   import { t } from '$lib/i18n/index.svelte';
   import IdleEyes from '../../features/indicators/views/IdleEyes.svelte';
   import Launcher from './Launcher.svelte';
+  import MinimalProgress from './MinimalProgress.svelte';
+  import FeedbackToast from '$lib/components/FeedbackToast.svelte';
   import { flashMood } from '$lib/stores/eyes.svelte';
   import { BUBBLE, geometryFor, hitRects, union, type Content, type Geometry } from './geometry';
   import { initialIslandState, islandMachine, type IslandEvent } from './islandMachine';
+  import { hasEditor } from './editing';
 
   const AUDIO = /\.(mp3|flac|wav|ogg|m4a|aac)$/i;
 
   let ui = $state(initialIslandState);
+  let islandElement: HTMLDivElement | undefined = $state();
   const dispatch = (event: IslandEvent) => (ui = islandMachine(ui, event));
 
   const hub = $derived(live.island);
@@ -29,6 +35,13 @@
   const alert = $derived(hub?.alert ?? null);
   const idle = $derived(!primary || primary.kind === 'indicators.idle');
   let launcherInitial = $state<string | null>(null);
+  let launcherOpen = $state(false);
+  $effect(() => {
+    if (ui.mode === 'compact' || ui.mode === 'minimal' || ui.mode === 'hidden') {
+      launcherOpen = false;
+      launcherInitial = null;
+    }
+  });
   let dragging = $state(false);
   let dropSide = $state<'left' | 'right' | null>(null);
   let dropPaths = $state<string[]>([]);
@@ -49,7 +62,7 @@
       ? 'drop'
       : ui.mode === 'alert' && alert
         ? isLargeAlert(alert) ? 'alert-large' : 'alert-small'
-        : ui.mode === 'peek' && (idle || launcherInitial)
+        : ui.mode === 'peek' && (idle || launcherOpen || launcherInitial)
           ? 'launcher'
           : idle
             ? 'idle'
@@ -94,7 +107,8 @@
   function onLeave() {
     clearTimeout(timer);
     timer = setTimeout(() => {
-      if (!launcherInitial) dispatch({ type: 'pointerLeaveTimeout' });
+      // Check when the delay expires: an editor may have opened after pointerleave.
+      if (!launcherInitial && !hasEditor(islandElement)) dispatch({ type: 'pointerLeaveTimeout' });
     }, collapseDelay);
   }
   function onClick() {
@@ -107,8 +121,16 @@
   function closeLauncherPanel() {
     if (launcherInitial) {
       launcherInitial = null;
-      dispatch({ type: 'escape' });
+      launcherOpen = true;
     }
+  }
+
+  function toggleLauncher(event: MouseEvent) {
+    event.stopPropagation();
+    const open = content !== 'launcher';
+    launcherInitial = null;
+    launcherOpen = open;
+    dispatch({ type: 'click' });
   }
 
   $effect(() => {
@@ -162,6 +184,7 @@
 </script>
 
 <div
+  bind:this={islandElement}
   class="island"
   class:live={live_ && !critical}
   class:critical
@@ -180,8 +203,10 @@
   onkeydown={() => {}}
 >
   {#key contentKey}
-    <div class="content" in:contentIn out:contentOut>
-      {#if content === 'drop'}
+    <div class="content" class:withSwitcher={ui.mode === 'peek' && !dragging} in:contentIn out:contentOut>
+      {#if ui.mode === 'hidden'}
+        <span></span>
+      {:else if content === 'drop'}
         <div class="drop">
           {#if dropHasAudio}
             <div class="zone" class:active={dropSide === 'left'}><Music size={18} />{t('island.drop.play')}</div>
@@ -191,7 +216,7 @@
       {:else if content === 'launcher'}
         <Launcher initial={launcherInitial} onclose={closeLauncherPanel} />
       {:else if ui.mode === 'minimal'}
-        <span></span>
+        <MinimalProgress activity={primary} />
       {:else if shown}
         {@const View = viewFor(shown)}
         <View activity={shown} {variant} />
@@ -203,6 +228,13 @@
       {/if}
     </div>
   {/key}
+  {#if ui.mode === 'peek' && !dragging && !idle}
+    <button class="switcher" onclick={toggleLauncher} ondblclick={(event) => event.stopPropagation()} aria-label={t(content === 'launcher' ? 'island.backToActivity' : 'island.features')}>
+      {#if content === 'launcher'}<ChevronLeft size={14} />{:else}<LayoutGrid size={14} />{/if}
+      {t(content === 'launcher' ? 'island.backToActivity' : 'island.features')}
+    </button>
+  {/if}
+  {#if ui.mode === 'peek'}<FeedbackToast floating />{/if}
 </div>
 
 {#if showBubble && secondary}
@@ -284,6 +316,24 @@
     border-radius: inherit;
     display: grid;
   }
+  .content.withSwitcher { top: var(--island-switcher-h); }
+  .switcher {
+    position: absolute;
+    top: var(--sp-2);
+    right: var(--sp-6);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    height: var(--sp-8);
+    padding: 0 var(--sp-4);
+    border: 0;
+    border-radius: var(--r-control);
+    background: var(--c-surface-2);
+    color: var(--c-text-2);
+    font-size: var(--fs-caption);
+    cursor: pointer;
+  }
+  .switcher:hover { color: var(--c-accent-bright); background: var(--c-surface-3); }
   .more {
     position: absolute;
     top: var(--sp-4);

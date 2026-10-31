@@ -15,6 +15,7 @@ pub enum AlertOverFullscreen {
 #[derive(Debug, Clone, Copy)]
 pub struct PolicySettings {
     pub hide_in_fullscreen: bool,
+    pub hide_while_active: bool,
     pub minimal_when_maximized: bool,
     /// `island.idle_display == "hidden"`.
     pub hide_when_idle: bool,
@@ -25,6 +26,7 @@ impl Default for PolicySettings {
     fn default() -> Self {
         Self {
             hide_in_fullscreen: true,
+            hide_while_active: false,
             minimal_when_maximized: true,
             hide_when_idle: false,
             alert_over_fullscreen: AlertOverFullscreen::Critical,
@@ -45,8 +47,17 @@ pub struct PolicyInput {
 }
 
 pub fn decide(input: PolicyInput, settings: PolicySettings) -> VisibilityMode {
-    if input.session_locked || input.user_hidden {
+    if input.session_locked {
         return VisibilityMode::Hidden;
+    }
+    let keep_visible =
+        !settings.hide_while_active && (input.top_priority > priority::IDLE || input.has_alert);
+    if input.user_hidden {
+        return if keep_visible {
+            VisibilityMode::Minimal
+        } else {
+            VisibilityMode::Hidden
+        };
     }
     if input.fullscreen && settings.hide_in_fullscreen {
         let critical = input.top_priority >= priority::CRITICAL;
@@ -57,6 +68,8 @@ pub fn decide(input: PolicyInput, settings: PolicySettings) -> VisibilityMode {
         };
         return if show {
             VisibilityMode::Normal
+        } else if keep_visible {
+            VisibilityMode::Minimal
         } else {
             VisibilityMode::Hidden
         };
@@ -85,7 +98,7 @@ mod tests {
     }
 
     #[test]
-    fn locked_or_user_hidden_always_wins() {
+    fn lock_hides_but_manual_hide_keeps_active_work_minimal_by_default() {
         let s = PolicySettings::default();
         let critical = PolicyInput {
             top_priority: priority::CRITICAL,
@@ -109,12 +122,12 @@ mod tests {
                 },
                 s
             ),
-            Hidden
+            Minimal
         );
     }
 
     #[test]
-    fn fullscreen_hides_unless_critical_is_allowed() {
+    fn fullscreen_keeps_active_work_visible_unless_explicitly_allowed_to_hide() {
         let s = PolicySettings::default();
         let fs = PolicyInput {
             fullscreen: true,
@@ -129,7 +142,7 @@ mod tests {
                 },
                 s
             ),
-            Hidden
+            Minimal
         );
         assert_eq!(
             decide(
@@ -139,7 +152,7 @@ mod tests {
                 },
                 s
             ),
-            Hidden
+            Minimal
         );
         assert_eq!(
             decide(
@@ -161,6 +174,7 @@ mod tests {
             ..base()
         };
         let never = PolicySettings {
+            hide_while_active: true,
             alert_over_fullscreen: AlertOverFullscreen::Never,
             ..Default::default()
         };
@@ -268,5 +282,39 @@ mod tests {
             ..base()
         };
         assert_eq!(decide(both, s), Hidden);
+    }
+
+    #[test]
+    fn every_non_idle_activity_stays_visible_and_hiding_is_opt_in() {
+        for priority in [
+            priority::AMBIENT,
+            priority::MEDIA,
+            priority::LIVE,
+            priority::CRITICAL,
+        ] {
+            for user_hidden in [false, true] {
+                let input = PolicyInput {
+                    fullscreen: true,
+                    user_hidden,
+                    top_priority: priority,
+                    ..base()
+                };
+                let settings = PolicySettings {
+                    alert_over_fullscreen: AlertOverFullscreen::Never,
+                    ..Default::default()
+                };
+                assert_eq!(decide(input, settings), Minimal);
+                assert_eq!(
+                    decide(
+                        input,
+                        PolicySettings {
+                            hide_while_active: true,
+                            ..settings
+                        }
+                    ),
+                    Hidden
+                );
+            }
+        }
     }
 }

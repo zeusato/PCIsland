@@ -8,15 +8,16 @@
 
   let { activity, variant }: { activity: Activity; variant: 'compact' | 'peek' | 'alert' | 'bubble' } = $props();
   const np: NowPlayingDto = $derived(payload(activity, 'media.now_playing'));
+  let failedArtwork = $state('');
 </script>
 
 {#if variant === 'bubble'}
   <div class="bubble" class:playing={np.status === 'playing'}>
-    {#if np.artworkUrl}<img src={np.artworkUrl} alt="" />{:else}<Music size={14} />{/if}
+    {#if np.artworkUrl && np.artworkUrl !== failedArtwork}<img src={np.artworkUrl} alt="" onerror={(event) => failedArtwork = event.currentTarget.getAttribute('src') ?? ''} />{:else}<Music size={14} />{/if}
   </div>
 {:else if variant === 'alert'}
   <div class="alert">
-    {#if np.artworkUrl}<img src={np.artworkUrl} alt="" />{:else}<Music size={14} />{/if}
+    {#if np.artworkUrl && np.artworkUrl !== failedArtwork}<img src={np.artworkUrl} alt="" onerror={(event) => failedArtwork = event.currentTarget.getAttribute('src') ?? ''} />{:else}<Music size={14} />{/if}
     <span class="title">{np.title}{#if np.artist} – {np.artist}{/if}</span>
   </div>
 {:else if variant === 'compact'}

@@ -7,10 +7,10 @@
   import { payload } from '$lib/registry/payloads';
   import { noteCommands } from '$lib/ipc/commands';
   import { t } from '$lib/i18n/index.svelte';
+  import NoteBody from './NoteBody.svelte';
 
   let { activity, variant }: { activity: Activity; variant: string } = $props();
   const note: Note = $derived(payload(activity, 'notes.pinned'));
-  const lines = $derived(note?.text?.split('\n').slice(0, 6) ?? []);
 </script>
 
 {#if activity.kind === 'notes.saved'}
@@ -19,16 +19,7 @@
   <div class="row compact"><Pin size={14} /><span class="snippet">{note.text.split('\n')[0]?.slice(0, 24)}</span></div>
 {:else}
   <div class="peek">
-    {#each lines as line, i (i)}
-      {@const check = line.trimStart().match(/^\[( |x)\]\s?(.*)$/)}
-      {#if check}
-        <button class="check" class:done={check[1] === 'x'} onclick={(e) => { e.stopPropagation(); noteCommands.toggleCheck(note.id, i); }}>
-          <span class="box">{check[1] === 'x' ? '✓' : ''}</span>{check[2]}
-        </button>
-      {:else}
-        <p>{line}</p>
-      {/if}
-    {/each}
+    <NoteBody text={note.text} limit={6} ontoggle={(line) => noteCommands.toggleCheck(note.id, line)} />
     <ActionButtons {activity} />
   </div>
 {/if}
@@ -59,35 +50,5 @@
     padding: var(--sp-6) var(--sp-7);
     font-size: var(--fs-body-island);
     overflow: hidden;
-  }
-  p {
-    margin: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .check {
-    display: flex;
-    gap: var(--sp-4);
-    align-items: center;
-    border: 0;
-    background: none;
-    padding: 0;
-    cursor: pointer;
-    text-align: left;
-  }
-  .box {
-    display: grid;
-    place-items: center;
-    width: 14px;
-    height: 14px;
-    border: 1px solid var(--c-border-strong);
-    border-radius: 4px;
-    font-size: 10px;
-    color: var(--c-accent);
-  }
-  .done {
-    color: var(--c-text-3);
-    text-decoration: line-through;
   }
 </style>

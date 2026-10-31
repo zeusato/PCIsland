@@ -94,7 +94,8 @@ pub fn run() {
                 bus.clone(),
                 &sup,
             );
-            let web = web_player::setup(handle, media.clone(), settings.subscribe());
+            let web =
+                web_player::setup(handle, media.clone(), artwork.clone(), settings.subscribe());
             let timers = timer::setup(
                 handle,
                 db.clone(),

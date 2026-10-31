@@ -1,10 +1,10 @@
 # Module: Ghi chú nhanh (`notes`)
 
-> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P3 · Tính năng: F26 · Cập nhật: 2026-10-31
+> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P3 · Tính năng: F26 · Cập nhật: 2026-11-01
 
 ## 1. Mục đích
 
-Ghi lại một ý trong 3 giây mà không phải mở app nào: bấm phím tắt hoặc launcher, gõ, `Enter`. Có thể ghim một ghi chú lên island để luôn nhìn thấy, và đổi một ghi chú thành nhắc việc.
+Ưu tiên xem và tương tác với ghi chú đã lưu ngay trên island: mở ghi chú gần nhất, tick checklist, thêm mục; có nút Tạo mới riêng. Có thể ghim một ghi chú lên island để luôn nhìn thấy, và đổi một ghi chú thành nhắc việc.
 
 ## 2. Phạm vi
 
@@ -18,7 +18,7 @@ Ghi lại một ý trong 3 giây mà không phải mở app nào: bấm phím t�
 
 ## 3. Hành vi & luồng người dùng
 
-1. **Ghi nhanh:** `Ctrl+Alt+N` hoặc launcher › 📝 → island bung peek có ô nhập (island xin focus) → gõ → `Enter` lưu (`Shift+Enter` xuống dòng) → alert nhỏ "Đã lưu ghi chú" → focus trả về app trước.
+1. **Ghi chú:** `Ctrl+Alt+N` hoặc launcher › 📝 → hiện ghi chú cập nhật gần nhất, tick trực tiếp; chọn ghi chú khác từ danh sách. Không tự mở editor, kể cả chưa có ghi chú. **Tạo mới** mở ô nhập → `Enter` lưu (`Shift+Enter` xuống dòng). **+ Ô tick** mở một ô nhập tên mục, lưu nối vào ghi chú đang xem; **Sửa** mới mở editor toàn bộ. Island chỉ xin focus bàn phím lúc nhập. Nội dung dài cuộn được; thay đổi từ main cập nhật qua event.
 2. **Ghim:** trong `main › Ghi chú`, bấm 📌 ở một ghi chú → khi rảnh, compact hiện icon ghim + đoạn đầu (≤ 24 ký tự); peek hiện toàn bộ (≤ 6 dòng) và cho tick checkbox trực tiếp.
 3. **Đổi thành nhắc việc:** menu ghi chú › "Tạo nhắc việc" → mở form nhắc việc, điền sẵn tiêu đề (và giờ, nếu NLP nhận ra trong nội dung).
 4. **Tìm:** ô tìm trong `main`, so khớp không dấu.
@@ -37,6 +37,10 @@ Ghi lại một ý trong 3 giây mà không phải mở app nào: bấm phím t�
 
 - Ghi chú là chuỗi văn bản thuần, kiểu markdown rút gọn. Render trong frontend bằng bộ phân tích nhỏ tự viết (chỉ danh sách, checkbox, link), **không** dùng thư viện markdown đầy đủ và **không** render HTML thô (chống XSS).
 - Tick checkbox trên peek → `notes_toggle_check(id, line_index)`; backend sửa dòng tương ứng.
+- Cả trang đầy đủ và peek dùng chung renderer checklist: nhận `[]`, `[ ]`, `[x]`, `[X]` và dạng Markdown `- [ ]` / `- [x]`; tick giữ đúng chỉ số dòng, thụt lề và dòng trống. Ghi chú cũ không cần migration. Xuất Markdown chuẩn hóa về `- [ ]` / `- [x]`.
+- Form tạo ghi chú có nút **+ Ô tick** chèn `[ ] ` trên dòng mới; Enter lưu, Shift+Enter xuống dòng (không bắt Enter đang composition của bộ gõ). Trang đầy đủ có nút **Sửa**, tự focus editor và nút **Lưu / Hủy**; Ctrl+Enter lưu, Escape hủy. Bấm dòng checklist chỉ đổi trạng thái, không mở editor.
+- Trang đầy đủ mặc định hiện danh sách mới cập nhật trước, không mở ô soạn; từng ghi chú có **+ Ô tick**, **Sửa**, ghim và xóa. Bấm nội dung thường không mở editor. Nút **Tạo mới** mở form riêng.
+- Form tạo/sửa ghi chú và thêm mục checklist trên island giữ peek khi rời chuột cho tới khi editor đóng; dùng cơ chế chung của island, không dựa vào focus hiện tại.
 - Tìm kiếm: FTS5 nếu có, nếu không thì `LIKE` trên cột `normalized` (bỏ dấu), giống [local-player](local-player.md).
 - Chỉ ghim được **một** ghi chú (v1).
 - Đổi thành nhắc việc: frontend gọi `reminders_parse` với nội dung để điền sẵn rồi mở form nhắc việc. Không gọi chéo module ở backend.
@@ -91,7 +95,7 @@ Không có tác vụ nền ngoài dọn thùng rác lúc khởi động.
 **Unit:** sửa checkbox theo dòng; chuẩn hóa tìm kiếm; dọn thùng rác theo TestClock.
 
 **Checklist thủ công:**
-- [ ] `Ctrl+Alt+N` → gõ tiếng Việt có dấu bằng Unikey/EVKey → `Enter` → focus về đúng app cũ
+- [ ] `Ctrl+Alt+N` → ghi chú gần nhất, tick / thêm ô tick / chọn ghi chú khác; Tạo mới → gõ tiếng Việt bằng Unikey/EVKey → `Enter`
 - [ ] Ghim → compact/peek hiện đúng; tick checkbox trên peek
 - [ ] Đổi thành nhắc việc với "gọi lại cho khách 4h chiều"
 
@@ -105,3 +109,6 @@ Không có.
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Xuất toàn bộ ghi chú ra một file Markdown (checkbox thành task list) |
+| 2026-11-01 | Checklist tương tác dùng chung main/peek; nhận []/[ ]/[x]/[X]/Markdown, nút thêm ô tick, sửa với Lưu/Hủy và Enter lưu ghi chú mới. |
+| 2026-11-01 | Theo yêu cầu chủ dự án: mặc định xem/tương tác ghi chú gần nhất; Tạo mới và thêm mục checklist riêng trên island/main, chọn ghi chú và cuộn nội dung trong island. |
+| 2026-11-01 | Form tạo/sửa/thêm checklist giữ mở khi rời chuột, gồm ô trống và mất focus; 3 test tích hợp trên IslandRoot. |

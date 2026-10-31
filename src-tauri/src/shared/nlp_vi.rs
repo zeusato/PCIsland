@@ -66,6 +66,7 @@ macro_rules! re {
 
 const UNIT_H: &str = r"(?:gio|tieng|h|hours?|hrs?)";
 const UNIT_M: &str = r"(?:phut|ph|p|minutes?|mins?|m)";
+const UNIT_S: &str = r"(?:giay|seconds?|secs?|s)";
 
 re!(
     EVERY,
@@ -87,7 +88,7 @@ re!(MONTHLY, r"\bngay\s+(\d{1,2})\s+(?:hang|moi)\s+thang\b");
 re!(
     RELATIVE,
     &format!(
-        r"\b(?:(?:sau|trong|in)\s+)?(?:(nua)\s+{UNIT_H}|(\d+)\s*{UNIT_H}\s*(?:(\d+)\s*{UNIT_M}?)?|(\d+)\s*{UNIT_M})\s*(nua|later)?\b"
+        r"\b(?:(?:sau|trong|in)\s+)?(?:(nua)\s+{UNIT_H}|(\d+)\s*{UNIT_H}\s*(?:(\d+)\s*{UNIT_M}?)?|(\d+)\s*{UNIT_M}|(\d+)\s*{UNIT_S})\s*(nua|later)?\b"
     )
 );
 re!(
@@ -112,7 +113,7 @@ re!(
 );
 re!(
     FILLER,
-    r"^(?:nhac (?:toi|minh|em|anh)|nhac|nho|remind me to|remind me|hay)\s+|\s+(?:luc|vao|at|nhe)$"
+    r"^(?:nhac (?:toi|minh|em|anh|tao|to)|nhac|nho|remind me to|remind me|hay)(?:\s+|$)|\s+(?:luc|vao|at|nhe)$"
 );
 
 fn weekday_from(word: &str) -> Option<Weekday> {
@@ -213,7 +214,7 @@ pub fn parse(input: &str, now: NaiveDateTime) -> Parsed {
         let marked = whole.as_str().starts_with("sau")
             || whole.as_str().starts_with("trong")
             || whole.as_str().starts_with("in")
-            || c.get(5).is_some();
+            || c.get(6).is_some();
         if !marked
             || spans
                 .0
@@ -222,15 +223,31 @@ pub fn parse(input: &str, now: NaiveDateTime) -> Parsed {
         {
             continue;
         }
-        let mins = if c.get(1).is_some() {
-            30
+        let seconds = if let Some(s) = c.get(5) {
+            s.as_str().parse::<i64>().ok()
+        } else if c.get(1).is_some() {
+            Some(30 * 60)
         } else if let Some(h) = c.get(2) {
-            h.as_str().parse::<i64>().unwrap_or(0) * 60
-                + c.get(3).map_or(0, |m| m.as_str().parse().unwrap_or(0))
+            h.as_str()
+                .parse::<i64>()
+                .ok()
+                .and_then(|h| h.checked_mul(60))
+                .and_then(|h| {
+                    h.checked_add(c.get(3).map_or(0, |m| m.as_str().parse().unwrap_or(0)))
+                })
+                .and_then(|m| m.checked_mul(60))
         } else {
-            c.get(4).map_or(0, |m| m.as_str().parse().unwrap_or(0))
+            c.get(4)
+                .and_then(|m| m.as_str().parse::<i64>().ok())
+                .and_then(|m| m.checked_mul(60))
         };
-        relative = Some(Duration::minutes(mins));
+        let Some(duration) = seconds
+            .and_then(Duration::try_seconds)
+            .filter(|d| now.checked_add_signed(*d).is_some())
+        else {
+            continue;
+        };
+        relative = Some(duration);
         spans.add(&whole);
         break;
     }
@@ -511,6 +528,30 @@ mod tests {
         NaiveDate::from_ymd_opt(2026, 10, 30)
             .and_then(|d| d.and_hms_opt(14, 0, 0))
             .expect("date")
+    }
+
+    #[test]
+    fn second_offsets_and_colloquial_reminder_prefixes() {
+        for input in [
+            "nhắc tao sau 10 giây",
+            "nhac tao sau 10 giay",
+            "nhắc tôi trong 10s",
+            "nhắc mình 10 giây nữa",
+            "remind me in 10 seconds",
+        ] {
+            let parsed = parse(input, now());
+            assert_eq!(parsed.due, Some(now() + Duration::seconds(10)), "{input}");
+            assert!(parsed.title.is_empty(), "{input}: {}", parsed.title);
+        }
+        let parsed = parse("nhắc tao tắt bếp sau 30 giây", now());
+        assert_eq!(parsed.title, "Tắt bếp");
+        assert_eq!(parsed.due, Some(now() + Duration::seconds(30)));
+        let midnight = now().date().and_hms_opt(23, 59, 55).expect("time");
+        assert_eq!(
+            parse("sau 10 giây", midnight).due,
+            Some(midnight + Duration::seconds(10))
+        );
+        assert!(parse("video dài 10 giây", now()).due.is_none());
     }
 
     fn at(d: u32, h: u32, m: u32) -> Option<NaiveDateTime> {

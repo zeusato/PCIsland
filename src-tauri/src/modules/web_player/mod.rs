@@ -3,6 +3,7 @@
 //! window (no multiwebview toolbar yet).
 #![forbid(unsafe_code)]
 
+mod artwork;
 pub mod commands;
 pub mod dto;
 pub mod sites;
@@ -29,9 +30,40 @@ pub struct WebPlayerHandle {
     media: MediaHandle,
     /// Last time (epoch ms) the page reported playing; drives auto-unload.
     last_playing: Arc<std::sync::atomic::AtomicU64>,
+    artwork_cache: Arc<crate::core::artwork::ArtworkCache>,
+    pending_artwork: Arc<Mutex<artwork::PendingArtwork>>,
 }
 
 impl WebPlayerHandle {
+    fn publish(&self, state: Option<NowPlayingDto>) {
+        let mut pending = self
+            .pending_artwork
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let request = pending.update(state);
+        self.media.update_web_source(pending.snapshot());
+        drop(pending);
+        if let Some((generation, url)) = request {
+            let handle = self.clone();
+            tauri::async_runtime::spawn(async move {
+                match artwork::download(&handle.artwork_cache, &url).await {
+                    Ok(local) => {
+                        let mut pending = handle
+                            .pending_artwork
+                            .lock()
+                            .unwrap_or_else(PoisonError::into_inner);
+                        if let Some(np) = pending.complete(generation, local) {
+                            handle.media.update_web_source(Some(np));
+                        }
+                    }
+                    Err(reason) => {
+                        tracing::debug!(module = "web_player", %reason, "cover unavailable")
+                    }
+                }
+            });
+        }
+    }
+
     pub fn snapshot(&self) -> WebPlayerSnapshot {
         self.state
             .lock()
@@ -55,6 +87,7 @@ impl WebPlayerHandle {
 pub fn setup(
     app: &AppHandle,
     media: MediaHandle,
+    artwork_cache: Arc<crate::core::artwork::ArtworkCache>,
     settings: tokio::sync::watch::Receiver<crate::core::settings::Settings>,
 ) -> WebPlayerHandle {
     let handle = WebPlayerHandle {
@@ -66,6 +99,8 @@ pub fn setup(
         })),
         media: media.clone(),
         last_playing: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+        artwork_cache,
+        pending_artwork: Arc::default(),
     };
     spawn_auto_unload(app.clone(), handle.clone(), settings);
     let app_for_control = app.clone();
@@ -114,6 +149,7 @@ pub fn open(
 
     if let Some(win) = app.get_webview_window(LABEL) {
         win.navigate(parsed.clone())?;
+        handle.publish(None);
         win.show()?;
         win.set_focus()?;
     } else {
@@ -186,7 +222,7 @@ pub fn close(app: &AppHandle, handle: &WebPlayerHandle) -> tauri::Result<()> {
     if let Some(win) = app.get_webview_window(LABEL) {
         win.destroy()?;
     }
-    handle.media.update_web_source(None);
+    handle.publish(None);
     handle.update(app, |s| {
         s.lifecycle = Lifecycle::Closed;
         s.url = None;
@@ -216,11 +252,7 @@ pub fn report(
             title: truncate(msg.title.unwrap_or_default()),
             artist: msg.artist.map(truncate),
             album: msg.album.map(truncate),
-            // Remote artwork is shown directly for now; downloading into ArtworkCache is P2.
-            artwork_url: msg
-                .artwork
-                .filter(|u| u.starts_with("https://"))
-                .map(truncate),
+            artwork_url: msg.artwork.as_deref().and_then(artwork::remote_url),
             status: if status == BridgeStatus::Playing {
                 PlaybackStatus::Playing
             } else {
@@ -250,7 +282,7 @@ pub fn report(
             .last_playing
             .store(now_ms(), std::sync::atomic::Ordering::Relaxed);
     }
-    handle.media.update_web_source(state);
+    handle.publish(state);
     Ok(())
 }
 

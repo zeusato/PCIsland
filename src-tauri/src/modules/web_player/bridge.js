@@ -25,7 +25,8 @@
     const best = art[art.length - 1];
     try {
       const url = new URL(best.src, location.href);
-      return url.protocol === 'https:' ? clip(url.href) : null;
+      // Signed CDN URLs can exceed metadata's 512-character limit; never truncate them.
+      return url.protocol === 'https:' && url.href.length <= 8192 ? url.href : null;
     } catch {
       return null;
     }

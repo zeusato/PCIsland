@@ -21,7 +21,7 @@ const PEEK_HEIGHT: Record<string, number> = {
   reminders: 140,
   notes: 176,
   shelf: 196,
-  launcher: 176,
+  launcher: 220,
 };
 
 export function geometryFor(mode: Presentation, content: Content, source = ''): Geometry {
@@ -30,7 +30,7 @@ export function geometryFor(mode: Presentation, content: Content, source = ''): 
     case 'minimal':
       return { w: 96, h: 4, r: 2 };
     case 'peek':
-      return { w: 400, h: PEEK_HEIGHT[content === 'launcher' ? 'launcher' : source] ?? 160, r: 28 };
+      return { w: 400, h: (PEEK_HEIGHT[content === 'launcher' ? 'launcher' : source] ?? 160) + 28, r: 28 };
     case 'alert':
       return content === 'alert-large' ? { w: 400, h: 150, r: 28 } : { w: 260, h: 40, r: 20 };
     case 'compact':

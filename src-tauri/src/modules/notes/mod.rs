@@ -163,12 +163,11 @@ pub fn to_markdown(notes: &[Note]) -> String {
             .text
             .lines()
             .map(|l| {
-                let t = l.trim_start();
-                let indent = &l[..l.len() - t.len()];
-                match t.get(..3) {
-                    Some("[ ]") => format!("{indent}- [ ]{}", &t[3..]),
-                    Some("[x]" | "[X]") => format!("{indent}- [x]{}", &t[3..]),
-                    _ => l.to_owned(),
+                if let Some((prefix, checked, rest)) = checkbox_parts(l) {
+                    let indent = prefix.strip_suffix("- ").unwrap_or(prefix);
+                    format!("{indent}- [{}]{rest}", if checked { "x" } else { " " })
+                } else {
+                    l.to_owned()
                 }
             })
             .collect();
@@ -262,18 +261,28 @@ pub fn notes_pin(notes: State<'_, NotesHandle>, id: Option<String>) -> IpcResult
     notes.pin(id.as_deref()).map_err(db_err)
 }
 
-/// Toggles the `[ ]` / `[x]` checkbox on line `line` (docs/modules/quick-notes.md §5).
+/// Returns the prefix, checked state and remaining text for supported checkbox forms.
+fn checkbox_parts(line: &str) -> Option<(&str, bool, &str)> {
+    let trimmed = line.trim_start();
+    let body = trimmed.strip_prefix("- ").unwrap_or(trimmed);
+    for (marker, checked) in [("[]", false), ("[ ]", false), ("[x]", true), ("[X]", true)] {
+        if let Some(rest) = body.strip_prefix(marker) {
+            return Some((&line[..line.len() - body.len()], checked, rest));
+        }
+    }
+    None
+}
+
+/// Toggles shorthand and Markdown checkboxes, preserving indentation and line indices.
 pub fn toggle_line(text: &str, line: usize) -> String {
-    text.lines()
+    text.split('\n')
         .enumerate()
         .map(|(i, l)| {
             if i != line {
                 return l.to_owned();
             }
-            if let Some(rest) = l.trim_start().strip_prefix("[ ]") {
-                format!("{}[x]{rest}", &l[..l.len() - l.trim_start().len()])
-            } else if let Some(rest) = l.trim_start().strip_prefix("[x]") {
-                format!("{}[ ]{rest}", &l[..l.len() - l.trim_start().len()])
+            if let Some((prefix, checked, rest)) = checkbox_parts(l) {
+                format!("{prefix}[{}]{rest}", if checked { " " } else { "x" })
             } else {
                 l.to_owned()
             }
@@ -299,6 +308,24 @@ pub fn notes_toggle_check(notes: State<'_, NotesHandle>, id: String, line: u32) 
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn shorthand_uppercase_and_markdown_boxes_toggle_without_losing_lines() {
+        let text = "[] việc một\n\n  [X] việc hai\n- [ ] việc ba\n";
+        assert_eq!(
+            super::toggle_line(text, 0),
+            "[x] việc một\n\n  [X] việc hai\n- [ ] việc ba\n"
+        );
+        assert_eq!(
+            super::toggle_line(text, 2),
+            "[] việc một\n\n  [ ] việc hai\n- [ ] việc ba\n"
+        );
+        assert_eq!(
+            super::toggle_line(text, 3),
+            "[] việc một\n\n  [X] việc hai\n- [x] việc ba\n"
+        );
+        assert_eq!(super::toggle_line(text, 20), text);
+    }
+
     #[test]
     fn exports_markdown_with_task_items() {
         let n = super::Note {

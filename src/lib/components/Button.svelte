@@ -6,7 +6,7 @@
     disabled = false,
     children,
     title = '',
-  }: { onclick?: (e: MouseEvent) => void; variant?: 'default' | 'primary' | 'ghost' | 'danger'; disabled?: boolean; children: Snippet; title?: string } = $props();
+  }: { onclick?: (e: MouseEvent) => void; variant?: 'default' | 'primary' | 'ghost' | 'danger' | 'success' | 'warning'; disabled?: boolean; children: Snippet; title?: string } = $props();
 </script>
 
 <button class={variant} {disabled} {onclick} {title}>{@render children()}</button>
@@ -48,4 +48,6 @@
     border-color: var(--c-danger);
     color: var(--c-danger);
   }
+  .success { color: var(--c-success); border-color: var(--c-success); }
+  .warning { color: var(--c-warning); border-color: var(--c-warning); }
 </style>

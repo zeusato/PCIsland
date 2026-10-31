@@ -6,6 +6,7 @@ export type VisibilityMode = 'hidden' | 'minimal' | 'normal';
 
 export interface IslandUiState {
   mode: Presentation;
+  visibility: VisibilityMode;
   /** Peek opened by click stays open until dismissed explicitly. */
   pinned: boolean;
   /** Where to return after an alert or after becoming visible again. */
@@ -28,6 +29,7 @@ export type IslandEvent =
 
 export const initialIslandState: IslandUiState = {
   mode: 'compact',
+  visibility: 'normal',
   pinned: false,
   resumeTo: 'compact',
   critical: false,
@@ -36,7 +38,7 @@ export const initialIslandState: IslandUiState = {
 export function islandMachine(state: IslandUiState, event: IslandEvent): IslandUiState {
   switch (event.type) {
     case 'visibility':
-      return applyVisibility(state, event.mode, event.hasLiveActivity);
+      return applyVisibility(state, event.mode);
 
     case 'alertShown':
       if (state.mode === 'hidden' && !event.critical) return state;
@@ -49,7 +51,7 @@ export function islandMachine(state: IslandUiState, event: IslandEvent): IslandU
 
     case 'alertEnded':
       if (state.mode !== 'alert') return { ...state, critical: false };
-      return { ...state, mode: state.resumeTo, critical: false };
+      return { ...state, mode: state.visibility === 'hidden' ? 'hidden' : state.resumeTo === 'peek' ? 'peek' : restingMode(state), critical: false };
   }
 
   // Alerts own the island until they end; hidden ignores pointer input.
@@ -68,33 +70,37 @@ export function islandMachine(state: IslandUiState, event: IslandEvent): IslandU
       return state;
 
     case 'pointerLeaveTimeout':
-      return state.mode === 'peek' && !state.pinned ? { ...state, mode: 'compact' } : state;
+      return !state.pinned && (state.mode === 'peek' || state.mode === 'compact') ? { ...state, mode: restingMode(state) } : state;
 
     case 'clickOutside':
     case 'escape':
-      return state.mode === 'peek' ? { ...state, mode: 'compact', pinned: false } : state;
+      return state.mode === 'peek' ? { ...state, mode: restingMode(state), pinned: false } : state;
 
     case 'hotkeyToggle':
-      if (state.mode === 'peek') return { ...state, mode: 'compact', pinned: false };
+      if (state.mode === 'peek') return { ...state, mode: restingMode(state), pinned: false };
       return { ...state, mode: 'peek', pinned: true };
   }
+}
+
+function restingMode(state: IslandUiState): 'compact' | 'minimal' {
+  return state.visibility === 'minimal' ? 'minimal' : 'compact';
 }
 
 function applyVisibility(
   state: IslandUiState,
   mode: VisibilityMode,
-  hasLiveActivity: boolean,
 ): IslandUiState {
+  state = { ...state, visibility: mode };
   if (mode === 'hidden') {
     if (state.mode === 'hidden') return state;
     const resumeTo = state.mode === 'peek' ? 'peek' : 'compact';
     return { ...state, mode: 'hidden', resumeTo, pinned: state.mode === 'peek' && state.pinned };
   }
-  if (mode === 'minimal' && !hasLiveActivity) {
+  if (mode === 'minimal') {
     if (state.mode === 'alert' || state.mode === 'peek') return state;
     return { ...state, mode: 'minimal' };
   }
-  // normal (or minimal suppressed by a live activity)
+  // Backend policy already decides whether an active task should be minimal.
   if (state.mode === 'hidden') return { ...state, mode: state.resumeTo };
   if (state.mode === 'minimal') return { ...state, mode: 'compact' };
   return state;

@@ -28,15 +28,21 @@
   $effect(() => {
     const v = text;
     if (!v.trim()) return void (preview = null);
-    const id = setTimeout(async () => (preview = await reminderCommands.parse(v)), 150);
-    return () => clearTimeout(id);
+    let cancelled = false;
+    preview = null;
+    const id = setTimeout(async () => {
+      const result = await reminderCommands.parse(v);
+      if (!cancelled) preview = result;
+    }, 150);
+    return () => { cancelled = true; clearTimeout(id); };
   });
 
   async function add() {
-    if (!preview?.title) return;
-    const dueAt = manualWhen ? new Date(manualWhen).getTime() : preview.dueAt;
+    if (!text.trim()) return;
+    const parsed = await reminderCommands.parse(text);
+    const dueAt = manualWhen ? new Date(manualWhen).getTime() : parsed.dueAt;
     if (!dueAt) return;
-    await reminderCommands.create({ title: preview.title, note: null, dueAt, repeat: preview.repeat, leadMin: 0 });
+    await reminderCommands.create({ title: parsed.title || t('reminders.defaultTitle'), note: null, dueAt, repeat: parsed.repeat, leadMin: 0 });
     text = '';
     manualWhen = '';
     load();
@@ -49,11 +55,11 @@
   <div class="add">
     <input class="text" placeholder={t('reminders.placeholder')} bind:value={text} onkeydown={(e) => e.key === 'Enter' && add()} />
     <input type="datetime-local" bind:value={manualWhen} aria-label={t('reminders.when')} />
-    <Button variant="primary" onclick={add} disabled={!preview?.title || (!preview.dueAt && !manualWhen)}>{t('common.add')}</Button>
+    <Button variant="primary" onclick={add} disabled={!text.trim() || (!preview?.dueAt && !manualWhen)}>{t('common.add')}</Button>
   </div>
   <p class="preview">
     {#if preview}
-      <strong>{preview.title}</strong> ·
+      <strong>{preview.title || t('reminders.defaultTitle')}</strong> ·
       {manualWhen ? formatWhen(new Date(manualWhen).getTime()) : preview.dueAt ? formatWhen(preview.dueAt) : t('reminders.noTime')}
       {#if preview.repeat.kind !== 'none'} · {t(`reminders.repeat.${preview.repeat.kind}`)}{/if}
     {:else}

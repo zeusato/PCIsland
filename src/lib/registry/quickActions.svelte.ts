@@ -9,6 +9,9 @@ export interface QuickAction {
   order: number;
   /** Runs immediately when clicked… */
   run?: () => void;
+  state?: () => 'active' | 'break' | 'paused' | null;
+  status?: () => string;
+  busy?: () => boolean;
   /** …or opens this panel inside the peek (features/<module>/views/QuickPanel.svelte). */
   panel?: Component<{ close: () => void }>;
 }
