@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-island-set-hit-regions"
+description = "Enables the island_set_hit_regions command without any pre-configured scope."
+commands.allow = ["island_set_hit_regions"]
+
+[[permission]]
+identifier = "deny-island-set-hit-regions"
+description = "Denies the island_set_hit_regions command without any pre-configured scope."
+commands.deny = ["island_set_hit_regions"]

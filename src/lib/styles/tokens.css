@@ -1,0 +1,103 @@
+/* Design tokens — source of truth: docs/04-design-system.md. Components use variables only. */
+:root {
+  /* Surfaces */
+  --c-island: #000000;
+  --c-surface-1: #0b0b0d;
+  --c-surface-2: #141418;
+  --c-surface-3: #1c1c22;
+  --c-border: rgba(255, 255, 255, 0.08);
+  --c-border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Text */
+  --c-text-1: #f5f5f7;
+  --c-text-2: #a1a1aa;
+  --c-text-3: #6b6b76;
+
+  /* Accent: neon orange */
+  --c-accent: #ff6a1a;
+  --c-accent-bright: #ff9f43;
+  --c-accent-deep: #e04e0b;
+  --c-accent-soft: rgba(255, 106, 26, 0.14);
+  --c-glow: rgba(255, 106, 26, 0.45);
+
+  /* Status */
+  --c-success: #34d399;
+  --c-warning: #fbbf24;
+  --c-danger: #f43f5e;
+
+  /* Type */
+  --font-text: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  --fs-caption: 11px;
+  --fs-small: 12px;
+  --fs-body-island: 13px;
+  --fs-body: 14px;
+  --fs-title-s: 16px;
+  --fs-title: 20px;
+  --fs-display: 28px;
+  --fs-timer-xl: 40px;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+
+  /* Spacing */
+  --sp-1: 2px;
+  --sp-2: 4px;
+  --sp-3: 6px;
+  --sp-4: 8px;
+  --sp-5: 12px;
+  --sp-6: 16px;
+  --sp-7: 20px;
+  --sp-8: 24px;
+  --sp-9: 32px;
+  --sp-10: 40px;
+
+  /* Radius */
+  --r-pill: 999px;
+  --r-peek: 28px;
+  --r-alert-s: 20px;
+  --r-card: 14px;
+  --r-control: 10px;
+  --r-window: 12px;
+  --r-shoulder: 6px;
+
+  /* Elevation */
+  --glow-live: 0 0 0 1px rgba(255, 106, 26, 0.35), 0 0 12px rgba(255, 106, 26, 0.35),
+    0 0 28px rgba(255, 106, 26, 0.18);
+  --shadow-peek: 0 12px 32px rgba(0, 0, 0, 0.55);
+
+  /* Island geometry (docs/04-design-system.md §5) */
+  --island-window-w: 480px;
+  --island-window-h: 264px;
+  --island-compact-w: 120px;
+  --island-compact-h: 30px;
+  --island-compact-r: 15px;
+  --island-peek-w: 400px;
+  --island-peek-h: 160px;
+  --island-minimal-w: 96px;
+  --island-minimal-h: 4px;
+
+  /* Idle eyes (docs/04-design-system.md §11) */
+  --eye-w: 7px;
+  --eye-h: 13px;
+  --eye-gap: 16px;
+}
+
+:root[data-accent='amber'] {
+  --c-accent: #ffb020;
+  --c-accent-bright: #ffc85a;
+  --c-accent-soft: rgba(255, 176, 32, 0.14);
+  --c-glow: rgba(255, 176, 32, 0.45);
+}
+:root[data-accent='pink'] {
+  --c-accent: #ff3d7f;
+  --c-accent-bright: #ff7aa6;
+  --c-accent-soft: rgba(255, 61, 127, 0.14);
+  --c-glow: rgba(255, 61, 127, 0.45);
+}
+:root[data-accent='blue'] {
+  --c-accent: #3da9ff;
+  --c-accent-bright: #7cc5ff;
+  --c-accent-soft: rgba(61, 169, 255, 0.14);
+  --c-glow: rgba(61, 169, 255, 0.45);
+}

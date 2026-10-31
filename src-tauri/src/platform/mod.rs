@@ -1,0 +1,6 @@
+//! The only place allowed to call Win32 / WinRT directly or use `unsafe`
+//! (docs/03-coding-principles.md §1, rule 6).
+
+pub mod foreground;
+pub mod gsmtc;
+pub mod window;

@@ -1,0 +1,20 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "web-player-remote",
+  "description": "Remote music sites: may only report media state (docs/modules/web-player.md §5).",
+  "windows": ["web-player"],
+  "remote": {
+    "urls": [
+      "https://zingmp3.vn",
+      "https://*.zingmp3.vn",
+      "https://soundcloud.com",
+      "https://*.soundcloud.com",
+      "https://www.youtube.com",
+      "https://music.youtube.com",
+      "https://open.spotify.com",
+      "https://www.nhaccuatui.com",
+      "https://nhaccuatui.com"
+    ]
+  },
+  "permissions": ["allow-web-player-report"]
+}

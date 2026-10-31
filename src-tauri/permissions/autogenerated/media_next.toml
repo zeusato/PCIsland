@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-media-next"
+description = "Enables the media_next command without any pre-configured scope."
+commands.allow = ["media_next"]
+
+[[permission]]
+identifier = "deny-media-next"
+description = "Denies the media_next command without any pre-configured scope."
+commands.deny = ["media_next"]
