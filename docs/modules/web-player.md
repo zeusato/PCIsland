@@ -85,7 +85,7 @@ Danh sách test ở G0 (đã chốt với chủ dự án ngày 2026-10-31): **Zi
 - Ảnh bìa từ URL được backend tải về (giới hạn 2 MB, timeout 5 s) rồi đưa vào `ArtworkCache`.
 
 **Chính sách điều hướng:**
-- **Popup** (`window.open`, `target=_blank`): domain thuộc `allowed_domains` hoặc nhà cung cấp đăng nhập đã biết của trang (ví dụ `accounts.spotify.com`, `id.zalo.me`) thì mở cửa sổ popup con dùng cùng hồ sơ. Còn lại mở trình duyệt hệ thống. Cách xử lý new-window của Tauri 2 phải **kiểm chứng trong spike D**.
+- **Popup** (`window.open`, `target=_blank`): domain thuộc `allowed_domains` hoặc nhà cung cấp đăng nhập đã biết của trang (ví dụ `accounts.spotify.com`, `id.zalo.me`) thì mở cửa sổ popup con dùng cùng hồ sơ. Còn lại mở trình duyệt hệ thống. Đã kiểm chứng (2026-11-01): Tauri 2.12 mặc định **chặn** mọi popup, nên phải đặt `on_new_window`. `about:blank` được mở trong app vì Zing (và nhiều luồng OAuth) mở `about:blank` trước rồi mới điều hướng; nếu bị chặn, Zing chuyển cả trang chính sang `about:blank` (màn hình trắng). Popup trong app dùng cửa sổ popup mặc định của WebView2: giữ `window.opener`, không có Tauri IPC. Danh sách nhà cung cấp đăng nhập: `sites::LOGIN_PROVIDERS`.
 - **Tải file:** chặn.
 - **Quyền** (notification, mic, camera, vị trí, clipboard-read): từ chối.
 - **Autoplay:** thêm tham số trình duyệt `--autoplay-policy=no-user-gesture-required` cho môi trường web player, để lệnh play từ island chạy được khi cửa sổ đang ẩn.
@@ -186,3 +186,4 @@ Closed ──open(site)──▶ Visible ──thu gọn──▶ Hidden ──t
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Tự tắt khi tạm dừng quá N phút; đổi trang, xóa dữ liệu đăng nhập; toolbar đặt ở tab Nhạc › Online (ADR-013) |
+| 2026-11-01 | Sửa: popup đăng nhập bị chặn (SoundCloud "enable popup windows", Zing màn hình trắng). Thêm `sites::popup_policy` theo §5; `web_player_open` chạy async |

@@ -63,6 +63,46 @@ pub fn host_allowed(host: &str) -> bool {
     for_host(host).is_some()
 }
 
+/// Sign-in providers the sites open in a popup (docs/modules/web-player.md §5).
+pub const LOGIN_PROVIDERS: &[&str] = &[
+    "accounts.google.com",
+    "*.facebook.com",
+    "facebook.com",
+    "appleid.apple.com",
+    "id.zalo.me",
+    "*.zaloapp.com",
+    "accounts.spotify.com",
+    "secure.soundcloud.com",
+    "login.microsoftonline.com",
+    "login.live.com",
+];
+
+/// What to do with a `window.open` from a site page.
+#[derive(Debug, PartialEq, Eq)]
+pub enum PopupPolicy {
+    /// Open inside the app (same profile, keeps `window.opener`).
+    InApp,
+    /// Hand to the default browser.
+    External,
+    Deny,
+}
+
+/// `about:blank` is allowed in-app because login flows open it first and navigate after.
+pub fn popup_policy(url: &tauri::Url) -> PopupPolicy {
+    if url.as_str() == "about:blank" {
+        return PopupPolicy::InApp;
+    }
+    if url.scheme() != "https" {
+        return PopupPolicy::Deny;
+    }
+    let host = url.host_str().unwrap_or_default();
+    if host_allowed(host) || LOGIN_PROVIDERS.iter().any(|d| domain_matches(d, host)) {
+        PopupPolicy::InApp
+    } else {
+        PopupPolicy::External
+    }
+}
+
 fn domain_matches(pattern: &str, host: &str) -> bool {
     match pattern.strip_prefix("*.") {
         Some(suffix) => {
@@ -93,5 +133,24 @@ mod tests {
             Some("youtube_music")
         );
         assert!(!host_allowed("example.com"));
+    }
+
+    #[test]
+    fn popups_follow_the_policy() {
+        let p = |u: &str| popup_policy(&u.parse().unwrap());
+        assert_eq!(p("about:blank"), PopupPolicy::InApp);
+        assert_eq!(
+            p("https://accounts.google.com/o/oauth2"),
+            PopupPolicy::InApp
+        );
+        assert_eq!(p("https://id.zalo.me/account/login"), PopupPolicy::InApp);
+        assert_eq!(
+            p("https://www.facebook.com/dialog/oauth"),
+            PopupPolicy::InApp
+        );
+        assert_eq!(p("https://soundcloud.com/x"), PopupPolicy::InApp);
+        assert_eq!(p("https://ads.example.com/"), PopupPolicy::External);
+        assert_eq!(p("http://accounts.google.com/"), PopupPolicy::Deny);
+        assert_eq!(p("javascript:alert(1)"), PopupPolicy::Deny);
     }
 }

@@ -124,7 +124,7 @@ section!(IndicatorsSettings {
     power_alert: bool = true,
     battery_low_thresholds: Vec<u8> = vec![20, 10],
     eyes_follow_cursor: bool = false,
-    eyes_moods: bool = true,
+    eyes_moods: bool = false,
 });
 section!(MediaSettings {
     external_enabled: bool = true,

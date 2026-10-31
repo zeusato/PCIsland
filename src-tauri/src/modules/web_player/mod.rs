@@ -9,6 +9,7 @@ pub mod sites;
 
 use std::sync::{Arc, Mutex, PoisonError};
 
+use tauri::webview::NewWindowResponse;
 use tauri::{AppHandle, Emitter, Manager, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
 use crate::ipc::{events, now_ms};
@@ -125,6 +126,20 @@ pub fn open(
             .initialization_script(BRIDGE_JS)
             .additional_browser_args(BROWSER_ARGS)
             .data_directory(data_dir)
+            // Sign-in with Google/Facebook/Zalo opens a popup and talks back through
+            // `window.opener`; Tauri denies popups by default. WebView2's own popup keeps
+            // the opener link and gets no Tauri IPC (docs/modules/web-player.md §5).
+            .on_new_window(|url, _| match sites::popup_policy(&url) {
+                sites::PopupPolicy::InApp => NewWindowResponse::Allow,
+                sites::PopupPolicy::External => {
+                    // Ads and other links leave the app instead of piling up windows.
+                    let _ = std::process::Command::new("explorer")
+                        .arg(url.as_str())
+                        .spawn();
+                    NewWindowResponse::Deny
+                }
+                sites::PopupPolicy::Deny => NewWindowResponse::Deny,
+            })
             .build()?;
         // Closing the window collapses the player instead of stopping the music
         // (docs/modules/web-player.md §9).

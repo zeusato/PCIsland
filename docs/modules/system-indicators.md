@@ -95,7 +95,7 @@ Không có bảng DB.
 | Khóa | Mặc định |
 |---|---|
 | `indicators.eyes_follow_cursor` | `false` (P3) |
-| `indicators.eyes_moods` | `true` (P3: vui, buồn ngủ, ngạc nhiên) |
+| `indicators.eyes_moods` | `false` (P3: vui, buồn ngủ, ngạc nhiên; mặc định tắt để giữ hình mắt gốc) |
 | `indicators.volume_alert` | `true` |
 | `indicators.power_alert` | `true` |
 | `indicators.battery_low_thresholds` | `[20, 10]` |
@@ -144,3 +144,4 @@ Không có.
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Payload có kiểu; phát `AudioDeviceChanged` khi đổi thiết bị mặc định |
+| 2026-11-01 | Biểu cảm mắt mặc định tắt: giữ hình mắt gốc (chủ dự án thấy mắt "buồn ngủ"/"vui" bị nhỏ, mất hồn) |

@@ -245,8 +245,13 @@ async fn service(
             }
         }
 
+        // Our web player also shows up in GSMTC as a generic WebView2 session; while the
+        // bridge reports it as `web`, that duplicate is hidden.
+        let web_active = entries.contains_key(WEB_SOURCE_ID);
+        let visible = |id: &str| !(web_active && is_webview2_session(id));
         let candidates: Vec<select::Candidate<'_>> = entries
             .iter()
+            .filter(|(id, _)| visible(id))
             .map(|(id, e)| select::Candidate {
                 id,
                 status: e.dto.status,
@@ -261,6 +266,7 @@ async fn service(
             .map(|e| e.dto.clone());
         let mut sources: Vec<SourceSummary> = entries
             .iter()
+            .filter(|(id, _)| visible(id))
             .map(|(id, e)| SourceSummary {
                 source_id: id.clone(),
                 app_name: e.dto.app_name.clone(),
@@ -435,8 +441,21 @@ pub fn app_name_from_aumid(aumid: &str) -> String {
     }
 }
 
+/// GSMTC id of a session hosted by any WebView2 process (ours included).
+fn is_webview2_session(id: &str) -> bool {
+    id.strip_prefix("external:")
+        .is_some_and(|aumid| aumid.to_lowercase().contains("msedgewebview2"))
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn detects_webview2_sessions() {
+        assert!(super::is_webview2_session("external:msedgewebview2.exe"));
+        assert!(!super::is_webview2_session("external:Spotify.exe"));
+        assert!(!super::is_webview2_session("web"));
+    }
+
     use super::app_name_from_aumid;
 
     #[test]

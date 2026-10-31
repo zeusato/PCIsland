@@ -168,3 +168,4 @@ Không có bảng DB.
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Phát `NowPlayingChanged` qua EventBus; chip chọn nguồn trên peek khi có nhiều trình phát; `MediaIntent::Pause` |
+| 2026-11-01 | Ẩn phiên GSMTC `msedgewebview2` khi web player đang báo qua bridge, tránh trùng nguồn và mất nút next/previous |

@@ -182,7 +182,7 @@ Linh vật của PCisland: khi không có tác vụ, pill hiện một đôi m�
 - Chỉ dùng một `setTimeout` để hẹn lần chớp kế tiếp, rồi bật class chạy CSS keyframes. Giữa các lần chớp không có frame nào được vẽ.
 - Dừng hẳn khi island không ở compact rảnh: `hidden`, `minimal`, peek, có activity, hoặc khóa máy.
 
-**Biểu cảm (P3, tùy chọn):**
+**Biểu cảm (P3, tùy chọn, mặc định tắt):** mặc định giữ hình mắt gốc ở trên; biểu cảm chỉ bật khi người dùng chọn trong Cài đặt (`indicators.eyes_moods`).
 
 | Biểu cảm | Khi nào | Hình |
 |---|---|---|

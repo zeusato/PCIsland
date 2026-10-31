@@ -13,7 +13,7 @@
   let gaze = $state<[number, number]>([0, 0]);
   let sleepy = $state(false);
 
-  const moods = $derived(live.settings?.indicators.eyesMoods ?? true);
+  const moods = $derived(live.settings?.indicators.eyesMoods ?? false);
   const reduced = prefersReducedMotion();
   const mood = $derived(!moods || reduced ? 'neutral' : eyesMood.mood !== 'neutral' ? eyesMood.mood : sleepy ? 'sleepy' : 'neutral');
 
