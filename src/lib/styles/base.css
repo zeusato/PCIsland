@@ -15,6 +15,7 @@ body {
   color: var(--c-text-1);
   -webkit-font-smoothing: antialiased;
   user-select: none;
+  background: var(--c-surface-1);
 }
 
 button {

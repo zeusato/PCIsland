@@ -4,10 +4,16 @@ import '$lib/styles/base.css';
 import './island.css';
 import { inTauri, islandCommands } from '$lib/ipc/commands';
 import { registerQuickAction } from '$lib/registry/quickActions.svelte';
-import { startMediaStore } from '../../features/media/store.svelte';
+import { startLiveStores } from '$lib/stores/live.svelte';
 import { registerWebPlayer } from '../../features/web_player';
+import { registerTimer } from '../../features/timer';
+import { registerReminders } from '../../features/reminders';
+import { registerNotes } from '../../features/notes';
 import IslandRoot from './IslandRoot.svelte';
 
+registerTimer();
+registerReminders();
+registerNotes();
 registerWebPlayer();
 registerQuickAction({
   id: 'app.open_main',
@@ -19,7 +25,7 @@ registerQuickAction({
   },
 });
 
-startMediaStore().catch((err) => console.error('media store failed', err));
+startLiveStores().catch((err) => console.error('live stores failed', err));
 
 const target = document.getElementById('app');
 if (!target) throw new Error('#app missing');

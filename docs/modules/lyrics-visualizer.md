@@ -1,6 +1,6 @@
 # Module: Lời bài hát & visualizer (`lyrics`, `visualizer`)
 
-> Trạng thái: Thiết kế · Phase: P3 · Tính năng: F14, F15 · Cập nhật: 2026-10-31
+> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P3 · Tính năng: F14, F15 · Cập nhật: 2026-10-31
 
 Hai module nhỏ cùng "tiêu thụ" `NowPlaying` và không phụ thuộc vào nhau, nên dùng chung một tài liệu.
 

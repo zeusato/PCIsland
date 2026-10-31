@@ -1,6 +1,6 @@
 # Module: Ghi chú nhanh (`notes`)
 
-> Trạng thái: Thiết kế · Phase: P3 · Tính năng: F26 · Cập nhật: 2026-10-31
+> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P3 · Tính năng: F26 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 

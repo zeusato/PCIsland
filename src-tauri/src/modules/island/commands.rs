@@ -32,3 +32,13 @@ pub async fn island_toggle_hidden(island: State<'_, IslandHandle>) -> IpcResult<
         .await
         .ok_or_else(|| IpcError::new("island.unavailable", "island service stopped"))
 }
+
+#[tauri::command]
+pub fn island_request_focus(island: State<'_, IslandHandle>) {
+    island.request_focus();
+}
+
+#[tauri::command]
+pub fn island_release_focus(island: State<'_, IslandHandle>) {
+    island.release_focus();
+}

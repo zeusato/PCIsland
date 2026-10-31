@@ -1,6 +1,6 @@
 # Module: Hẹn giờ, bấm giờ, Pomodoro, Focus (`timer`)
 
-> Trạng thái: Thiết kế · Phase: P1 (F20, F21), P2 (F22), P3 (F23) · Tính năng: F20–F23 · Cập nhật: 2026-10-31
+> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P1 (F20, F21), P2 (F22), P3 (F23) · Tính năng: F20–F23 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-notes-toggle-check"
+description = "Enables the notes_toggle_check command without any pre-configured scope."
+commands.allow = ["notes_toggle_check"]
+
+[[permission]]
+identifier = "deny-notes-toggle-check"
+description = "Denies the notes_toggle_check command without any pre-configured scope."
+commands.deny = ["notes_toggle_check"]

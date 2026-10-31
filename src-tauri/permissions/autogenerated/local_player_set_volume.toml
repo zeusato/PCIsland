@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-local-player-set-volume"
+description = "Enables the local_player_set_volume command without any pre-configured scope."
+commands.allow = ["local_player_set_volume"]
+
+[[permission]]
+identifier = "deny-local-player-set-volume"
+description = "Denies the local_player_set_volume command without any pre-configured scope."
+commands.deny = ["local_player_set_volume"]

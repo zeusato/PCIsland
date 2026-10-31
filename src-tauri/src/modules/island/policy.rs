@@ -5,7 +5,7 @@ use super::dto::VisibilityMode;
 use crate::core::priority;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code, reason = "Never/All come from settings (roadmap P1.1)")]
+
 pub enum AlertOverFullscreen {
     Never,
     Critical,

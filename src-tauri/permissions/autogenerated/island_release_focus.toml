@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-island-release-focus"
+description = "Enables the island_release_focus command without any pre-configured scope."
+commands.allow = ["island_release_focus"]
+
+[[permission]]
+identifier = "deny-island-release-focus"
+description = "Denies the island_release_focus command without any pre-configured scope."
+commands.deny = ["island_release_focus"]

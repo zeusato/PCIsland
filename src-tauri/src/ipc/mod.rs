@@ -31,6 +31,14 @@ impl From<tauri::Error> for IpcError {
 pub type IpcResult<T> = Result<T, IpcError>;
 
 pub mod events {
+    pub const ISLAND_STATE: &str = "island://state";
+    pub const SETTINGS_CHANGED: &str = "settings://changed";
+    pub const TIMER_STATE: &str = "timer://state";
+    pub const REMINDERS_STATE: &str = "reminders://state";
+    pub const NOTES_STATE: &str = "notes://state";
+    pub const SHELF_STATE: &str = "shelf://state";
+    pub const LOCAL_PLAYER_STATE: &str = "local_player://state";
+    pub const LYRICS_CURRENT: &str = "lyrics://current";
     pub const ISLAND_VISIBILITY: &str = "island://visibility";
     pub const ISLAND_POINTER: &str = "island://pointer";
     pub const MEDIA_NOW_PLAYING: &str = "media://now-playing";

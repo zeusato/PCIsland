@@ -1,69 +1,145 @@
 <script lang="ts">
-  // Island root: presentation machine, spring morph, hit regions
-  // (docs/modules/island-window.md §4–§5, docs/04-design-system.md §5–§6).
+  // Island root: presentation machine, spring morph, hit regions, activities from the hub
+  // (docs/modules/island-window.md §4–§5, docs/modules/activity-hub.md).
   import { untrack } from 'svelte';
   import { Spring } from 'svelte/motion';
-  import { inTauri, islandCommands } from '$lib/ipc/commands';
-  import { onIslandPointer, onIslandVisibility } from '$lib/ipc/events';
+  import { Music, Package } from '@lucide/svelte';
+  import { activityCommands, inTauri, islandCommands, playerCommands, shelfCommands } from '$lib/ipc/commands';
+  import { onDragDrop, onIslandHotkey, onIslandPointer, onIslandVisibility } from '$lib/ipc/events';
   import { morphPreset } from '$lib/motion/springs';
   import { contentIn, contentOut } from '$lib/motion/transitions';
+  import { viewFor, isLargeAlert } from '$lib/registry/views';
+  import { live } from '$lib/stores/live.svelte';
+  import { t } from '$lib/i18n/index.svelte';
   import IdleEyes from '../../features/indicators/views/IdleEyes.svelte';
-  import MediaCompact from '../../features/media/views/Compact.svelte';
-  import MediaPeek from '../../features/media/views/Peek.svelte';
-  import { nowPlaying } from '../../features/media/store.svelte';
   import Launcher from './Launcher.svelte';
-  import { geometryFor, hitRect, union, type Geometry } from './geometry';
+  import { BUBBLE, geometryFor, hitRects, union, type Content, type Geometry } from './geometry';
   import { initialIslandState, islandMachine, type IslandEvent } from './islandMachine';
 
-  const HOVER_DELAY_MS = 250; // island.hover_delay_ms
-  const COLLAPSE_DELAY_MS = 400; // island.collapse_delay_ms
+  const AUDIO = /\.(mp3|flac|wav|ogg|m4a|aac)$/i;
 
   let ui = $state(initialIslandState);
   const dispatch = (event: IslandEvent) => (ui = islandMachine(ui, event));
 
-  const np = $derived(nowPlaying());
-  const target = $derived(geometryFor(ui.mode, np !== null));
-  const size = new Spring<Geometry>(geometryFor('compact', false), morphPreset());
-  const live = $derived(np?.status === 'playing');
+  const hub = $derived(live.island);
+  const primary = $derived(hub?.primary ?? null);
+  const secondary = $derived(hub?.secondary ?? null);
+  const alert = $derived(hub?.alert ?? null);
+  const idle = $derived(!primary || primary.kind === 'indicators.idle');
+  let launcherInitial = $state<string | null>(null);
+  let dragging = $state(false);
+  let dropSide = $state<'left' | 'right' | null>(null);
+  let dropPaths = $state<string[]>([]);
+  const dropHasAudio = $derived(dropPaths.some((p) => AUDIO.test(p)));
+
+  // Alerts drive the machine.
+  let lastAlertId: string | null = null;
+  $effect(() => {
+    const id = alert?.id ?? null;
+    if (id === lastAlertId) return;
+    lastAlertId = id;
+    untrack(() => dispatch(id ? { type: 'alertShown', critical: alert ? isLargeAlert(alert) : false } : { type: 'alertEnded' }));
+  });
+
+  const content: Content = $derived(
+    dragging
+      ? 'drop'
+      : ui.mode === 'alert' && alert
+        ? isLargeAlert(alert) ? 'alert-large' : 'alert-small'
+        : ui.mode === 'peek' && (idle || launcherInitial)
+          ? 'launcher'
+          : idle
+            ? 'idle'
+            : primary?.source === 'media'
+              ? 'media'
+              : 'activity',
+  );
+  const showBubble = $derived(!!secondary && !dragging && (ui.mode === 'compact' || ui.mode === 'peek'));
+  const target = $derived(geometryFor(ui.mode, content, primary?.source ?? ''));
+  const size = new Spring<Geometry>(geometryFor('compact', 'idle'), morphPreset());
+  const live_ = $derived(!idle && (primary?.priority ?? 0) >= 50 && ui.mode !== 'minimal');
+  const critical = $derived(content === 'alert-large');
+  const focus = $derived(hub?.focusActive ?? false);
 
   // Morph: report the union of before/after as hit region, then the exact one when settled.
   $effect(() => {
     const next = target;
     const mode = ui.mode;
-    // untrack: reading size.current must not re-run this effect on every spring frame.
-    sendHit(hitRect(union(untrack(() => size.current), next), mode));
+    const bubble = showBubble;
+    sendHit(hitRects(union(untrack(() => size.current), next), mode, bubble));
     size
       .set(next)
       .then(() => {
-        if (untrack(() => ui.mode) === mode) sendHit(hitRect(next, mode));
+        if (untrack(() => ui.mode) === mode) sendHit(hitRects(next, mode, bubble));
       })
-      .catch(() => {}); // superseded by a newer target: that run reports its own region
+      .catch(() => {});
   });
 
-  function sendHit(rect: ReturnType<typeof hitRect>) {
-    if (inTauri) islandCommands.setHitRegions([rect]).catch(() => {});
+  function sendHit(rects: ReturnType<typeof hitRects>) {
+    if (inTauri) islandCommands.setHitRegions(rects).catch(() => {});
   }
 
-  // Hover dwell / collapse timers drive the pure machine.
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const hoverDelay = $derived(live.settings?.island.hoverDelayMs ?? 250);
+  const collapseDelay = $derived(live.settings?.island.collapseDelayMs ?? 400);
   function onEnter() {
     clearTimeout(timer);
     dispatch({ type: 'pointerEnter' });
-    timer = setTimeout(() => dispatch({ type: 'pointerDwell' }), HOVER_DELAY_MS);
+    timer = setTimeout(() => dispatch({ type: 'pointerDwell' }), hoverDelay);
   }
   function onLeave() {
     clearTimeout(timer);
-    timer = setTimeout(() => dispatch({ type: 'pointerLeaveTimeout' }), COLLAPSE_DELAY_MS);
+    timer = setTimeout(() => {
+      if (!launcherInitial) dispatch({ type: 'pointerLeaveTimeout' });
+    }, collapseDelay);
+  }
+  function onClick() {
+    if (ui.mode === 'alert' && alert && !isLargeAlert(alert)) {
+      activityCommands.dismiss(alert.id);
+      return;
+    }
+    dispatch({ type: 'click' });
+  }
+  function closeLauncherPanel() {
+    if (launcherInitial) {
+      launcherInitial = null;
+      dispatch({ type: 'escape' });
+    }
   }
 
   $effect(() => {
     if (!inTauri) return;
     const subs = [
-      onIslandVisibility((v) =>
-        dispatch({ type: 'visibility', mode: v.mode, hasLiveActivity: v.hasLiveActivity }),
-      ),
+      onIslandVisibility((v) => dispatch({ type: 'visibility', mode: v.mode, hasLiveActivity: v.hasLiveActivity })),
       onIslandPointer((p) => {
-        if (p.clickOutside) dispatch({ type: 'clickOutside' });
+        if (p.clickOutside) {
+          launcherInitial = null;
+          dispatch({ type: 'clickOutside' });
+        }
+      }),
+      onIslandHotkey((action) => {
+        if (action === 'togglePeek') dispatch({ type: 'hotkeyToggle' });
+        if (action === 'quickNote') {
+          launcherInitial = 'notes.create';
+          if (ui.mode !== 'peek') dispatch({ type: 'hotkeyToggle' });
+        }
+      }),
+      onDragDrop((e) => {
+        if (e.type === 'leave') {
+          dragging = false;
+          return;
+        }
+        const half = (window.innerWidth * devicePixelRatio) / 2;
+        dropSide = e.x < half ? 'left' : 'right';
+        dropPaths = e.paths;
+        if (e.type === 'drop') {
+          dragging = false;
+          const audio = e.paths.filter((p) => AUDIO.test(p));
+          if (dropSide === 'left' && audio.length) playerCommands.playFiles(audio);
+          else shelfCommands.add(e.paths);
+        } else {
+          dragging = true;
+        }
       }),
     ];
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && dispatch({ type: 'escape' });
@@ -74,12 +150,18 @@
     };
   });
 
-  const contentKey = $derived(`${ui.mode}:${np ? 'media' : 'idle'}`);
+  const shown = $derived(content === 'alert-large' || content === 'alert-small' ? alert : primary);
+  const variant = $derived(content === 'alert-large' || content === 'alert-small' ? 'alert' : ui.mode === 'peek' ? 'peek' : 'compact');
+  const contentKey = $derived(`${content}:${variant}:${shown?.id ?? ''}`);
+  const routeFor = (source?: string) =>
+    ({ media: '/media', timer: '/timer', reminders: '/reminders', notes: '/notes', shelf: '/shelf' })[source ?? ''] ?? '/home';
 </script>
 
 <div
   class="island"
-  class:live
+  class:live={live_ && !critical}
+  class:critical
+  class:focus
   class:minimal={ui.mode === 'minimal'}
   class:hidden={ui.mode === 'hidden'}
   style:width="{size.current.w}px"
@@ -89,20 +171,47 @@
   tabindex="-1"
   onpointerenter={onEnter}
   onpointerleave={onLeave}
-  onclick={() => dispatch({ type: 'click' })}
-  ondblclick={() => inTauri && islandCommands.openMain(np ? '/media' : '/home')}
+  onclick={onClick}
+  ondblclick={() => inTauri && islandCommands.openMain(routeFor(primary?.source))}
   onkeydown={() => {}}
 >
   {#key contentKey}
     <div class="content" in:contentIn out:contentOut>
-      {#if ui.mode === 'peek'}
-        {#if np}<MediaPeek {np} />{:else}<Launcher />{/if}
-      {:else if ui.mode === 'compact'}
-        {#if np}<MediaCompact {np} />{:else}<IdleEyes />{/if}
+      {#if content === 'drop'}
+        <div class="drop">
+          {#if dropHasAudio}
+            <div class="zone" class:active={dropSide === 'left'}><Music size={18} />{t('island.drop.play')}</div>
+          {/if}
+          <div class="zone" class:active={dropSide === 'right' || !dropHasAudio}><Package size={18} />{t('island.drop.shelf')}</div>
+        </div>
+      {:else if content === 'launcher'}
+        <Launcher initial={launcherInitial} onclose={closeLauncherPanel} />
+      {:else if ui.mode === 'minimal'}
+        <span></span>
+      {:else if shown}
+        {@const View = viewFor(shown)}
+        <View activity={shown} {variant} />
+      {:else}
+        <IdleEyes />
+      {/if}
+      {#if content === 'alert-large' && (hub?.criticalWaiting ?? 0) > 0}
+        <span class="more">+{hub?.criticalWaiting}</span>
       {/if}
     </div>
   {/key}
 </div>
+
+{#if showBubble && secondary}
+  {@const Bubble = viewFor(secondary)}
+  <button
+    class="bubble"
+    style:left="calc(50% + {size.current.w / 2 + BUBBLE.gap}px)"
+    aria-label={t('island.pinSecondary')}
+    onclick={() => activityCommands.pin(secondary.id)}
+  >
+    <Bubble activity={secondary} variant="bubble" />
+  </button>
+{/if}
 
 <style>
   .island {
@@ -112,7 +221,6 @@
     transform: translateX(-50%);
     background: var(--c-island);
     border-radius: 0 0 var(--r) var(--r);
-    overflow: visible;
     cursor: default;
     outline: none;
   }
@@ -141,6 +249,27 @@
   .island.live {
     box-shadow: var(--glow-live);
   }
+  .island.focus {
+    box-shadow: 0 0 0 1px var(--c-accent);
+  }
+  .island.critical {
+    animation: breathe 2s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%,
+    100% {
+      box-shadow: 0 0 0 1px rgba(255, 106, 26, 0.35), 0 0 14px rgba(255, 106, 26, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 0 1px rgba(255, 106, 26, 0.75), 0 0 30px rgba(255, 106, 26, 0.6);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .island.critical {
+      animation: none;
+      box-shadow: var(--glow-live);
+    }
+  }
   .island.hidden {
     opacity: 0;
   }
@@ -150,5 +279,44 @@
     overflow: hidden;
     border-radius: inherit;
     display: grid;
+  }
+  .more {
+    position: absolute;
+    top: var(--sp-4);
+    right: var(--sp-6);
+    font-size: var(--fs-caption);
+    color: var(--c-text-2);
+  }
+  .drop {
+    display: flex;
+    gap: var(--sp-4);
+    padding: var(--sp-5);
+  }
+  .zone {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-4);
+    border: 1.5px dashed var(--c-border-strong);
+    border-radius: var(--r-card);
+    color: var(--c-text-2);
+    font-size: var(--fs-small);
+  }
+  .zone.active {
+    border-color: var(--c-accent);
+    color: var(--c-accent-bright);
+    background: var(--c-accent-soft);
+  }
+  .bubble {
+    position: absolute;
+    top: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 0 0 16px 16px;
+    background: var(--c-island);
+    cursor: pointer;
   }
 </style>

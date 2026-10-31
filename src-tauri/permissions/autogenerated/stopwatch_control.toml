@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-stopwatch-control"
+description = "Enables the stopwatch_control command without any pre-configured scope."
+commands.allow = ["stopwatch_control"]
+
+[[permission]]
+identifier = "deny-stopwatch-control"
+description = "Denies the stopwatch_control command without any pre-configured scope."
+commands.deny = ["stopwatch_control"]

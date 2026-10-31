@@ -5,6 +5,12 @@
   import { inTauri } from '$lib/ipc/commands';
   import { currentWindow } from '$lib/ipc/window';
   import HomePage from './HomePage.svelte';
+  import MusicPage from './pages/MusicPage.svelte';
+  import TimerPage from './pages/TimerPage.svelte';
+  import RemindersPage from './pages/RemindersPage.svelte';
+  import NotesPage from './pages/NotesPage.svelte';
+  import ShelfPage from './pages/ShelfPage.svelte';
+  import SettingsPage from './pages/SettingsPage.svelte';
 
   const nav = [
     { route: '/home', key: 'main.nav.home', icon: House },
@@ -49,10 +55,20 @@
   </nav>
 
   <main class="content">
-    {#if route.startsWith('/home') || route.startsWith('/media') || route.startsWith('/online')}
-      <HomePage />
+    {#if route.startsWith('/media') || route.startsWith('/online')}
+      <MusicPage />
+    {:else if route.startsWith('/timer')}
+      <TimerPage />
+    {:else if route.startsWith('/reminders')}
+      <RemindersPage />
+    {:else if route.startsWith('/notes')}
+      <NotesPage />
+    {:else if route.startsWith('/shelf')}
+      <ShelfPage />
+    {:else if route.startsWith('/settings')}
+      <SettingsPage />
     {:else}
-      <p class="soon">{t('main.comingSoon')}</p>
+      <HomePage />
     {/if}
   </main>
 </div>
@@ -124,8 +140,5 @@
   .content {
     padding: var(--sp-9);
     overflow: auto;
-  }
-  .soon {
-    color: var(--c-text-3);
   }
 </style>

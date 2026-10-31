@@ -6,20 +6,20 @@
 
 | Tài liệu | ID | Tính năng | Phase | Trạng thái |
 |---|---|---|---|---|
-| [island-window](island-window.md) | `island` | F01, F04, F05 | P0–P3 | Thiết kế |
-| [app-lifecycle](app-lifecycle.md) | `app` | F03, F08, F45 | P1–P3 | Thiết kế |
-| [activity-hub](activity-hub.md) | `activity` | F06 | P1 | Thiết kế |
-| [settings-storage](settings-storage.md) | `settings`, `storage` | Hạ tầng | P1 | Thiết kế |
-| [full-window](full-window.md) | `ui-main` | F02, F07, F09 | P1–P3 | Thiết kế |
-| [media-hub](media-hub.md) | `media` | F10 | P1 | Thiết kế |
-| [local-player](local-player.md) | `local_player` | F11, F13 | P2–P3 | Thiết kế |
-| [web-player](web-player.md) | `web_player` | F12 | P2 | Thiết kế |
-| [lyrics-visualizer](lyrics-visualizer.md) | `lyrics`, `visualizer` | F14, F15 | P3 | Thiết kế |
-| [timer](timer.md) | `timer` | F20–F23 | P1–P3 | Thiết kế |
-| [reminders](reminders.md) | `reminders` | F24, F25 | P2–P3 | Thiết kế |
-| [system-indicators](system-indicators.md) | `indicators` | F30–F34 | P1–P4 | Thiết kế |
-| [quick-notes](quick-notes.md) | `notes` | F26 | P3 | Thiết kế |
-| [file-shelf](file-shelf.md) | `shelf` | F27 | P3 | Thiết kế |
+| [island-window](island-window.md) | `island` | F01, F04, F05 | P0–P3 | Đang làm |
+| [app-lifecycle](app-lifecycle.md) | `app` | F03, F08, F45 | P1–P3 | Đang làm |
+| [activity-hub](activity-hub.md) | `activity` | F06 | P1 | Đang làm |
+| [settings-storage](settings-storage.md) | `settings`, `storage` | Hạ tầng | P1 | Đang làm |
+| [full-window](full-window.md) | `ui-main` | F02, F07, F09 | P1–P3 | Đang làm |
+| [media-hub](media-hub.md) | `media` | F10 | P1 | Đang làm |
+| [local-player](local-player.md) | `local_player` | F11, F13 | P2–P3 | Đang làm |
+| [web-player](web-player.md) | `web_player` | F12 | P2 | Đang làm |
+| [lyrics-visualizer](lyrics-visualizer.md) | `lyrics`, `visualizer` | F14, F15 | P3 | Đang làm |
+| [timer](timer.md) | `timer` | F20–F23 | P1–P3 | Đang làm |
+| [reminders](reminders.md) | `reminders` | F24, F25 | P2–P3 | Đang làm |
+| [system-indicators](system-indicators.md) | `indicators` | F30–F34 | P1–P4 | Đang làm |
+| [quick-notes](quick-notes.md) | `notes` | F26 | P3 | Đang làm |
+| [file-shelf](file-shelf.md) | `shelf` | F27 | P3 | Đang làm |
 | [future-modules](future-modules.md) | — | F40–F44 | P4 | Phác thảo |
 
 Trạng thái: **Phác thảo** → **Thiết kế** → **Đang làm** → **Hoàn thành** (kèm phiên bản) → **Bảo trì**.

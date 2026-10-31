@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-pomodoro-stats"
+description = "Enables the pomodoro_stats command without any pre-configured scope."
+commands.allow = ["pomodoro_stats"]
+
+[[permission]]
+identifier = "deny-pomodoro-stats"
+description = "Denies the pomodoro_stats command without any pre-configured scope."
+commands.deny = ["pomodoro_stats"]

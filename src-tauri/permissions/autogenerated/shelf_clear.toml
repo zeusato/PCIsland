@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-shelf-clear"
+description = "Enables the shelf_clear command without any pre-configured scope."
+commands.allow = ["shelf_clear"]
+
+[[permission]]
+identifier = "deny-shelf-clear"
+description = "Denies the shelf_clear command without any pre-configured scope."
+commands.deny = ["shelf_clear"]

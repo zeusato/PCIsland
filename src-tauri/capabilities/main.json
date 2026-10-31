@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "The full window: app commands plus custom title bar controls.",
+  "description": "The full window: app commands, title bar controls, file dialogs.",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -9,16 +9,7 @@
     "core:window:allow-toggle-maximize",
     "core:window:allow-close",
     "core:window:allow-start-dragging",
-    "allow-island-get-state",
-    "allow-media-get-state",
-    "allow-media-play-pause",
-    "allow-media-next",
-    "allow-media-previous",
-    "allow-web-player-get-state",
-    "allow-web-player-list-sites",
-    "allow-web-player-open",
-    "allow-web-player-show",
-    "allow-web-player-hide",
-    "allow-web-player-close"
+    "dialog:allow-open",
+    "app-commands"
   ]
 }

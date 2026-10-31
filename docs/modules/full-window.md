@@ -1,6 +1,6 @@
 # Module: Cửa sổ đầy đủ (`ui-main`)
 
-> Trạng thái: Thiết kế · Phase: P1 (khung, i18n), P2 (các trang), P3 (theme) · Tính năng: F02, F07, F09 · Cập nhật: 2026-10-31
+> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P1 (khung, i18n), P2 (các trang), P3 (theme) · Tính năng: F02, F07, F09 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 

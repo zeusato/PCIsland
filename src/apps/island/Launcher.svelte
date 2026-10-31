@@ -5,7 +5,19 @@
   import { t, getLocale } from '$lib/i18n/index.svelte';
   import { quickActions, type QuickAction } from '$lib/registry/quickActions.svelte';
 
+  let { initial = null, onclose }: { initial?: string | null; onclose?: () => void } = $props();
   let panel = $state<{ action: QuickAction; component: Component<{ close: () => void }> } | null>(null);
+
+  // Open a panel directly (hotkey "quickNote").
+  $effect(() => {
+    const a = quickActions().find((x) => x.id === initial);
+    if (a?.panel) panel = { action: a, component: a.panel };
+  });
+
+  function closePanel() {
+    panel = null;
+    onclose?.();
+  }
   let now = $state(new Date());
 
   $effect(() => {
@@ -31,7 +43,7 @@
 <div class="launcher">
   <div class="header">
     {#if panel}
-      <button class="back" aria-label={t('common.back')} onclick={() => (panel = null)}><ChevronLeft size={16} /></button>
+      <button class="back" aria-label={t('common.back')} onclick={(e) => { e.stopPropagation(); closePanel(); }}><ChevronLeft size={16} /></button>
       <span class="title">{t(panel.action.labelKey)}</span>
     {:else}
       <span class="title tabular">{time}</span>
@@ -40,11 +52,11 @@
   </div>
 
   {#if panel}
-    <panel.component close={() => (panel = null)} />
+    <panel.component close={closePanel} />
   {:else}
     <div class="grid">
       {#each quickActions() as action (action.id)}
-        <button class="action" onclick={() => choose(action)}>
+        <button class="action" onclick={(e) => { e.stopPropagation(); choose(action); }}>
           <action.icon size={18} />
           <span>{t(action.labelKey)}</span>
         </button>

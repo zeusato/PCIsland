@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-local-player-get-state"
+description = "Enables the local_player_get_state command without any pre-configured scope."
+commands.allow = ["local_player_get_state"]
+
+[[permission]]
+identifier = "deny-local-player-get-state"
+description = "Denies the local_player_get_state command without any pre-configured scope."
+commands.deny = ["local_player_get_state"]

@@ -1,71 +1,68 @@
 <script lang="ts">
+  import { Timer, Bell } from '@lucide/svelte';
+  import Card from '$lib/components/Card.svelte';
   import { t } from '$lib/i18n/index.svelte';
-  import { inTauri, webPlayerCommands } from '$lib/ipc/commands';
-  import type { SiteDto } from '$lib/ipc/bindings/SiteDto';
+  import { live } from '$lib/stores/live.svelte';
+  import { formatWhen } from '$lib/format';
   import MediaPeek from '../../features/media/views/Peek.svelte';
   import { nowPlaying } from '../../features/media/store.svelte';
 
   const np = $derived(nowPlaying());
-  let sites = $state<SiteDto[]>([]);
-
-  $effect(() => {
-    if (inTauri) webPlayerCommands.listSites().then((list) => (sites = list));
-  });
+  const upcoming = $derived((live.reminders?.upcoming ?? []).slice(0, 5));
+  const timers = $derived(live.timer?.timers.length ?? 0);
 </script>
 
-<section class="card">
-  <h2>{t('main.nav.media')}</h2>
-  {#if np}
-    <div class="np"><MediaPeek {np} /></div>
-  {:else}
-    <p class="muted">{t('main.home.empty')}</p>
-  {/if}
-</section>
+<h1>{t('main.nav.home')}</h1>
 
-<section class="card">
-  <h2>{t('main.nav.online')}</h2>
-  <div class="sites">
-    {#each sites as site (site.id)}
-      <button onclick={() => webPlayerCommands.open(site.id)}>{site.name}</button>
+<div class="grid">
+  <Card title={t('music.nowPlaying')}>
+    {#if np}
+      <div class="np"><MediaPeek {np} /></div>
+    {:else}
+      <p class="muted">{t('main.home.empty')}</p>
+    {/if}
+  </Card>
+
+  <Card title={t('main.nav.reminders')}>
+    {#each upcoming as r (r.id)}
+      <div class="line"><Bell size={14} /><span class="grow">{r.title}</span><span class="muted">{formatWhen(r.snoozedUntil ?? r.dueAt)}</span></div>
+    {:else}
+      <p class="muted">{t('reminders.empty')}</p>
     {/each}
-  </div>
-</section>
+  </Card>
+
+  <Card title={t('main.nav.timer')}>
+    <div class="line"><Timer size={14} /><span>{t('home.timers', { n: timers })}</span></div>
+    {#if live.timer?.pomodoro}<div class="line">Pomodoro · {t(`pomodoro.phase.${live.timer.pomodoro.phase}`)}</div>{/if}
+  </Card>
+</div>
 
 <style>
-  .card {
-    background: var(--c-surface-2);
-    border-radius: var(--r-card);
-    padding: var(--sp-7);
-    margin-bottom: var(--sp-6);
-    max-width: 640px;
+  h1 {
+    margin: 0 0 var(--sp-6);
+    font-size: var(--fs-title);
   }
-  h2 {
-    margin: 0 0 var(--sp-5);
-    font-size: var(--fs-title-s);
-    font-weight: var(--fw-semibold);
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 0 var(--sp-6);
   }
   .np {
     background: var(--c-island);
     border-radius: var(--r-peek);
-    height: 160px;
+    height: 172px;
+  }
+  .line {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-3) 0;
+  }
+  .grow {
+    flex: 1;
   }
   .muted {
     color: var(--c-text-3);
-  }
-  .sites {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-4);
-  }
-  .sites button {
-    border: 1px solid var(--c-border-strong);
-    border-radius: var(--r-pill);
-    background: var(--c-surface-3);
-    padding: var(--sp-3) var(--sp-6);
-    cursor: pointer;
-  }
-  .sites button:hover {
-    border-color: var(--c-accent);
-    color: var(--c-accent-bright);
+    font-size: var(--fs-small);
   }
 </style>

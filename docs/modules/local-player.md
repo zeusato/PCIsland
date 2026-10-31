@@ -1,6 +1,6 @@
 # Module: Trình phát file trên máy (`local_player`)
 
-> Trạng thái: Thiết kế · Phase: P2 (F11), P3 (F13 radio) · Tính năng: F11, F13 · Cập nhật: 2026-10-31
+> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P2 (F11), P3 (F13 radio) · Tính năng: F11, F13 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 

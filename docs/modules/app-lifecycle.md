@@ -1,6 +1,6 @@
 # Module: Vòng đời app (`app`)
 
-> Trạng thái: Thiết kế · Phase: P1 (lõi), P3 (âm báo tùy chỉnh, cập nhật) · Tính năng: F03, F08, F45 · Cập nhật: 2026-10-31
+> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P1 (lõi), P3 (âm báo tùy chỉnh, cập nhật) · Tính năng: F03, F08, F45 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 

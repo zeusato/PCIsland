@@ -1,6 +1,6 @@
 # Module: Media hub (`media`)
 
-> Trạng thái: Thiết kế · Phase: P0 (spike C), P1 · Tính năng: F10 · Cập nhật: 2026-10-31
+> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P0 (spike C), P1 · Tính năng: F10 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 

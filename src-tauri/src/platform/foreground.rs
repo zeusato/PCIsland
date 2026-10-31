@@ -149,3 +149,21 @@ unsafe extern "system" fn on_foreground(
         let _ = tx.send(());
     }
 }
+
+/// True while the workstation is locked (or on the secure desktop): the input
+/// desktop cannot be opened from a normal user process then.
+pub fn session_locked() -> bool {
+    use windows::Win32::System::StationsAndDesktops::{
+        CloseDesktop, DESKTOP_CONTROL_FLAGS, DESKTOP_SWITCHDESKTOP, OpenInputDesktop,
+    };
+    // SAFETY: the handle is closed right away; no other state is touched.
+    unsafe {
+        match OpenInputDesktop(DESKTOP_CONTROL_FLAGS(0), false, DESKTOP_SWITCHDESKTOP) {
+            Ok(desk) => {
+                let _ = CloseDesktop(desk);
+                false
+            }
+            Err(_) => true,
+        }
+    }
+}

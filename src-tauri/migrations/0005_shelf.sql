@@ -1,0 +1,9 @@
+CREATE TABLE shelf_items (
+  id TEXT PRIMARY KEY,
+  path TEXT NOT NULL,
+  name TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  is_dir INTEGER NOT NULL,
+  added_at INTEGER NOT NULL,
+  missing INTEGER NOT NULL DEFAULT 0
+);

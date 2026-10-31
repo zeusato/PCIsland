@@ -4,6 +4,7 @@
   import { t } from '$lib/i18n/index.svelte';
   import { Music, Pause, Play, SkipBack, SkipForward } from '@lucide/svelte';
   import { formatTime, positionAt } from '../store.svelte';
+  import { live } from '$lib/stores/live.svelte';
 
   let { np }: { np: NowPlayingDto } = $props();
   let now = $state(Date.now());
@@ -19,6 +20,17 @@
   const progress = $derived(
     position !== null && np.durationMs ? Math.min(1, position / np.durationMs) : null,
   );
+  // Current synced lyric line (docs/modules/lyrics-visualizer.md §A3).
+  const lyric = $derived.by(() => {
+    const l = live.lyrics;
+    if (!l?.synced || position === null || !live.settings?.lyrics.enabled) return null;
+    let line: string | null = null;
+    for (const x of l.lines) {
+      if (x.timeMs <= position) line = x.text;
+      else break;
+    }
+    return line;
+  });
   const subtitle = $derived([np.artist, np.appName].filter(Boolean).join(' · '));
 </script>
 
@@ -34,6 +46,8 @@
       <div class="subtitle">{subtitle}</div>
     </div>
   </div>
+
+  {#if lyric}<div class="lyric">{lyric}</div>{/if}
 
   {#if progress !== null && position !== null && np.durationMs}
     <div class="progress">
@@ -96,6 +110,14 @@
   .subtitle {
     color: var(--c-text-2);
     font-size: var(--fs-small);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lyric {
+    color: var(--c-accent-bright);
+    font-size: var(--fs-small);
+    text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -1,6 +1,6 @@
 # Module: Settings & storage (`settings`, `storage`)
 
-> Trạng thái: Thiết kế · Phase: P1 · Tính năng: hạ tầng · Cập nhật: 2026-10-31
+> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P1 · Tính năng: hạ tầng · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 

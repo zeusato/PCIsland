@@ -1,6 +1,6 @@
 # Module: Kệ file (`shelf`)
 
-> Trạng thái: Thiết kế · Phase: P3 · Tính năng: F27 · Cập nhật: 2026-10-31
+> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P3 · Tính năng: F27 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 

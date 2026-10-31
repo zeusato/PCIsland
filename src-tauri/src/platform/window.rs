@@ -129,3 +129,34 @@ pub fn primary_monitor() -> Option<MonitorRects> {
         }
     }
 }
+
+/// Lets the island take keyboard focus for text input, remembering who had it
+/// (docs/02-system-design.md §6). Returns the previous foreground window.
+pub fn take_focus(window: RawHwnd) -> RawHwnd {
+    use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, SetForegroundWindow};
+    let hwnd = window.hwnd();
+    // SAFETY: style change and activation of a window we own; GetForegroundWindow has no inputs.
+    unsafe {
+        let previous = GetForegroundWindow();
+        let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex & !(WS_EX_NOACTIVATE.0 as isize));
+        let _ = SetForegroundWindow(hwnd);
+        RawHwnd::from_hwnd(previous)
+    }
+}
+
+/// Restores `WS_EX_NOACTIVATE` and gives focus back to `previous` if it still exists.
+pub fn release_focus(window: RawHwnd, previous: Option<RawHwnd>) {
+    use windows::Win32::UI::WindowsAndMessaging::{IsWindow, SetForegroundWindow};
+    let hwnd = window.hwnd();
+    // SAFETY: as in `take_focus`; `previous` is validated with IsWindow before use.
+    unsafe {
+        let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex | WS_EX_NOACTIVATE.0 as isize);
+        if let Some(prev) = previous {
+            if IsWindow(Some(prev.hwnd())).as_bool() {
+                let _ = SetForegroundWindow(prev.hwnd());
+            }
+        }
+    }
+}

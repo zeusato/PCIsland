@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-pomodoro-control"
+description = "Enables the pomodoro_control command without any pre-configured scope."
+commands.allow = ["pomodoro_control"]
+
+[[permission]]
+identifier = "deny-pomodoro-control"
+description = "Denies the pomodoro_control command without any pre-configured scope."
+commands.deny = ["pomodoro_control"]

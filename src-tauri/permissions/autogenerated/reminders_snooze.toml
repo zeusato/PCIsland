@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reminders-snooze"
+description = "Enables the reminders_snooze command without any pre-configured scope."
+commands.allow = ["reminders_snooze"]
+
+[[permission]]
+identifier = "deny-reminders-snooze"
+description = "Denies the reminders_snooze command without any pre-configured scope."
+commands.deny = ["reminders_snooze"]

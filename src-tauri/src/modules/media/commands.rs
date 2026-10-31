@@ -22,3 +22,9 @@ pub fn media_next(media: State<'_, MediaHandle>) {
 pub fn media_previous(media: State<'_, MediaHandle>) {
     media.command(MediaCommand::Previous);
 }
+
+/// Pins a source as current (`None` returns to automatic selection).
+#[tauri::command]
+pub fn media_select_source(media: State<'_, MediaHandle>, source_id: Option<String>) {
+    media.pin_source(source_id);
+}

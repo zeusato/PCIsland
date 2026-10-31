@@ -63,6 +63,7 @@ pub fn setup(app: &AppHandle, media: MediaHandle) -> WebPlayerHandle {
     media.register_web_control(Arc::new(move |cmd| {
         let action = match cmd {
             MediaCommand::PlayPause => "play_pause",
+            MediaCommand::Pause => "pause",
             MediaCommand::Next => "nexttrack",
             MediaCommand::Previous => "previoustrack",
         };

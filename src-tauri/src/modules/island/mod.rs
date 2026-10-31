@@ -14,12 +14,14 @@ use tauri::{
 };
 use tokio::sync::{mpsc, watch};
 
+use crate::core::activity::ActivityHub;
 use crate::core::priority;
+use crate::core::settings::{IslandSettings, Settings, SettingsHandle};
 use crate::ipc::events;
 use crate::platform::foreground::{self, ForegroundState};
 use crate::platform::window::{self as win, PhysRect, RawHwnd};
 use dto::{HitRect, PointerEvent, VisibilityEvent, VisibilityMode};
-use policy::{PolicyInput, PolicySettings};
+use policy::{AlertOverFullscreen, PolicyInput, PolicySettings};
 
 pub const LABEL: &str = "island";
 /// Fixed logical size of the island window (docs/04-design-system.md §5).
@@ -45,6 +47,7 @@ struct Shared {
     hits: Mutex<Vec<PhysRect>>,
     visibility: Mutex<VisibilityEvent>,
     commands: mpsc::UnboundedSender<Command>,
+    focus_owner: Mutex<Option<RawHwnd>>,
 }
 
 /// Cloneable handle managed as Tauri state.
@@ -76,6 +79,18 @@ impl IslandHandle {
         self.0.window.scale_factor().unwrap_or(1.0)
     }
 
+    /// Island temporarily accepts keyboard focus (note / reminder input).
+    pub fn request_focus(&self) {
+        let previous = win::take_focus(self.0.hwnd);
+        lock(&self.0.focus_owner).get_or_insert(previous);
+        let _ = self.0.window.set_focus();
+    }
+
+    pub fn release_focus(&self) {
+        let previous = lock(&self.0.focus_owner).take();
+        win::release_focus(self.0.hwnd, previous);
+    }
+
     pub async fn toggle_hidden(&self) -> Option<VisibilityMode> {
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.0.commands.send(Command::ToggleHidden(tx)).ok()?;
@@ -83,9 +98,12 @@ impl IslandHandle {
     }
 }
 
-/// Creates the island window and starts its services. `top_priority` is the P0
-/// stand-in for ActivityHub (see `core::priority`).
-pub fn setup(app: &AppHandle, top_priority: watch::Receiver<u8>) -> tauri::Result<IslandHandle> {
+/// Creates the island window and starts its services.
+pub fn setup(
+    app: &AppHandle,
+    hub: ActivityHub,
+    settings: &SettingsHandle,
+) -> tauri::Result<IslandHandle> {
     let window = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("island.html".into()))
         .title("PCisland")
         .inner_size(WINDOW_W, WINDOW_H)
@@ -115,6 +133,7 @@ pub fn setup(app: &AppHandle, top_priority: watch::Receiver<u8>) -> tauri::Resul
             rev: 0,
         }),
         commands: cmd_tx,
+        focus_owner: Mutex::new(None),
     });
     place_on_primary(&shared)?;
     window.show()?;
@@ -127,7 +146,8 @@ pub fn setup(app: &AppHandle, top_priority: watch::Receiver<u8>) -> tauri::Resul
         shared.clone(),
         fg_rx,
         cmd_rx,
-        top_priority,
+        hub,
+        settings.subscribe(),
     ));
     tauri::async_runtime::spawn(cursor_poller(app.clone(), shared.clone()));
 
@@ -154,9 +174,10 @@ async fn visibility_loop(
     shared: Arc<Shared>,
     mut foreground_changed: mpsc::UnboundedReceiver<()>,
     mut commands: mpsc::UnboundedReceiver<Command>,
-    mut top_priority: watch::Receiver<u8>,
+    hub: ActivityHub,
+    mut settings: watch::Receiver<Settings>,
 ) {
-    let settings = PolicySettings::default();
+    let mut top = hub.top();
     let mut user_hidden = false;
     let mut last_fg = ForegroundState::default();
     let mut tick = tokio::time::interval(RECHECK);
@@ -174,22 +195,26 @@ async fn visibility_loop(
                     let _ = reply.send(if user_hidden { VisibilityMode::Hidden } else { VisibilityMode::Normal });
                 }
             },
-            Ok(()) = top_priority.changed() => reason = "activity",
+            Ok(()) = top.changed() => reason = "activity",
+            Ok(()) = settings.changed() => reason = "settings",
             _ = tick.tick() => {}
         }
         let fg = foreground::foreground_state(shared.hwnd);
-        let top = *top_priority.borrow();
+        let info = *top.borrow();
+        let policy_settings = policy_settings(&settings.borrow().island);
         let mode = policy::decide(
             PolicyInput {
                 user_hidden,
+                session_locked: crate::platform::foreground::session_locked(),
                 fullscreen: fg.fullscreen,
                 maximized: fg.maximized,
-                top_priority: top,
-                ..Default::default()
+                top_priority: info.priority,
+                has_alert: info.has_alert,
             },
-            settings,
+            policy_settings,
         );
-        let has_live = top >= priority::LIVE;
+        let has_live = info.priority >= priority::LIVE;
+        hub.set_island_hidden(mode == VisibilityMode::Hidden);
         let previous = lock(&shared.visibility).clone();
         if mode == previous.mode && has_live == previous.has_live_activity && fg == last_fg {
             continue;
@@ -301,7 +326,21 @@ pub fn open_main(app: &AppHandle, route: Option<&str>) -> tauri::Result<()> {
         .inner_size(1120.0, 720.0)
         .min_inner_size(960.0, 640.0)
         .decorations(false)
+        .background_color(tauri::window::Color(11, 11, 13, 255))
         .center()
         .build()?;
     Ok(())
+}
+
+fn policy_settings(s: &IslandSettings) -> PolicySettings {
+    PolicySettings {
+        hide_in_fullscreen: s.hide_in_fullscreen,
+        minimal_when_maximized: s.minimal_when_maximized,
+        hide_when_idle: s.idle_display == "hidden",
+        alert_over_fullscreen: match s.alert_over_fullscreen.as_str() {
+            "never" => AlertOverFullscreen::Never,
+            "all" => AlertOverFullscreen::All,
+            _ => AlertOverFullscreen::Critical,
+        },
+    }
 }

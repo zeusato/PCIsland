@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reminders-parse"
+description = "Enables the reminders_parse command without any pre-configured scope."
+commands.allow = ["reminders_parse"]
+
+[[permission]]
+identifier = "deny-reminders-parse"
+description = "Denies the reminders_parse command without any pre-configured scope."
+commands.deny = ["reminders_parse"]

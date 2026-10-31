@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-app-play-sound"
+description = "Enables the app_play_sound command without any pre-configured scope."
+commands.allow = ["app_play_sound"]
+
+[[permission]]
+identifier = "deny-app-play-sound"
+description = "Denies the app_play_sound command without any pre-configured scope."
+commands.deny = ["app_play_sound"]

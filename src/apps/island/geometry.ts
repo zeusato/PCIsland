@@ -11,26 +11,42 @@ export interface Geometry {
 export const WINDOW_W = 480;
 /** Invisible hover strip above a minimal island. */
 export const MINIMAL_HOVER = { w: 160, h: 14 };
+export const BUBBLE = { w: 32, h: 32, gap: 6 };
 
-export function geometryFor(mode: Presentation, hasMedia: boolean): Geometry {
+export type Content = 'idle' | 'activity' | 'media' | 'drop' | 'alert-small' | 'alert-large' | 'launcher';
+
+const PEEK_HEIGHT: Record<string, number> = {
+  media: 172,
+  timer: 168,
+  reminders: 140,
+  notes: 176,
+  shelf: 184,
+  launcher: 176,
+};
+
+export function geometryFor(mode: Presentation, content: Content, source = ''): Geometry {
+  if (content === 'drop') return { w: 360, h: 88, r: 28 };
   switch (mode) {
     case 'minimal':
       return { w: 96, h: 4, r: 2 };
     case 'peek':
-      return hasMedia ? { w: 400, h: 160, r: 28 } : { w: 400, h: 150, r: 28 };
+      return { w: 400, h: PEEK_HEIGHT[content === 'launcher' ? 'launcher' : source] ?? 160, r: 28 };
     case 'alert':
-      return { w: 260, h: 40, r: 20 };
+      return content === 'alert-large' ? { w: 400, h: 150, r: 28 } : { w: 260, h: 40, r: 20 };
     case 'compact':
     case 'hidden':
-      return hasMedia ? { w: 200, h: 32, r: 16 } : { w: 120, h: 30, r: 15 };
+      if (content === 'idle') return { w: 120, h: 30, r: 15 };
+      return { w: content === 'media' ? 200 : 180, h: 32, r: 16 };
   }
 }
 
-/** Hit rectangle for the island anchored at the top centre of the window. */
-export function hitRect(g: Geometry, mode: Presentation) {
+/** Hit rectangles for the island (and the secondary tab) anchored at the top centre. */
+export function hitRects(g: Geometry, mode: Presentation, bubble: boolean) {
   const w = mode === 'minimal' ? Math.max(g.w, MINIMAL_HOVER.w) : g.w;
   const h = mode === 'minimal' ? Math.max(g.h, MINIMAL_HOVER.h) : g.h;
-  return { x: (WINDOW_W - w) / 2, y: 0, width: w, height: h };
+  const rects = [{ x: (WINDOW_W - w) / 2, y: 0, width: w, height: h }];
+  if (bubble) rects.push({ x: (WINDOW_W + g.w) / 2 + BUBBLE.gap, y: 0, width: BUBBLE.w, height: BUBBLE.h });
+  return rects;
 }
 
 export function union(a: Geometry, b: Geometry): Geometry {

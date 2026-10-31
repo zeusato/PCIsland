@@ -1,6 +1,6 @@
 # Module: Chỉ báo hệ thống (`indicators`)
 
-> Trạng thái: Thiết kế · Phase: P1 (F33), P2 (F30, F31), P4 (F32, F34) · Tính năng: F30–F34 · Cập nhật: 2026-10-31
+> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P1 (F33), P2 (F30, F31), P4 (F32, F34) · Tính năng: F30–F34 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 

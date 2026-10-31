@@ -1,6 +1,6 @@
 # Module: Trình phát web (`web_player`)
 
-> Trạng thái: Thiết kế · Phase: P0 (spike D), P2 · Tính năng: F12 · Cập nhật: 2026-10-31
+> Trạng thái: Đang làm (code có, chưa test tay; xem Handoff §2) · Phase: P0 (spike D), P2 · Tính năng: F12 · Cập nhật: 2026-10-31
 
 ## 1. Mục đích
 

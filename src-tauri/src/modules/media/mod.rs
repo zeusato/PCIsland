@@ -1,5 +1,5 @@
 //! Media hub: merges every source into one `NowPlaying` (docs/modules/media-hub.md).
-//! P0 scope: external sources via GSMTC + the web player source.
+//! Sources: external apps via GSMTC, the web player and the local player.
 #![forbid(unsafe_code)]
 
 pub mod commands;
@@ -12,31 +12,37 @@ use std::sync::{Arc, Mutex, PoisonError};
 use tauri::{AppHandle, Emitter};
 use tokio::sync::{mpsc, watch};
 
+use crate::core::activity::{Activity, ActivityAction, ActivityHub};
 use crate::core::artwork::ArtworkCache;
 use crate::core::priority;
+use crate::core::settings::Settings;
 use crate::ipc::{events, now_ms};
 use crate::platform::gsmtc::{self, GsmtcCommand, SessionInfo};
 use dto::{MediaCaps, MediaSnapshot, NowPlayingDto, PlaybackStatus, SourceSummary};
 
-/// `media.paused_media_ambient_min` default (docs/modules/activity-hub.md §7).
+/// `activity.paused_media_ambient_min` default (docs/modules/activity-hub.md §7).
 const PAUSED_WINDOW_MS: u64 = 30 * 60 * 1000;
 pub const WEB_SOURCE_ID: &str = "web";
+pub const LOCAL_SOURCE_ID: &str = "local";
+const ACTIVITY_ID: &str = "media:now-playing";
 
 #[derive(Debug, Clone, Copy)]
 pub enum MediaCommand {
     PlayPause,
     Next,
     Previous,
+    Pause,
 }
 
-/// Control callback a non-GSMTC source registers (implementation of the `MediaSource`
-/// idea from docs/02-system-design.md §11, reduced for P0).
+/// Control callback of an in-app source (the `MediaSource` idea of
+/// docs/02-system-design.md §11): web player and local player register one.
 pub type SourceControl = Arc<dyn Fn(MediaCommand) + Send + Sync>;
 
 enum Input {
     External(Vec<SessionInfo>),
-    Web(Option<NowPlayingDto>),
+    Source(String, Option<NowPlayingDto>),
     Command(MediaCommand),
+    Pin(Option<String>),
 }
 
 struct Entry {
@@ -48,7 +54,8 @@ struct Entry {
 pub struct MediaHandle {
     input: mpsc::UnboundedSender<Input>,
     snapshot: Arc<Mutex<MediaSnapshot>>,
-    web_control: Arc<Mutex<Option<SourceControl>>>,
+    controls: Arc<Mutex<HashMap<String, SourceControl>>>,
+    now_playing: watch::Receiver<Option<NowPlayingDto>>,
 }
 
 impl MediaHandle {
@@ -58,30 +65,42 @@ impl MediaHandle {
             .unwrap_or_else(PoisonError::into_inner)
             .clone()
     }
-
+    /// Current track for consumers such as lyrics (AppEvent::NowPlayingChanged in the design).
+    pub fn subscribe(&self) -> watch::Receiver<Option<NowPlayingDto>> {
+        self.now_playing.clone()
+    }
     pub fn command(&self, cmd: MediaCommand) {
         let _ = self.input.send(Input::Command(cmd));
     }
-
-    /// Called by the web player whenever its bridge reports a new state.
-    pub fn update_web_source(&self, state: Option<NowPlayingDto>) {
-        let _ = self.input.send(Input::Web(state));
+    pub fn pin_source(&self, source_id: Option<String>) {
+        let _ = self.input.send(Input::Pin(source_id));
     }
-
-    pub fn register_web_control(&self, control: SourceControl) {
-        *self
-            .web_control
+    /// Called by in-app sources whenever their state changes (`None` = gone).
+    pub fn update_source(&self, source_id: &str, state: Option<NowPlayingDto>) {
+        let _ = self.input.send(Input::Source(source_id.into(), state));
+    }
+    pub fn update_web_source(&self, state: Option<NowPlayingDto>) {
+        self.update_source(WEB_SOURCE_ID, state);
+    }
+    pub fn register_control(&self, source_id: &str, control: SourceControl) {
+        self.controls
             .lock()
-            .unwrap_or_else(PoisonError::into_inner) = Some(control);
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(source_id.into(), control);
+    }
+    pub fn register_web_control(&self, control: SourceControl) {
+        self.register_control(WEB_SOURCE_ID, control);
     }
 }
 
 pub fn setup(
     app: &AppHandle,
     artwork: Arc<ArtworkCache>,
-    top_priority: watch::Sender<u8>,
+    hub: ActivityHub,
+    settings: watch::Receiver<Settings>,
 ) -> MediaHandle {
     let (tx, rx) = mpsc::unbounded_channel();
+    let (np_tx, np_rx) = watch::channel(None);
     let forward = tx.clone();
     let gsmtc_tx = gsmtc::spawn(move |sessions| {
         let _ = forward.send(Input::External(sessions));
@@ -93,26 +112,49 @@ pub fn setup(
             sources: Vec::new(),
             rev: 0,
         })),
-        web_control: Arc::new(Mutex::new(None)),
+        controls: Arc::new(Mutex::new(HashMap::new())),
+        now_playing: np_rx,
     };
+    let for_actions = handle.clone();
+    hub.register_handler(
+        "media",
+        Arc::new(move |_, action| {
+            let cmd = match action {
+                "play_pause" => MediaCommand::PlayPause,
+                "next" => MediaCommand::Next,
+                "previous" => MediaCommand::Previous,
+                other => return Err(format!("unknown media action `{other}`")),
+            };
+            for_actions.command(cmd);
+            Ok(())
+        }),
+    );
     tauri::async_runtime::spawn(service(
         app.clone(),
         handle.clone(),
         rx,
         gsmtc_tx,
         artwork,
-        top_priority,
+        hub,
+        settings,
+        np_tx,
     ));
     handle
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one-off wiring of the service task"
+)]
 async fn service(
     app: AppHandle,
     handle: MediaHandle,
     mut rx: mpsc::UnboundedReceiver<Input>,
     gsmtc_tx: std::sync::mpsc::Sender<GsmtcCommand>,
     artwork: Arc<ArtworkCache>,
-    top_priority: watch::Sender<u8>,
+    hub: ActivityHub,
+    settings: watch::Receiver<Settings>,
+    np_tx: watch::Sender<Option<NowPlayingDto>>,
 ) {
     let own_exe = std::env::current_exe()
         .ok()
@@ -120,47 +162,38 @@ async fn service(
         .unwrap_or_default();
     let mut entries: HashMap<String, Entry> = HashMap::new();
     let mut current: Option<String> = None;
+    let mut pinned: Option<String> = None;
 
     while let Some(input) = rx.recv().await {
         let now = now_ms();
         match input {
             Input::External(sessions) => {
-                entries.retain(|id, _| id == WEB_SOURCE_ID);
-                for s in sessions {
-                    let id = format!("external:{}", s.aumid);
-                    let lower = s.aumid.to_lowercase();
-                    // Our own SMTC session (WebView2 / own player) is not an external source.
-                    if lower.contains("pcisland")
-                        || (!own_exe.is_empty() && lower.contains(&own_exe))
-                    {
-                        continue;
+                entries.retain(|id, _| !id.starts_with("external:"));
+                if !settings.borrow().media.external_enabled {
+                    // Fall through so the snapshot drops external sources.
+                } else {
+                    for s in sessions {
+                        let lower = s.aumid.to_lowercase();
+                        // Our own SMTC session (WebView2 / own player) is not an external source.
+                        if lower.contains("pcisland")
+                            || (!own_exe.is_empty() && lower.contains(&own_exe))
+                        {
+                            continue;
+                        }
+                        let id = format!("external:{}", s.aumid);
+                        let dto = external_dto(&id, &s, &artwork);
+                        upsert(&mut entries, id, dto, now);
                     }
-                    let dto = external_dto(&id, &s, &artwork);
-                    upsert(&mut entries, id, dto, now);
                 }
             }
-            Input::Web(Some(dto)) => upsert(&mut entries, WEB_SOURCE_ID.to_owned(), dto, now),
-            Input::Web(None) => {
-                entries.remove(WEB_SOURCE_ID);
+            Input::Source(id, Some(dto)) => upsert(&mut entries, id, dto, now),
+            Input::Source(id, None) => {
+                entries.remove(&id);
             }
+            Input::Pin(id) => pinned = id,
             Input::Command(cmd) => {
-                let Some(id) = current.clone() else { continue };
-                if id == WEB_SOURCE_ID {
-                    let control = handle
-                        .web_control
-                        .lock()
-                        .unwrap_or_else(PoisonError::into_inner)
-                        .clone();
-                    if let Some(control) = control {
-                        control(cmd);
-                    }
-                } else if let Some(aumid) = id.strip_prefix("external:") {
-                    let aumid = aumid.to_owned();
-                    let _ = gsmtc_tx.send(match cmd {
-                        MediaCommand::PlayPause => GsmtcCommand::TogglePlayPause(aumid),
-                        MediaCommand::Next => GsmtcCommand::Next(aumid),
-                        MediaCommand::Previous => GsmtcCommand::Previous(aumid),
-                    });
+                if let Some(id) = current.clone() {
+                    dispatch(&handle, &gsmtc_tx, &id, cmd);
                 }
                 continue;
             }
@@ -174,8 +207,8 @@ async fn service(
                 last_playing_at: e.last_playing_at,
             })
             .collect();
-        current =
-            select::select_source(&candidates, None, now, PAUSED_WINDOW_MS).map(str::to_owned);
+        current = select::select_source(&candidates, pinned.as_deref(), now, PAUSED_WINDOW_MS)
+            .map(str::to_owned);
         let now_playing = current
             .as_ref()
             .and_then(|id| entries.get(id))
@@ -190,7 +223,7 @@ async fn service(
             .collect();
         sources.sort_by(|a, b| a.source_id.cmp(&b.source_id));
 
-        let snapshot = {
+        let (snapshot, previous) = {
             let mut snap = handle
                 .snapshot
                 .lock()
@@ -198,22 +231,95 @@ async fn service(
             if snap.now_playing == now_playing && snap.sources.len() == sources.len() {
                 continue;
             }
+            let previous = snap.now_playing.clone();
             *snap = MediaSnapshot {
                 now_playing,
                 sources,
                 rev: snap.rev + 1,
             };
-            snap.clone()
+            (snap.clone(), previous)
         };
-        let level = match snapshot.now_playing.as_ref().map(|n| n.status) {
-            Some(PlaybackStatus::Playing) => priority::MEDIA,
-            Some(_) => priority::AMBIENT,
-            None => priority::IDLE,
-        };
-        top_priority.send_if_modified(|v| std::mem::replace(v, level) != level);
+        np_tx.send_replace(snapshot.now_playing.clone());
+        publish_activity(
+            &hub,
+            &snapshot,
+            previous.as_ref(),
+            settings.borrow().media.alert_on_track_change,
+        );
         for label in ["island", "main"] {
             let _ = app.emit_to(label, events::MEDIA_NOW_PLAYING, &snapshot);
         }
+    }
+}
+
+fn dispatch(
+    handle: &MediaHandle,
+    gsmtc_tx: &std::sync::mpsc::Sender<GsmtcCommand>,
+    id: &str,
+    cmd: MediaCommand,
+) {
+    if let Some(aumid) = id.strip_prefix("external:") {
+        let aumid = aumid.to_owned();
+        let _ = gsmtc_tx.send(match cmd {
+            MediaCommand::PlayPause | MediaCommand::Pause => GsmtcCommand::TogglePlayPause(aumid),
+            MediaCommand::Next => GsmtcCommand::Next(aumid),
+            MediaCommand::Previous => GsmtcCommand::Previous(aumid),
+        });
+        return;
+    }
+    let control = handle
+        .controls
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .get(id)
+        .cloned();
+    if let Some(control) = control {
+        control(cmd);
+    }
+}
+
+fn publish_activity(
+    hub: &ActivityHub,
+    snap: &MediaSnapshot,
+    previous: Option<&NowPlayingDto>,
+    alert_on_change: bool,
+) {
+    let Some(np) = &snap.now_playing else {
+        hub.remove(ACTIVITY_ID);
+        return;
+    };
+    let level = if np.status == PlaybackStatus::Playing {
+        priority::MEDIA
+    } else {
+        priority::AMBIENT
+    };
+    let payload = serde_json::to_value(np).unwrap_or_default();
+    hub.upsert(
+        Activity::new(
+            "media",
+            ACTIVITY_ID,
+            "media.now_playing",
+            level,
+            payload.clone(),
+        )
+        .with_actions(vec![
+            ActivityAction::new("previous", "skip-back", "media.peek.previous"),
+            ActivityAction::new("play_pause", "play", "media.peek.playPause").primary(),
+            ActivityAction::new("next", "skip-forward", "media.peek.next"),
+        ]),
+    );
+    let changed = previous.is_some_and(|p| p.title != np.title || p.source_id != np.source_id);
+    if alert_on_change && changed && np.status == PlaybackStatus::Playing && !np.is_ad {
+        hub.alert(
+            Activity::new(
+                "media",
+                "media:track-changed",
+                "media.track_changed",
+                priority::ALERT,
+                payload,
+            )
+            .transient(2_500),
+        );
     }
 }
 
