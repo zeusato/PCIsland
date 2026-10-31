@@ -20,8 +20,10 @@ pub fn island_get_state(island: State<'_, IslandHandle>) -> IslandSnapshot {
     }
 }
 
+/// Async on purpose: creating a WebView2 window inside a sync command (main thread)
+/// deadlocks on Windows and freezes all IPC.
 #[tauri::command]
-pub fn island_open_main(app: AppHandle, route: Option<String>) -> IpcResult<()> {
+pub async fn island_open_main(app: AppHandle, route: Option<String>) -> IpcResult<()> {
     Ok(super::open_main(&app, route.as_deref())?)
 }
 

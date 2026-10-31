@@ -86,6 +86,7 @@ PCisland/
 - Không giữ guard `std::sync::Mutex` qua `.await`. `tokio::sync::Mutex` chỉ dùng khi thật cần, và phải có comment giải thích.
 - Việc chặn (I/O file lớn, WinRT `.get()`) đưa vào `spawn_blocking` hoặc luồng riêng của platform.
 - Mọi task nhận `CancellationToken` và thoát sạch.
+- Command Tauri nào tạo cửa sổ (`WebviewWindowBuilder::build`) **phải là `async fn`**. Command đồng bộ chạy trên main thread; tạo cửa sổ WebView2 ở đó bị deadlock trên Windows và làm treo toàn bộ IPC (lỗi đã gặp 2026-11-01).
 
 **Thời gian:** lưu `DateTime<Utc>` (chrono), đo thời lượng bằng `Instant`. Hẹn giờ dựa trên **deadline tuyệt đối** để chịu được sleep/resume ([timer](modules/timer.md)).
 

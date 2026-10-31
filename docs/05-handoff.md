@@ -132,6 +132,7 @@ Sổ rủi ro đầy đủ ở [00 §8](00-vision-scope.md#8-sổ-rủi-ro). Nh�
 | 2026-10-31 | Claude | Cài toolchain (Rust 1.99, MSVC Build Tools, pnpm 9); P0.1–P0.6: scaffold, CI, spike island/fullscreen/GSMTC/web player; 33 test Rust + 15 test frontend xanh; app chạy, CPU rảnh 0,18% | Test tay checklist G0; commit đầu tiên |
 | 2026-10-31 | Claude | P1–P3: core (settings, SQLite, log, ActivityHub, audio), timer/stopwatch/Pomodoro/Focus, nhắc việc + NLP tiếng Việt, âm lượng/pin, trình phát file, ghi chú, kệ file, lời bài hát, toàn bộ UI island + cửa sổ đầy đủ; 118 test Rust + 15 test frontend | Test tay; commit; xử lý nợ kỹ thuật §2 |
 | 2026-10-31 | Claude | Hoàn thiện phần còn lại: EventBus + supervisor, payload có kiểu, đa màn hình, glow, SMTC, m3u, radio, visualizer thật, web player tự tắt/xóa dữ liệu, MediaIntent, thumbnail + kéo file ra, biểu cảm mắt, kiểm tra cập nhật, lyrics `.lrc` + chỉnh lệch, toast nhắc việc, xuất ghi chú `.md`, chip nguồn, âm theo loại, lỗi phím tắt, nhớ cửa sổ. ADR-010..013. 148 test Rust | Test tay; giảm RAM |
+| 2026-11-01 | Claude | Sửa lỗi nghiêm trọng: mở cửa sổ đầy đủ từ island làm treo toàn bộ IPC (tạo cửa sổ WebView2 trong command đồng bộ bị deadlock) → `island_open_main`, `web_player_open` chuyển sang async. Kiểm tra bản release qua CDP: 22 command + 8 trang chạy đúng. Thêm favicon rỗng | Test tay |
 
 ## 8. Thuật ngữ
 

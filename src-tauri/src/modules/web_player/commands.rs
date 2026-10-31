@@ -21,8 +21,9 @@ pub fn web_player_list_sites() -> Vec<SiteDto> {
         .collect()
 }
 
+/// Async on purpose: window creation in a sync command deadlocks WebView2 on Windows.
 #[tauri::command]
-pub fn web_player_open(
+pub async fn web_player_open(
     app: AppHandle,
     player: State<'_, WebPlayerHandle>,
     site_id: Option<String>,
