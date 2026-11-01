@@ -2,6 +2,7 @@
 //! (docs/03-coding-principles.md §1, rule 6).
 
 pub mod audio_endpoint;
+pub mod autostart;
 pub mod foreground;
 pub mod gsmtc;
 pub mod loopback;

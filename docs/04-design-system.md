@@ -96,14 +96,14 @@ Cột "Bo góc" dưới đây là bán kính 2 góc dưới; ở kiểu nổi th
 
 | Trạng thái | Kích thước | Bo góc | Ghi chú |
 |---|---|---|---|
-| Cửa sổ `island` | 480 × 264 cố định | — | Đủ chứa peek lớn nhất + lề glow (40 hai bên, 56 dưới) |
+| Cửa sổ `island` | 480 × 264 khi nghỉ; cao tối đa 616 khi tương tác | — | Nới native window trước morph theo hit region; thu lại sau morph, giữ 16 px lề dưới (ADR-017) |
 | Khoảng cách tới mép trên | 0 | — | Kiểu nổi: mặc định 8, chỉnh được 0–24 (`island.offset_y`) |
 | Minimal | 96 × 4 | 2 | Vạch mảnh dính mép; vùng hover vô hình 160 × 14 |
 | Compact rảnh | 120 × 30 | 15 | Đôi mắt (mặc định), đồng hồ, hoặc trống ([§11](#11-đôi-mắt-màn-hình-chờ)) |
 | Compact có activity | 160–280 × 32 | 16 | Trái: icon/ảnh bìa 20 px; phải: thông tin ngắn hoặc sóng nhạc |
 | Phần phụ (secondary) | 32 × 32 | 16 | Một "tab" riêng cũng dính mép, cách pill 6 px, nằm bên phải |
 | Peek | 400 × 120–200 | 28 | Chiều cao theo nội dung, tối đa 200 |
-| Peek có điều hướng tính năng (2026-11-01) | 400 × (nội dung + 28) | 28 | Launcher 220 (tổng 248) để đủ ghi chú tương tác; activity tối đa 196; hàng Tính năng / Quay lại tác vụ cao 28; vẫn trong cửa sổ 480×264 |
+| Peek có điều hướng tính năng (2026-11-01) | 400 × (nội dung + 28), tối đa 600 cao | 28 | Launcher tối thiểu 220 (tổng 248), đo nội dung để mở rộng; hàng điều hướng 28. Queue mở rộng theo số bài, vùng danh sách tối đa 340 rồi mới cuộn; quay lại player thu về 200 |
 | Alert nhỏ | 260 × 40 | 20 | Âm lượng, sạc, đổi bài |
 | Alert lớn | 400 × 112 | 28 | Nhắc việc, hết giờ: có nút hành động |
 
@@ -195,3 +195,7 @@ Linh vật của PCisland: khi không có tác vụ, pill hiện một đôi m�
 Nhìn theo chuột cần backend gửi vị trí chuột, và chỉ gửi khi chuột đang ở gần (tối đa 30 Hz). Phần này dùng lại cursor poller của [island-window](modules/island-window.md).
 
 **Giảm chuyển động:** mắt đứng yên, không chớp, không biểu cảm.
+
+### Scrollbar dùng chung (2026-11-01)
+
+Mọi vùng cuộn của UI app dùng scrollbar 8 px: nền surface-2, tay kéo cam neon accent bo tròn ngay ở trạng thái mặc định, hover accent-bright. Khai báo trong base.css với token; color-scheme dark cho điều khiển native. Áp dụng island, playlist, search, textarea và cửa sổ đầy đủ; không chèn CSS vào website nhạc bên ngoài.

@@ -17,6 +17,7 @@ pub struct AppInfo {
     pub version: String,
     pub portable: bool,
     pub data_dir: String,
+    pub startup_command: Option<String>,
 }
 
 #[tauri::command]
@@ -25,12 +26,22 @@ pub fn app_get_info(paths: State<'_, Paths>) -> AppInfo {
         version: env!("CARGO_PKG_VERSION").into(),
         portable: paths.portable,
         data_dir: paths.data_dir.display().to_string(),
+        startup_command: crate::platform::autostart::registered_command(),
     }
 }
 
 #[tauri::command]
 pub fn app_quit(app: AppHandle) {
     app.exit(0);
+}
+
+#[tauri::command]
+pub fn app_show_toast(app: AppHandle, title: String, body: String) {
+    crate::platform::toast::show_brief(
+        &app.config().identifier,
+        &title.chars().take(100).collect::<String>(),
+        &body.chars().take(1500).collect::<String>(),
+    );
 }
 
 #[tauri::command]
@@ -72,8 +83,14 @@ pub fn settings_update(
     let next = settings
         .update_section(&section, &patch)
         .map_err(|e| IpcError::new("settings.invalid", e))?;
-    if before.app.autostart != next.app.autostart {
-        super::sync_autostart(&app, next.app.autostart);
+    if section == "app" && patch.get("autostart").is_some() {
+        if let Err(error) = super::sync_autostart(&app, next.app.autostart) {
+            let _ = settings.update_section(
+                "app",
+                &serde_json::json!({"autostart": before.app.autostart}),
+            );
+            return Err(IpcError::new("app.autostart", error));
+        }
     }
     if before.app.shortcuts != next.app.shortcuts {
         super::shortcuts::register(&app, &next.app.shortcuts);

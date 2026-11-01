@@ -1,6 +1,6 @@
 [package]
 name = "pcisland"
-version = "0.1.0"
+version = "0.1.1"
 description = "Dynamic Island for Windows"
 edition = "2024"
 rust-version = "1.85"
@@ -37,6 +37,7 @@ realfft = "3"
 tauri-plugin-drag = "2.1"
 
 [target.'cfg(windows)'.dependencies]
+windows-registry = "0.6.1"
 windows = { version = "0.62", features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",

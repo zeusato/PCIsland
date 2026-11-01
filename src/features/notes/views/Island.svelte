@@ -13,13 +13,15 @@
   const note: Note = $derived(payload(activity, 'notes.pinned'));
 </script>
 
-{#if activity.kind === 'notes.saved'}
+{#if activity.kind === 'notes.task_due'}
+  <div class="peek"><span>{payload(activity, 'notes.task_due').label}</span><ActionButtons {activity} /></div>
+{:else if activity.kind === 'notes.saved'}
   <div class="row"><Check size={16} /><span>{t('notes.saved')}</span></div>
 {:else if variant === 'compact' || variant === 'bubble'}
   <div class="row compact"><Pin size={14} /><span class="snippet">{note.text.split('\n')[0]?.slice(0, 24)}</span></div>
 {:else}
   <div class="peek">
-    <NoteBody text={note.text} limit={6} ontoggle={(line) => noteCommands.toggleCheck(note.id, line)} />
+    <NoteBody noteId={note.id} island text={note.text} limit={6} ontoggle={(line) => noteCommands.toggleCheck(note.id, line)} />
     <ActionButtons {activity} />
   </div>
 {/if}
@@ -49,6 +51,7 @@
     gap: var(--sp-2);
     padding: var(--sp-6) var(--sp-7);
     font-size: var(--fs-body-island);
-    overflow: hidden;
+    min-height: 0;
+    overflow: auto;
   }
 </style>

@@ -7,6 +7,10 @@
   --c-surface-3: #1c1c22;
   --c-border: rgba(255, 255, 255, 0.08);
   --c-border-strong: rgba(255, 255, 255, 0.14);
+  --c-scrollbar-track: var(--c-surface-2);
+  --c-scrollbar-thumb: var(--c-accent);
+  --c-scrollbar-hover: var(--c-accent-bright);
+  --scrollbar-size: 8px;
 
   /* Text */
   --c-text-1: #f5f5f7;
@@ -78,7 +82,11 @@
   --island-minimal-w: 96px;
   --island-minimal-h: 4px;
   --island-switcher-h: 28px;
+  --island-panel-max-h: 572px;
+  --island-list-max-h: 340px;
   --media-progress-h: 3px;
+  --shelf-slot: 96px;
+  --shelf-thumb: 48px;
 
   /* Idle eyes (docs/04-design-system.md §11) */
   --eye-w: 7px;

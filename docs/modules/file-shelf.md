@@ -21,8 +21,8 @@ Một chỗ để file tạm thời khi kéo thả giữa các cửa sổ: kéo 
 
 ## 3. Hành vi & luồng người dùng
 
-1. **Thả vào:** kéo file từ Explorer lên island. Khi chuột vào pill, island bung thành vùng thả lớn. Nếu có file âm thanh thì chia hai vùng "Phát ngay" / "Cất vào kệ" ([local-player](local-player.md)). Thả xong: âm `pop` (nếu bật), alert "Đã cất 3 mục".
-2. **Xem:** compact (khi rảnh) hiện icon kệ + số mục. Peek hiện lưới thumbnail (tối đa 8, cuộn ngang nếu nhiều hơn).
+1. **Thả vào:** kéo bất kỳ file/thư mục nào (kể cả nhạc) chạm island → bung vùng thả 400×220, gồm các thumbnail đang có và một ô vuông dấu +. Thả vào thêm tham chiếu vào kệ, giữ giao diện này để thấy kết quả; không có alert thay thế thumbnail.
+2. **Xem:** compact hiện icon + số mục; peek tối đa 3 slot theo thứ tự thêm, một ô + khi còn chỗ. Đủ 3 thì hiện thông báo kệ đầy. Mục cũ vượt 3 được giữ trong main, không tự xóa dữ liệu.
 3. **Kéo ra:** kéo thumbnail từ peek thả vào Explorer, Zalo, Gmail… File được kéo dưới dạng **tham chiếu tới file gốc**, không phải bản sao.
 4. **Thao tác:** chuột phải một mục → Mở · Mở thư mục chứa · Sao chép đường dẫn · Xóa khỏi kệ. Nút "Dọn kệ".
 5. **Tự dọn:** mục quá `shelf.expire_hours` (24 giờ) tự rời kệ. File gốc không bị đụng tới.
@@ -81,7 +81,7 @@ Một chỗ để file tạm thời khi kéo thả giữa các cửa sổ: kéo 
 |---|---|
 | `shelf.expire_hours` | `24` (0 = không tự dọn) |
 | `shelf.copy_mode` | `"reference"` (`"reference"` · `"copy"`) |
-| `shelf.max_items` | `30` |
+| `shelf.max_items` | `3` (giới hạn nhận mới cố định 3, kể cả cấu hình cũ lớn hơn) |
 | `shelf.sound_on_drop` | `false` |
 
 ## 8. Phụ thuộc
@@ -95,7 +95,7 @@ Một chỗ để file tạm thời khi kéo thả giữa các cửa sổ: kéo 
 | Tình huống | Xử lý |
 |---|---|
 | Thả thư mục rất lớn | Chỉ lưu tham chiếu thư mục, không duyệt nội dung |
-| Thả hơn `max_items` | Nhận tới giới hạn; alert "Kệ đầy" |
+| Thả vượt 3 slot | Nhận tới giới hạn; vùng kệ hiện hướng dẫn bỏ một file |
 | File gốc bị xóa/đổi tên | `missing`, thumbnail mờ, chặn kéo ra |
 | Thả từ app chạy quyền admin (UIPI) | Windows chặn kéo từ tiến trình quyền cao sang tiến trình thường; ghi trong hướng dẫn |
 | Đang fullscreen | Island ẩn nên không thả được; chấp nhận |
@@ -109,9 +109,9 @@ Thumbnail tạo một lần khi thả và cache theo hash. Công việc dọn d�
 **Unit:** hết hạn theo TestClock; giới hạn số mục và dung lượng chế độ copy; đánh dấu `missing`.
 
 **Checklist thủ công:**
-- [ ] Thả 1, 5, 30 file từ Explorer; thả thư mục
+- [ ] Thả 1, 2, 3, 4 file, file trùng và thư mục; chỉ nhận tới 3, giữ thứ tự
 - [ ] Kéo ra Explorer (di chuyển/sao chép theo phím giữ), Chrome (upload), Zalo/Telegram
-- [ ] Thả file nhạc: hiện hai vùng "Phát ngay" / "Cất vào kệ"
+- [ ] Thả file nhạc cũng vào kệ; phát file qua Nhạc › Nhạc trên máy › Mở file
 - [ ] Xóa file gốc → mục chuyển `missing`
 
 ## 12. Câu hỏi mở
@@ -124,3 +124,4 @@ Thumbnail tạo một lần khi thả và cache theo hash. Công việc dọn d�
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Thumbnail qua IShellItemImageFactory (cache theo đường dẫn); kéo file từ kệ ra app khác (plugin drag) |
+| 2026-11-01 | Mọi file thả vào kệ, 3 slot, thumbnail + một ô chờ, không thay bằng alert. |

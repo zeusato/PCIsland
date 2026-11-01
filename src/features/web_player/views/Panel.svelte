@@ -8,7 +8,7 @@
   import Eye from '@lucide/svelte/icons/eye';
   import EyeOff from '@lucide/svelte/icons/eye-off';
   import Power from '@lucide/svelte/icons/power';
-  import Globe from '@lucide/svelte/icons/globe';
+  import SiteChooser from './SiteChooser.svelte';
   import Button from '$lib/components/Button.svelte';
   import { inTauri, webPlayerCommands } from '$lib/ipc/commands';
   import { onWebPlayerState } from '$lib/ipc/events';
@@ -45,11 +45,7 @@
 
 <p class="muted">{t('music.onlineHint')}</p>
 <div class="sites">
-  {#each sites as site (site.id)}
-    <Button variant={wp?.siteId === site.id && open ? 'primary' : 'default'} onclick={() => webPlayerCommands.open(site.id)}>
-      <Globe size={14} />{site.name}
-    </Button>
-  {/each}
+  <SiteChooser />
 </div>
 
 {#if open}

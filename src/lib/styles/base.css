@@ -1,5 +1,21 @@
 @import './tokens.css';
 
+:root { color-scheme: dark; }
+
+/* WebView2: compact dark scrollbars shared by every app-owned scroll area. */
+::-webkit-scrollbar { width: var(--scrollbar-size); height: var(--scrollbar-size); }
+::-webkit-scrollbar-track { background: var(--c-scrollbar-track); border-radius: var(--r-pill); }
+::-webkit-scrollbar-thumb {
+  background: var(--c-scrollbar-thumb);
+  border: var(--sp-1) solid var(--c-scrollbar-track);
+  border-radius: var(--r-pill);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--c-scrollbar-hover); }
+::-webkit-scrollbar-corner { background: var(--c-scrollbar-track); }
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: var(--c-scrollbar-thumb) var(--c-scrollbar-track); }
+}
+
 *,
 *::before,
 *::after {

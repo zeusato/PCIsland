@@ -152,7 +152,7 @@ section!(NotesSettings {
 });
 section!(ShelfSettings {
     expire_hours: u32 = 24,
-    max_items: u32 = 30,
+    max_items: u32 = 3,
 });
 section!(UiSettings {
     accent: String = "orange".into(),

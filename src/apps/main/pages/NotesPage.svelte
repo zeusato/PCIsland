@@ -146,7 +146,7 @@
       </div>
     {:else}
       <div class:pinned={n.pinned}>
-        <NoteBody text={n.text} disabled={savingCheck} ontoggle={async (line) => { await noteCommands.toggleCheck(n.id, line); await load(); }} />
+          <NoteBody noteId={n.id} text={n.text} disabled={savingCheck} ontoggle={async (line) => { await noteCommands.toggleCheck(n.id, line); await load(); }} />
       </div>
       {#if addingCheck === n.id}
         <ChecklistInput busy={savingCheck} onadd={(label) => addCheck(n, label)} oncancel={() => addingCheck = null} />

@@ -11,6 +11,7 @@
 **Trong phạm vi:**
 - Tạo nhanh từ island, danh sách và tìm kiếm trong `main`.
 - Ghim lên island, đổi thành nhắc việc, xuất `.md`.
+- Nhắc việc riêng cho từng dòng checklist: giờ cố định, đếm từ hiện tại hoặc từ khi dòng checklist ngay phía trên hoàn thành.
 - Định dạng nhẹ: xuống dòng, danh sách `-`, checkbox `[ ]`, link tự nhận.
 
 **Ngoài phạm vi:**
@@ -46,22 +47,30 @@
 - Đổi thành nhắc việc: frontend gọi `reminders_parse` với nội dung để điền sẵn rồi mở form nhắc việc. Không gọi chéo module ở backend.
 - Thùng rác: `deleted_at`; công việc dọn dẹp chạy mỗi lần khởi động.
 
+### Nhắc từng dòng checklist (2026-11-01)
+
+- Nút chuông cạnh từng ô tick mở form đặt giờ; mở form trên island xin focus và giữ peek khi rời chuột.
+- Ba chế độ: `at` (giờ địa phương chuyển sang epoch), `afterNow` (1 giây–365 ngày), `afterPrevious` (đếm từ lúc hoàn thành dòng checklist ngay phía trên, bỏ qua dòng văn bản thường). Dòng checklist đầu không có chế độ phụ thuộc.
+- Bỏ tick dòng trước hủy deadline chưa báo của dòng sau; tick lại bắt đầu lại từ lần hoàn thành mới. Tick xong task thì bỏ cảnh báo của chính task. Xóa ghi chú/dòng task không phát nhắc; bỏ giờ nhắc xóa quy tắc.
+- Migration 0008 thêm `note_tasks`: ID riêng, dòng, nhãn, trạng thái hoàn thành, quy tắc, deadline, thời điểm đã báo, ID dòng trước. Nhãn khớp giữ ID qua chèn/đổi thứ tự; đổi tên tại cùng vị trí giữ ID. Với nhãn trùng nhau, ghép theo thứ tự xuất hiện.
+- Lịch được lưu SQLite và nạp lại khi mở app; đến hạn khi app đóng thì báo khi mở lại. `notes.task_due` là Critical, có hành động `complete`; dùng âm nhắc việc và toast dự phòng nếu island bị ẩn.
+
 ## 6. IPC
 
 | Command | Chữ ký |
 |---|---|
-| `notes_get_state` | `() → NotesSnapshot { pinned?, count, rev }` |
-| `notes_list` | `(query?: string, page) → Page<NoteDto>` |
-| `notes_create` | `(text: string) → NoteDto` |
-| `notes_update` | `(id, text) → NoteDto` |
+| `notes_list` | `(query?: string) → Note[]` |
+| `notes_save` | `(id?: string, text: string) → Note` |
 | `notes_delete` / `notes_restore` | `(id) → ()` |
 | `notes_pin` / `notes_unpin` | `(id?) → ()` |
 | `notes_toggle_check` | `(id, lineIndex: u32) → NoteDto` |
-| `notes_export` | `(ids?: string[]) → string` (đường dẫn file `.md` hoặc `.zip`) |
+| `notes_export` | `(path: string) → number` |
+| `notes_tasks` | `(id: string) → NoteTask[]` |
+| `notes_set_task_alarm` | `(taskId: string, input: TaskAlarmInput|null) → ()` |
 
 | Event | Payload |
 |---|---|
-| `notes://state` | `NotesSnapshot` |
+| `notes://state` | `Note|null` (báo thay đổi, client đọc lại danh sách/task) |
 
 ## 7. Dữ liệu & cài đặt
 
@@ -88,7 +97,7 @@
 
 ## 10. Hiệu năng
 
-Không có tác vụ nền ngoài dọn thùng rác lúc khởi động.
+Scheduler ngủ tới deadline gần nhất (tối đa 60 giây dự phòng), thức ngay khi ghi chú/lịch nhắc thay đổi hoặc có sự kiện hệ thống. Không ghi DB theo tick giao diện.
 
 ## 11. Kiểm thử
 
@@ -112,3 +121,4 @@ Không có.
 | 2026-11-01 | Checklist tương tác dùng chung main/peek; nhận []/[ ]/[x]/[X]/Markdown, nút thêm ô tick, sửa với Lưu/Hủy và Enter lưu ghi chú mới. |
 | 2026-11-01 | Theo yêu cầu chủ dự án: mặc định xem/tương tác ghi chú gần nhất; Tạo mới và thêm mục checklist riêng trên island/main, chọn ghi chú và cuộn nội dung trong island. |
 | 2026-11-01 | Form tạo/sửa/thêm checklist giữ mở khi rời chuột, gồm ô trống và mất focus; 3 test tích hợp trên IslandRoot. |
+| 2026-11-01 | Nhắc riêng từng task với ba kiểu giờ, phụ thuộc dòng checklist ngay trên, lưu bền và kiểm thử undo/đổi thứ tự/xóa. |

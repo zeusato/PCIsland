@@ -14,11 +14,11 @@
 |---|---|
 | Cập nhật lần cuối | 2026-11-01 |
 | Phase | **P1–P3 đã code đủ đặc tả** (trừ P4: F32–F34, F40–F44); chưa qua kiểm thử tay, Gate G0 chưa đóng |
-| Phiên bản | 0.1.0 · [GitHub Release](https://github.com/zeusato/PCIsland/releases/tag/v0.1.0) · [ghi chú phát hành](releases/v0.1.0.md) |
+| Phiên bản | [v0.1.1](https://github.com/zeusato/PCIsland/releases/tag/v0.1.1): phát hành theo yêu cầu chủ dự án, có bộ cài + portable + SHA256 |
 | Code | Nhánh `main` trên https://github.com/zeusato/PCIsland |
-| Kiểm tra | 2026-11-01: 156 test Rust xanh; 33 test frontend xanh (thêm 4 luồng giữ mở editor khi rời chuột); clippy `-D warnings`, fmt, svelte-check, eslint, i18n (260 khóa), frontend build sạch. Chờ chạy tay bản exe mới cho các sửa trong phiên Codex |
-| Bản build gần nhất | 2026-11-01: `pnpm tauri build` v0.1.0; installer 4.913.695 byte, portable ZIP 6.704.723 byte và SHA256 trong `release/`. Exe chuẩn: `src-tauri/target/release/pcisland.exe` (ProductVersion/FileVersion 0.1.0). Đã xóa các exe thử và cache debug (~17,3 GB), giữ dữ liệu app. Số đo bản 2026-10-31: CPU rảnh 0,25%, RAM private 189 MB; chưa đo lại v0.1.0 |
-| Đang chặn | Không có |
+| Kiểm tra | 2026-11-01: lần chạy toàn bộ mới nhất 167 Rust + 51 frontend (17 file, giữ đủ test editor/đổi tính năng trước đó); fmt, clippy `-D warnings`, svelte-check/eslint, i18n 295 khóa, frontend build sạch. QA offline: chooser 248→294 px, queue 422→player 200 px; resume rời launcher dù metadata chậm; scrollbar cam neon. Bằng chứng native website trước sự cố ở [báo cáo](reports/web-player-2026-11-01.md) |
+| Bản build gần nhất | Đã build mã cuối 0.1.1 lúc 10:55 ngày 2026-11-01: exe 18.407.424 byte; NSIS 4.997.290 byte; gồm island mở rộng và scrollbar cam neon. Version 0.1.1 đã xác minh; xem docs/releases/v0.1.1.md. Gói phát hành dùng đúng binary này. Dev server/tab QA đã đóng; giữ nguyên cargo/node build cache, registry và dữ liệu app |
+| Đang chặn | SoundCloud báo “You have been blocked / unusual activity” khi QA. Đã dừng mọi thử nghiệm online, tắt tìm kiếm nền SoundCloud và bỏ click phát lặp. Chưa rõ thời hạn/phạm vi chặn. Không đổi IP/profile hay vượt challenge |
 
 **Trạng thái tính năng** (✅ có code + test logic · 🟡 có code, còn thiếu phần trong đặc tả · ⬜ chưa làm):
 
@@ -35,7 +35,7 @@
 | F09 | i18n vi/en | ✅ | — |
 | F10 | Media app khác (GSMTC) | ✅ | — |
 | F11 | Trình phát file | ✅ | — |
-| F12 | Web player | ✅ | Toolbar đặt ở tab Nhạc › Online (ADR-013); chờ test 5 trang |
+| F12 | Web player | 🟡 | Zing resume/queue/tìm→phát đã thử native; Spotify mới xác minh search trong app; search SoundCloud bị vô hiệu sau anti-bot block. Thẻ nguồn đang mở trên island (ADR-016) |
 | F13 | Radio / stream | ✅ | Chỉ stream HTTP trực tiếp; HLS mở bằng trình duyệt |
 | F14 | Lời bài hát | ✅ | — |
 | F15 | Visualizer thật | ✅ | — |
@@ -74,7 +74,7 @@ Theo thứ tự. Đánh dấu `[x]` khi xong và thêm việc mới phát sinh v
 - [x] Tạo repo GitHub và push: https://github.com/zeusato/PCIsland.
 - [ ] **Test tay toàn bộ** theo checklist trong từng module doc (đặc biệt: nhắc việc qua sleep, fullscreen, kéo thả file, phát nhạc file, web player 5 trang).
 - [ ] Kiểm tra sửa 2026-11-01: thumbnail Zing/YouTube thực; tiến trình compact/minimal; fullscreen và công tắc `hideWhileActive`; từ peek nhạc mở Tính năng → hẹn giờ/ghi chú; “nhắc tao sau 10 giây”; tick/sửa ghi chú cũ dạng `[]`.
-- [ ] Kiểm tra bổ sung: mở Ghi chú thấy bản gần nhất, tick/thêm mục/chọn ghi chú cũ/Tạo mới; Pomodoro đổi màu theo pha, bấm lại pause/resume, toast đúng tùy chọn Focus/nhạc và bộ gõ tiếng Việt trên island.
+- [ ] Kiểm tra bổ sung: mở Ghi chú thấy bản gần nhất, tick/thêm mục/chọn ghi chú cũ/Tạo mới; Pomodoro đổi màu theo pha, bấm lại **dừng hẳn**, toast native Windows 3 giây và bộ gõ tiếng Việt trên island.
 - [ ] Hover mở island → soạn ghi chú mới/sửa/thêm ô tick/nhắc việc → rời chuột: editor phải giữ mở và giữ nội dung, kể cả ô trống; hủy rồi rời chuột thì thu lại bình thường.
 - [x] Xử lý nợ kỹ thuật 1–3 ở §2 (ADR-010, ADR-011).
 - [x] Phần còn thiếu theo bảng §2 (SMTC, web player, visualizer, radio, cập nhật, lyrics `.lrc`, toast, xuất `.md`, chip nguồn, âm theo loại, lỗi phím tắt, nhớ cửa sổ).
@@ -82,10 +82,19 @@ Theo thứ tự. Đánh dấu `[x]` khi xong và thêm việc mới phát sinh v
 - [ ] Giảm RAM WebView2 hoặc ra ADR nới ngân sách (nợ kỹ thuật 5).
 - [x] Phát hành v0.1.0 trên GitHub Releases theo yêu cầu trực tiếp của chủ dự án (bộ cài + portable + SHA256); release notes nêu rõ phần test tay còn thiếu, Gate G0 chưa đóng.
 - [ ] P4: mic/cam, theo dõi hệ thống (F32, F34), plugin API (F44).
+- [x] Yêu cầu 9 mục: autostart có xác minh registry, gộp menu Nhạc, nhãn Nhạc trên máy, phiên nghe, queue, stopwatch panel, Pomodoro start/stop, kệ 3 slot, alarm từng dòng. Các phần chưa QA tay đầy đủ giữ rõ ở module docs.
+- [x] Island Online hiện nguồn/bài đang phát, Mở trang, Đổi trang, Tìm bài; danh sách site chỉ mở theo yêu cầu.
+- [x] Chooser tự nới để thấy nút; Chạy tiếp về player; playlist nới theo nội dung rồi mới cuộn. Scrollbar mặc định cam neon/nền tối dùng chung toàn app. Đã test tích hợp và xem layout fixture offline; resize native có unit test, còn kiểm tra tay đa DPI/màn hình.
+- [ ] Không tiếp tục test online tự động trong phiên đang có block. Trước khi bật lại search SoundCloud cần phương án tích hợp phù hợp; không suy ra Chrome phát được thì WebView cũng được.
+- [ ] Reboot thực để kiểm chứng autostart; kéo thả OS lên island; xác minh toast Windows hiện 3 giây trong cấu hình thông báo của người dùng. QA đã khôi phục HKCU Run về exe release chính, có quote và `--autostart`.
+
+- [x] Đóng gói v0.1.1: bộ cài, portable chỉ chứa exe/README/data marker, hai file SHA256; cập nhật README và release notes theo yêu cầu push + release.
 
 ## 4. Câu hỏi mở
 
 Quyết định bổ sung của chủ dự án 2026-11-01: khi còn tác vụ mặc định không ẩn hoàn toàn island, có tùy chọn cho phép ẩn (ADR-014); phát hành bản mới nhất lên GitHub sau khi dọn output/cache build. Các giới hạn kiểm thử tay được giữ rõ trong release notes.
+
+Yêu cầu mới đã chốt: alarm phụ thuộc **dòng checklist ngay phía trên**; Pomodoro bấm lần hai dừng hẳn; tìm bài/chọn phát trong app; Online trên island ưu tiên thẻ nguồn đang mở; island được kéo dài khi mở tùy chọn/playlist; tay kéo scrollbar **cam neon mặc định**, không xám hoặc trắng. Sự cố SoundCloud chưa có bằng chứng khóa tài khoản, chỉ có thông báo chặn thiết bị/mạng; không khẳng định thời gian tự mở chặn. Chủ dự án đã yêu cầu push và release v0.1.1; giữ rõ giới hạn kiểm thử trong ghi chú phát hành.
 
 | # | Câu hỏi | Đề xuất mặc định | Cần chốt trước | Trạng thái |
 |---|---|---|---|---|
@@ -131,6 +140,9 @@ Sổ rủi ro đầy đủ ở [00 §8](00-vision-scope.md#8-sổ-rủi-ro). Nh�
 
 | Ngày | Ai | Đã làm | Tiếp theo |
 |---|---|---|---|
+| 2026-11-01 | Codex + chủ dự án | Phát hành v0.1.1 theo yêu cầu: push main, tag và release với bộ cài/portable/SHA256. Rà và giữ đủ test cũ, test nhạc mới tách riêng: 51 frontend + 167 Rust | Kiểm tra tay các giới hạn nêu trong release notes |
+| 2026-11-01 | Codex + chủ dự án | Island đo nội dung và nới native canvas (ADR-017); resume về player, playlist mở rộng; scrollbar cam neon theo yêu cầu. 167 Rust + 46 frontend trong lần chạy toàn bộ; QA giao diện bằng fixture offline; exe/NSIS đã build 10:55 | Kiểm tra tay native đa DPI, không truy cập website đang bị chặn |
+| 2026-11-01 | Codex + chủ dự án | Sửa 9 mục tương tác/khởi động/alarm; trace Zing thật, xác minh resume sau restart và chọn queue; thêm tìm kiếm nền/thẻ nguồn. SoundCloud báo anti-bot: dừng QA online, tắt search SoundCloud, bỏ click phát lặp. 166 Rust + 50 frontend test xanh | Build local đã xong; kiểm chứng các mục tay còn thiếu khi phù hợp, không thử vượt chặn |
 | 2026-10-31 | Claude + chủ dự án | Brainstorm, đánh giá khả thi, bàn phương án nhạc online; viết toàn bộ tài liệu thiết kế (00–06, modules) | P0.1 scaffold repo |
 | 2026-10-31 | Claude + chủ dự án | Chốt Q1 (màn hình chờ đôi mắt, đặc tả ở 04 §11), Q4, Q6 (5 trang test), Q7 (chỉ Win11) | Chốt Q2, Q3, Q5; P0.1 |
 | 2026-10-31 | Claude + chủ dự án | Chốt Q2 (màn hình chính, mọi virtual desktop), Q3 (dính mép, 04 §5), Q5 (ADR-009: bộ cài + portable, không mua chứng chỉ). ADR-008 chuyển Accepted | P0.1 scaffold repo |

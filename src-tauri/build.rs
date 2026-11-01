@@ -4,7 +4,7 @@
 // Single source of truth: the `generate_handler![...]` list in src/lib.rs. From it we
 // derive the app manifest and the `app-commands` permission set used by local windows.
 
-const REMOTE_ONLY: &[&str] = &["web_player_report"];
+const REMOTE_ONLY: &[&str] = &["web_player_report", "web_player_search_report"];
 
 fn main() {
     println!("cargo:rerun-if-changed=src/lib.rs");

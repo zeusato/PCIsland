@@ -61,6 +61,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_drag::init())
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            if argv.iter().any(|a| a == "--autostart") {
+                return;
+            }
             let route = core::paths::arg_value(&argv, "--open");
             if let Err(err) = island::open_main(app, route) {
                 tracing::warn!(error = %err, "failed to open main window from second instance");
@@ -94,8 +97,13 @@ pub fn run() {
                 bus.clone(),
                 &sup,
             );
-            let web =
-                web_player::setup(handle, media.clone(), artwork.clone(), settings.subscribe());
+            let web = web_player::setup(
+                handle,
+                db.clone(),
+                media.clone(),
+                artwork.clone(),
+                settings.subscribe(),
+            );
             let timers = timer::setup(
                 handle,
                 db.clone(),
@@ -131,6 +139,9 @@ pub fn run() {
                 db.clone(),
                 hub.clone(),
                 settings.get().notes.trash_days,
+                bus.clone(),
+                audio.clone(),
+                settings.subscribe(),
             );
             let shelf = shelf::setup(
                 handle,
@@ -151,7 +162,9 @@ pub fn run() {
 
             media.attach_smtc(island.hwnd());
             app::update::spawn(db.clone(), hub.clone(), settings.subscribe());
-            app::sync_autostart(handle, settings.get().app.autostart);
+            if let Err(error) = app::sync_autostart(handle, settings.get().app.autostart) {
+                tracing::warn!(%error, "autostart registration failed");
+            }
             app::shortcuts::register(handle, &settings.get().app.shortcuts);
             app::tray::setup(handle)?;
             if let Some(route) = open_route.as_deref() {
@@ -209,6 +222,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app::commands::app_get_info,
             app::commands::app_quit,
+            app::commands::app_show_toast,
             app::commands::app_open_data_folder,
             app::commands::app_play_sound,
             app::commands::app_pause_alerts,
@@ -273,6 +287,8 @@ pub fn run() {
             notes::notes_restore,
             notes::notes_pin,
             notes::notes_toggle_check,
+            notes::notes_tasks,
+            notes::notes_set_task_alarm,
             shelf::shelf_list,
             shelf::shelf_add,
             shelf::shelf_remove,
@@ -289,6 +305,12 @@ pub fn run() {
             web_player::commands::web_player_get_state,
             web_player::commands::web_player_list_sites,
             web_player::commands::web_player_open,
+            web_player::commands::web_player_resume,
+            web_player::commands::web_player_select_queue,
+            web_player::commands::web_player_request_queue,
+            web_player::commands::web_player_search,
+            web_player::commands::web_player_search_report,
+            web_player::commands::web_player_play_result,
             web_player::commands::web_player_show,
             web_player::commands::web_player_hide,
             web_player::commands::web_player_close,

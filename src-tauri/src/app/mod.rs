@@ -10,7 +10,6 @@ pub mod update;
 use std::path::Path;
 
 use tauri::AppHandle;
-use tauri_plugin_autostart::ManagerExt;
 
 use crate::core::paths::Paths;
 
@@ -83,17 +82,6 @@ pub fn cleanup(paths: &Paths) {
 
 /// Keeps the Run key in sync with the setting and the current exe path, so a moved
 /// portable folder keeps starting with Windows (docs/modules/app-lifecycle.md §5).
-pub fn sync_autostart(app: &AppHandle, enabled: bool) {
-    let launcher = app.autolaunch();
-    let result = if enabled {
-        // enable() rewrites the entry with the current exe path.
-        launcher.enable()
-    } else if launcher.is_enabled().unwrap_or(false) {
-        launcher.disable()
-    } else {
-        Ok(())
-    };
-    if let Err(err) = result {
-        tracing::warn!(module = "app", error = %err, "autostart sync failed");
-    }
+pub fn sync_autostart(_app: &AppHandle, enabled: bool) -> Result<(), String> {
+    crate::platform::autostart::sync(enabled)
 }

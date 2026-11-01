@@ -211,6 +211,30 @@
 - **Giao diện:** compact media và minimal có tiến trình khi biết thời lượng; peek có nút mở launcher và quay lại tác vụ mà không mở main.
 - **Hệ quả:** settings cũ tự nhận giá trị mặc định false qua serde; không thay lựa chọn hide_in_fullscreen cũ. Không áp dụng cam kết hiển thị trên màn hình khóa/secure desktop.
 
+## ADR-015 · Tương tác island và lưu phiên theo yêu cầu sử dụng thực tế
+
+- **Ngày:** 2026-11-01 · **Trạng thái:** Accepted theo yêu cầu chủ dự án.
+- **Quyết định:** Nhạc và Online dùng chung một menu; lịch sử/cookie của web player được giữ, từng site có Chạy tiếp hoặc Mở trang gốc. Danh sách phát dùng dữ liệu local hoặc DOM do website cung cấp, không tách/tải luồng nhạc.
+- **Thay thế hành vi cũ:** Pomodoro bấm lần hai dừng hẳn (không pause), thông báo native Windows 3 giây. Bấm giờ chỉ mở panel. Mọi file kéo vào island vào kệ tối đa 3 slot, bỏ lựa chọn Phát ngay tại vùng drop.
+- **Ghi chú:** quy tắc nhắc riêng từng dòng; chủ dự án đã chọn dòng checklist ngay phía trên làm điều kiện. Lưu ID và deadline trong SQLite, không dùng timer trong component. Thuộc mở rộng F26/F24 được yêu cầu trực tiếp.
+- **Hệ quả:** thêm migration 0008; không hạ về bản schema 7 trên dữ liệu đã nâng. Việc tự phát và queue online phụ thuộc trang; có đường lui mở trang sau 30 giây. Kiểm thử reboot và tài khoản thật vẫn cần thực hiện.
+
+## ADR-016 · Tìm bài trong app và giới hạn tự động hóa website nhạc
+
+- **Ngày:** 2026-11-01 · **Trạng thái:** Accepted theo yêu cầu tìm kiếm/chọn nguồn của chủ dự án; SoundCloud bị hạn chế sau sự cố QA.
+- **Quyết định:** tìm kiếm bằng cửa sổ nền riêng, chung profile, không phát âm thanh và chỉ có IPC trả kết quả. Player giữ phiên hiện tại trong lúc tìm. Island mặc định hiển thị nguồn đang mở và Mở trang/Đổi trang/Tìm bài.
+- **Bằng chứng:** Zing trả metadata playlist qua response của trang và queue qua một khóa localStorage xác định; không tiếp tục dùng selector album phỏng đoán. Đã thử native chạy tiếp sau restart, chọn queue và tìm→phát.
+- **Giới hạn:** SoundCloud chặn unusual activity khi QA; dừng truy cập tự động, tắt tìm kiếm nền của nguồn này, không vượt chặn. Restore bỏ click lặp; các provider chưa kiểm chứng đầy đủ không được ghi là đã hỗ trợ trọn vẹn. Spotify chỉ xác nhận kết quả tìm kiếm trong WebView; phát trên Chrome không chứng minh phát trong app.
+- **Hệ quả:** thêm capability riêng cho search; không giữ credential/stream URL trong kết quả. Có thể phải chuyển sang tích hợp được nhà cung cấp hỗ trợ trước khi bật lại tìm kiếm SoundCloud.
+
+## ADR-017 · Island mở rộng theo nội dung tương tác
+
+- **Ngày:** 2026-11-01 · **Trạng thái:** Accepted theo yêu cầu chủ dự án.
+- **Bối cảnh:** chooser nhạc cắt các nút mới hiện, playlist bị ép trong chiều cao player. Chạy tiếp quay về lưới tính năng do dùng chung callback quay lại.
+- **Quyết định:** thay phần kích thước cố định trong ADR-003: giữ ngang 480, cao native 264–616 theo hit region; peek đo nội dung tối đa 600. Resize canvas trước morph, thu sau morph; click xuyên vẫn theo vùng island, poller tính vùng gần theo chiều cao mới. Queue có tối đa 340 px cho các dòng bài trước khi cuộn.
+- **Điều hướng:** callback phát thành công chuyển về player của nguồn đã chọn, độc lập Quay lại của launcher. Hiện trạng thái tải khi chờ metadata, lỗi IPC giữ panel.
+- **Kiểm chứng:** test tích hợp nội dung/điều hướng, test Rust canvas và QA trình duyệt với fixture offline. Không truy cập lại website nhạc.
+
 ## Template
 
 ```markdown

@@ -116,7 +116,7 @@ impl ShelfHandle {
 
     fn raw_items(&self) -> Result<Vec<ShelfItem>, StorageError> {
         self.db.call(|c| {
-            let mut s = c.prepare("SELECT id, path, name, size, is_dir, added_at FROM shelf_items ORDER BY added_at DESC")?;
+            let mut s = c.prepare("SELECT id, path, name, size, is_dir, added_at FROM shelf_items ORDER BY added_at ASC, id ASC")?;
             let rows = s.query_map([], |r| {
                 let path: String = r.get(1)?;
                 Ok(ShelfItem {
@@ -135,15 +135,19 @@ impl ShelfHandle {
     }
 
     fn add(&self, paths: &[String]) -> Result<u32, StorageError> {
-        let max = self.settings.borrow().shelf.max_items as usize;
+        let max: usize = 3;
         let existing = self.items()?;
         let room = max.saturating_sub(existing.len());
         let mut added = 0;
-        for p in paths
-            .iter()
-            .filter(|p| !existing.iter().any(|e| &e.path == *p))
-            .take(room)
-        {
+        let mut seen: std::collections::HashSet<String> =
+            existing.iter().map(|item| item.path.clone()).collect();
+        for p in paths {
+            if added as usize >= room {
+                break;
+            }
+            if !seen.insert(p.clone()) {
+                continue;
+            }
             let path = Path::new(p);
             let Ok(meta) = std::fs::metadata(path) else {
                 continue;
@@ -151,12 +155,15 @@ impl ShelfHandle {
             let name = path
                 .file_name()
                 .map_or_else(|| p.clone(), |n| n.to_string_lossy().into_owned());
-            self.db.call(|c| {
+            let inserted = self.db.call(|c| {
                 c.execute(
-                    "INSERT INTO shelf_items (id, path, name, size, is_dir, added_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    "INSERT INTO shelf_items (id, path, name, size, is_dir, added_at) SELECT ?1, ?2, ?3, ?4, ?5, ?6 WHERE (SELECT COUNT(*) FROM shelf_items)<3 AND NOT EXISTS(SELECT 1 FROM shelf_items WHERE path=?2)",
                     rusqlite::params![new_id(), p, name, meta.len() as i64, meta.is_dir(), now_ms() as i64],
                 )
             })?;
+            if inserted == 0 {
+                continue;
+            }
             added += 1;
             self.thumbnail(p);
         }
@@ -223,20 +230,6 @@ pub fn shelf_list(shelf: State<'_, ShelfHandle>) -> IpcResult<Vec<ShelfItem>> {
 #[tauri::command]
 pub fn shelf_add(shelf: State<'_, ShelfHandle>, paths: Vec<String>) -> IpcResult<u32> {
     let added = shelf.add(&paths).map_err(db_err)?;
-    if added > 0 {
-        shelf.hub.alert(
-            Activity::new(
-                "shelf",
-                "shelf:dropped",
-                "shelf.dropped",
-                priority::ALERT,
-                crate::core::activity::payload(&crate::modules::reminders::CountPayload {
-                    count: added,
-                }),
-            )
-            .transient(1_500),
-        );
-    }
     Ok(added)
 }
 

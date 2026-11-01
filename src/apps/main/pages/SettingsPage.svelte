@@ -33,6 +33,12 @@
     return () => void sub.then((u) => u());
   });
   let shortcutErrors = $state<ShortcutError[]>([]);
+  let startupError = $state('');
+  async function setAutostart(value: boolean) {
+    startupError = '';
+    try { await updateSettings('app', { autostart: value }); info = await appCommands.info(); }
+    catch { startupError = t('settings.autostartFailed'); }
+  }
   const soundOptions = $derived(
     ['chime', 'bell', 'softTick', 'pop', 'none'].map((v) => ({ value: v, label: t(`settings.sounds.${v}`) })),
   );
@@ -57,8 +63,13 @@
       <Select label={t('settings.language')} value={s.app.language} options={[{ value: 'vi', label: 'Tiếng Việt' }, { value: 'en', label: 'English' }]} onchange={set('app', 'language')} />
     </SettingRow>
     <SettingRow label={t('settings.autostart')} hint={t('settings.autostartHint')}>
-      <Toggle label={t('settings.autostart')} checked={s.app.autostart} onchange={set('app', 'autostart')} />
+      <Toggle label={t('settings.autostart')} checked={s.app.autostart} onchange={setAutostart} />
     </SettingRow>
+    {#if startupError}<p role="alert">{startupError}</p>{/if}
+    {#if s.app.autostart}
+      <p class="muted">{info?.startupCommand ?? t('settings.autostartMissing')}</p>
+      <Button onclick={() => setAutostart(true)}>{t('settings.autostartRepair')}</Button>
+    {/if}
     <SettingRow label={t('settings.soundVolume')}>
       <input type="range" min="0" max="1" step="0.05" value={s.app.soundVolume} onchange={(e) => set('app', 'soundVolume')(Number((e.currentTarget as HTMLInputElement).value))} />
       <Button onclick={() => appCommands.playSound('chime')}>{t('settings.testSound')}</Button>

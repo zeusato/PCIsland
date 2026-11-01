@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-notes-tasks"
+description = "Enables the notes_tasks command without any pre-configured scope."
+commands.allow = ["notes_tasks"]
+
+[[permission]]
+identifier = "deny-notes-tasks"
+description = "Denies the notes_tasks command without any pre-configured scope."
+commands.deny = ["notes_tasks"]

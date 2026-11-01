@@ -24,11 +24,11 @@ Mọi thứ liên quan tới đếm thời gian: hẹn giờ đếm ngược (nh
 2. **Đang chạy:** compact hiện vòng tiến độ + `mm:ss`. Peek có số lớn, nhãn, ⏸, +1 phút, ✕.
 3. **Hết giờ:** alert lớn "Hết giờ · Luộc trứng", glow nhịp, âm `bell` lặp tối đa 60 s. Hành động: Dừng · +1 phút · Lặp lại.
 4. **Nhiều hẹn giờ:** activity chính là bộ sắp hết nhất; peek liệt kê tối đa 3 bộ và "+N" (bấm vào để mở `main`).
-5. **Bấm giờ:** compact hiện giây; peek hiện phần mười giây, nút Lap, ⏸, Đặt lại. Danh sách lap xem trong `main`.
-6. **Pomodoro:** Bắt đầu → làm 25 phút (cam) → hết pha: âm `soft-tick` + alert → nghỉ 5 phút (xanh lá) → … → sau 4 lần làm thì nghỉ dài 15 phút. Peek hiện tên pha, chấm chu kỳ `●●○○`, ⏸, Bỏ qua pha, Dừng.
+5. **Bấm giờ:** bấm launcher chỉ mở panel (không tự chạy). Có Bắt đầu/Tạm dừng, Lap, Đặt lại và thời gian/lap ngay trên island. Panel giữ nguyên khi activity đổi sau lệnh Bắt đầu.
+6. **Pomodoro:** bấm lần một bắt đầu, lần hai dừng hẳn; không có nút tạm dừng/tiếp tục. Giữ chu kỳ làm/nghỉ và Bỏ qua pha.
 7. **Focus mode:** bật khi vào pha làm (nếu `focus.with_pomodoro`), hoặc bật tay từ peek/`main`. Trong Focus, alert không quan trọng bị chặn ([activity-hub](activity-hub.md)); island có viền cam mảnh để báo đang Focus.
 8. **Máy sleep 10 phút trong lúc hẹn 5 phút:** khi wake, alert hết giờ hiện ngay, ghi chú "đã hết lúc 14:05".
-9. **Phản hồi Pomodoro:** nút launcher có màu và nhãn theo snapshot backend: cam tập trung, xanh nghỉ, vàng tạm dừng/chờ; bấm lại tạm dừng/tiếp tục hoặc bắt đầu pha đang chờ, không reset phiên. Trang đầy đủ cũng tô màu nút theo pha. Khi bắt đầu, toast 10 giây (đóng sớm được) nêu thời lượng, Focus có bật không, tùy chọn tạm dừng nhạc và playlist nếu có. Focus chỉ lọc cảnh báo thường trên island; timer và cảnh báo Critical vẫn hiện, không đổi thông báo Windows/app khác. Toast sống ngoài nội dung activity để không mất khi activity chính đổi.
+9. **Phản hồi Pomodoro:** màu nút phản ánh tập trung/nghỉ/chờ. Bắt đầu, dừng và chuyển pha dùng toast Windows, gọi Hide sau 3 giây; không có toast nằm trong island. Toast bắt đầu giải thích Focus chỉ lọc cảnh báo thường trên island, không thay thông báo Windows/app khác, và các tùy chọn nhạc. Windows có thể chặn banner theo cài đặt thông báo hệ thống.
 
 ## 4. Activity
 
@@ -37,8 +37,8 @@ Mọi thứ liên quan tới đếm thời gian: hẹn giờ đếm ngược (nh
 | `timer.running` | Live | Vòng tiến độ + `mm:ss` | Số 40 px, nhãn, danh sách ≤ 3 bộ | — | `pause`, `resume`, `add_minute`, `cancel` |
 | `timer.finished` | Critical | — | — | Lớn: "Hết giờ · nhãn", thời điểm hết | `stop`, `add_minute`, `repeat` |
 | `stopwatch.running` | Live | Icon + `mm:ss` | `mm:ss.t` (10 Hz, chỉ khi đang hiện peek), lap gần nhất | — | `lap`, `pause`, `resume`, `reset` |
-| `pomodoro.running` | Live | Vòng (cam: làm / xanh: nghỉ) + `mm:ss` | Tên pha, chấm chu kỳ, thời gian | — | `pause`, `resume`, `skip`, `stop` |
-| `pomodoro.phase_end` | Alert (tự chuyển pha) / Critical (chờ người dùng) | — | — | "Hết pha làm, nghỉ 5 phút nhé" | `start_next`, `stop` |
+| `pomodoro.running` | Live | Vòng + `mm:ss` | Tên pha, chấm chu kỳ, thời gian | — | `skip`, `stop` |
+| `pomodoro.phase_end` | Live (đang chờ) | Thời gian | Bắt đầu pha kế hoặc Dừng | Thông báo là toast Windows | `start_next`, `stop` |
 | Bubble | — | Vòng tiến độ 24 px | — | — | Bấm để ghim |
 
 **Hành động nhanh** (đăng ký vào launcher của island): ⏱ Hẹn giờ · ⏲ Bấm giờ · 🍅 Pomodoro (icon lucide tương ứng; emoji ở đây chỉ để minh họa).
@@ -73,7 +73,7 @@ Hiển thị và kiểm tra hết giờ đều tính từ `ends_at - clock.now_u
 
 **Pomodoro:**
 - Máy trạng thái `Work → ShortBreak → Work → … → LongBreak` theo `long_every`.
-- `auto_start_breaks`, `auto_start_work` quyết định chờ người dùng (Critical) hay tự chuyển (Alert).
+- `auto_start_breaks`, `auto_start_work` quyết định chờ người dùng (activity Live) hay tự chuyển; cả hai báo toast Windows.
 - Mỗi pha xong (hoàn tất hoặc bị bỏ qua) ghi một dòng `timer_pomodoro_sessions`.
 
 **Focus mode:**
@@ -170,3 +170,4 @@ Không có. Nút trạng thái dùng cam khi tập trung, xanh khi nghỉ, vàng
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Pomodoro dừng nhạc khi nghỉ và tự phát playlist tập trung (qua `MediaIntent`); bộ đếm đúng sau sleep/resume |
 | 2026-11-01 | Nút Pomodoro có màu/nhãn theo trạng thái trên launcher/main; thao tác lại không reset phiên; toast bắt đầu nêu đúng phạm vi Focus và tùy chọn nhạc. |
+| 2026-11-01 | Bấm giờ mở panel trước; Pomodoro start/stop, toast Windows 3 giây kể cả chuyển pha (ADR-015). |

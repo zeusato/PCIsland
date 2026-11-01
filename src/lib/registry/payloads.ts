@@ -7,7 +7,6 @@ import type { CountdownsPayload } from '$lib/ipc/bindings/CountdownsPayload';
 import type { Countdown } from '$lib/ipc/bindings/Countdown';
 import type { Stopwatch } from '$lib/ipc/bindings/Stopwatch';
 import type { Pomodoro } from '$lib/ipc/bindings/Pomodoro';
-import type { PhaseEndPayload } from '$lib/ipc/bindings/PhaseEndPayload';
 import type { Reminder } from '$lib/ipc/bindings/Reminder';
 import type { CountPayload } from '$lib/ipc/bindings/CountPayload';
 import type { IdlePayload } from '$lib/ipc/bindings/IdlePayload';
@@ -15,6 +14,7 @@ import type { VolumePayload } from '$lib/ipc/bindings/VolumePayload';
 import type { PowerPayload } from '$lib/ipc/bindings/PowerPayload';
 import type { BatteryLowPayload } from '$lib/ipc/bindings/BatteryLowPayload';
 import type { Note } from '$lib/ipc/bindings/Note';
+import type { NoteTask } from '$lib/ipc/bindings/NoteTask';
 import type { ShelfPayload } from '$lib/ipc/bindings/ShelfPayload';
 import type { UpdateInfo } from '$lib/ipc/bindings/UpdateInfo';
 
@@ -25,8 +25,8 @@ export interface ActivityPayloads {
   'timer.finished': Countdown;
   'stopwatch.running': Stopwatch;
   'pomodoro.running': Pomodoro;
-  /** Pomodoro while waiting for the user, PhaseEndPayload for the transient alert. */
-  'pomodoro.phase_end': Pomodoro | PhaseEndPayload;
+  /** Pomodoro waiting for the next phase; notifications use a native toast. */
+  'pomodoro.phase_end': Pomodoro;
   'reminders.due': Reminder;
   'reminders.upcoming': Reminder;
   'reminders.missed_summary': CountPayload;
@@ -35,6 +35,7 @@ export interface ActivityPayloads {
   'indicators.power': PowerPayload;
   'indicators.battery_low': BatteryLowPayload;
   'notes.pinned': Note;
+  'notes.task_due': NoteTask;
   'notes.saved': null;
   'shelf.items': ShelfPayload;
   'shelf.dropped': CountPayload;

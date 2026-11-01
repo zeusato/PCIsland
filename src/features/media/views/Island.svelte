@@ -4,7 +4,7 @@
   import Music from '@lucide/svelte/icons/music';
   import { payload } from '$lib/registry/payloads';
   import Compact from './Compact.svelte';
-  import Peek from './Peek.svelte';
+  import Player from './Player.svelte';
 
   let { activity, variant }: { activity: Activity; variant: 'compact' | 'peek' | 'alert' | 'bubble' } = $props();
   const np: NowPlayingDto = $derived(payload(activity, 'media.now_playing'));
@@ -23,7 +23,7 @@
 {:else if variant === 'compact'}
   <Compact {np} />
 {:else}
-  <Peek {np} />
+  <Player {np} />
 {/if}
 
 <style>

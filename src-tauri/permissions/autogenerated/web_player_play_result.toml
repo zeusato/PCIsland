@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-web-player-play-result"
+description = "Enables the web_player_play_result command without any pre-configured scope."
+commands.allow = ["web_player_play_result"]
+
+[[permission]]
+identifier = "deny-web-player-play-result"
+description = "Denies the web_player_play_result command without any pre-configured scope."
+commands.deny = ["web_player_play_result"]

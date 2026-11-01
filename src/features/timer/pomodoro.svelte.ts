@@ -1,6 +1,5 @@
-import { timerCommands } from '$lib/ipc/commands';
+import { appCommands, timerCommands } from '$lib/ipc/commands';
 import { live } from '$lib/stores/live.svelte';
-import { showFeedback } from '$lib/stores/feedback.svelte';
 import { t } from '$lib/i18n/index.svelte';
 
 export const pomodoroUi = $state({ busy: false });
@@ -35,12 +34,12 @@ export async function controlPomodoro(action: Parameters<typeof timerCommands.po
   pomodoroUi.busy = true;
   try {
     await timerCommands.pomodoro(action);
-    if (action === 'start') showFeedback(pomodoroStartMessage());
-  } catch { showFeedback(t('errors.unknown')); }
+    if (action === 'start' || action === 'stop') await appCommands.toast('Pomodoro', action === 'start' ? pomodoroStartMessage() : t('pomodoro.stopped'));
+  } catch { await appCommands.toast('Pomodoro', t('errors.unknown')).catch(() => {}); }
   finally { pomodoroUi.busy = false; }
 }
 
 export async function quickPomodoro(): Promise<void> {
   const p = live.timer?.pomodoro;
-  await controlPomodoro(!p ? 'start' : p.run.kind === 'running' ? 'pause' : p.run.kind === 'paused' ? 'resume' : 'next');
+  await controlPomodoro(p ? 'stop' : 'start');
 }

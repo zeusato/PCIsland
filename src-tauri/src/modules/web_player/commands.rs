@@ -5,6 +5,36 @@ use super::{WebPlayerHandle, sites};
 use crate::ipc::{IpcError, IpcResult};
 
 #[tauri::command]
+pub async fn web_player_search(
+    app: AppHandle,
+    player: State<'_, WebPlayerHandle>,
+    site_id: String,
+    query: String,
+) -> IpcResult<Vec<super::dto::WebQueueItem>> {
+    super::search::run(&app, &player, &site_id, &query).await
+}
+
+#[tauri::command]
+pub fn web_player_search_report(
+    player: State<'_, WebPlayerHandle>,
+    webview: Webview,
+    request_id: String,
+    items: Vec<super::dto::WebQueueItem>,
+) -> IpcResult<()> {
+    super::search::report(&player, &webview, &request_id, items)
+}
+
+#[tauri::command]
+pub async fn web_player_play_result(
+    app: AppHandle,
+    player: State<'_, WebPlayerHandle>,
+    site_id: String,
+    url: String,
+) -> IpcResult<()> {
+    super::search::play(&app, &player, &site_id, &url)
+}
+
+#[tauri::command]
 pub fn web_player_get_state(player: State<'_, WebPlayerHandle>) -> WebPlayerSnapshot {
     player.snapshot()
 }
@@ -50,6 +80,7 @@ pub fn web_player_close(app: AppHandle, player: State<'_, WebPlayerHandle>) -> I
 /// The only command remote pages can call (capabilities/web-player-remote.json).
 #[tauri::command]
 pub fn web_player_report(
+    app: AppHandle,
     webview: Webview,
     player: State<'_, WebPlayerHandle>,
     msg: BridgeMessage,
@@ -61,7 +92,34 @@ pub fn web_player_report(
         ));
     }
     let url = webview.url()?;
-    super::report(&player, &url, msg)
+    super::report(&app, &player, &url, msg)
+}
+
+#[tauri::command]
+pub async fn web_player_resume(
+    app: AppHandle,
+    player: State<'_, WebPlayerHandle>,
+    site_id: String,
+) -> IpcResult<()> {
+    super::resume(&app, &player, &site_id)
+}
+
+#[tauri::command]
+pub fn web_player_select_queue(
+    app: AppHandle,
+    player: State<'_, WebPlayerHandle>,
+    url: String,
+) -> IpcResult<()> {
+    super::select_queue(&app, &player, &url)
+}
+
+#[tauri::command]
+pub fn web_player_request_queue(app: AppHandle) -> IpcResult<()> {
+    use tauri::Manager;
+    if let Some(win) = app.get_webview_window(super::LABEL) {
+        win.eval("window.__pcisland?.requestQueue()")?;
+    }
+    Ok(())
 }
 
 #[tauri::command]

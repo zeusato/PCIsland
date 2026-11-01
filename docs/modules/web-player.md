@@ -19,7 +19,7 @@ Cho người dùng mở trang nhạc online (Zing MP3, SoundCloud, YouTube…), 
 
 ## 3. Hành vi & luồng người dùng
 
-1. **Chọn trang:** island › nút "Online", hoặc `main › Online`. Lưới thẻ các trang hỗ trợ, cùng ô "Nhập URL khác".
+1. **Chọn trang:** island › Nhạc › Online hoặc main › Nhạc › Online. Trang chưa có lịch sử mở thẳng trang gốc; trang có lịch sử hiện tên bài cuối cùng và hai nút Chạy tiếp / Mở trang gốc.
 2. **Thiết lập:** cửa sổ web player mở ra với toolbar mỏng `← → ⟳ ⌂ | [ổ khóa] music.youtube.com | Đổi trang ▾ | Thu gọn | ⋯`. Người dùng đăng nhập, chọn playlist, bấm phát.
 3. **Thu gọn:** cửa sổ ẩn (không hủy), nhạc tiếp tục. Island hiện ảnh bìa + sóng nhạc; peek có ⏮ ⏯ ⏭, thanh tiến độ và nút "Mở trình phát".
 4. **Mở lại:** bấm ảnh bìa hoặc "Mở trình phát" → cửa sổ hiện lại đúng chỗ cũ.
@@ -103,12 +103,36 @@ Closed ──open(site)──▶ Visible ──thu gọn──▶ Hidden ──t
 - Khi `Hidden`: không gọi `TrySuspend`. Kiểm chứng ở spike D là âm thanh tiếp tục và throttling không làm hỏng việc chuyển bài.
 - `Unloaded` giữ `{site_id, last_url}` trong `kv` để mở lại.
 
+### Phiên nghe và danh sách phát (2026-11-01)
+
+- Cookie, local storage, cache và đăng nhập dùng hồ sơ WebView2 bền vững ở %LOCALAPPDATA%/PCisland/WebView2/web-player; đóng/ẩn app không xóa. Lệnh Xóa dữ liệu mới xóa hồ sơ và lịch sử.
+- `kv: web_player.sessions` lưu riêng mỗi site: page/playlist URL, URL bài, tên bài, vị trí, hàng đợi. Ghi khi đổi bài/trang/danh sách, dừng hoặc vị trí lệch ít nhất 5 giây.
+- Chạy tiếp giữ phiên đang mở nếu cùng nguồn; khi nạp lại thì restore một lần sau page load, tìm bài trong playlist, đợi media sẵn sàng rồi seek/play. Không seek nhầm bài khác. Sau 30 giây chưa phát được thì mở cửa sổ để người dùng xử lý đăng nhập/DRM/autoplay.
+- Zing v1.22.4 đã trace thực tế: metadata playlist ở `/api/v2/page/get/playlist`, metadata bài ở `/api/v2/song/get/info`, queue lưu tại `zmp3_np_queue.v1.1`. Bridge chỉ lấy tên/link/ID nhạc từ response mà trang đã nhận và đúng khóa queue này; không đọc cookie, token hay URL stream. Queue sidebar có thể chưa mount; trang album dùng span thay vì link. Link trên thanh phát trỏ album, vì vậy phải lưu riêng album và bài hiện tại.
+- SoundCloud dùng `.trackItem__trackTitle` và `.playButton`; Spotify dùng tracklist và các dòng queue không có link, ánh xạ với URL đã quan sát hoặc bookmark nội bộ của dòng. Tối đa 100 bài; virtualization có thể làm thiếu bài chưa tải. Không gọi API tải nhạc riêng. Chỉ Zing đã kiểm thử native đầy đủ chọn queue và chạy tiếp sau restart; chưa cam kết ma trận còn lại.
+- Nguồn Online trên island mặc định hiện tên trang/bài và trạng thái, cùng Mở trang, Đổi trang, Tìm bài. Mở trang chỉ show cửa sổ hiện tại, không điều hướng về home. Danh sách nguồn chỉ hiện khi chưa mở nguồn hoặc chủ động Đổi trang.
+- Audio tách khỏi DOM được đăng ký sự kiện riêng để lưu tiến trình mỗi 5 giây. Metadata phục hồi mà chưa có vị trí không được ghi đè vị trí đã lưu bằng 0. Lệnh đổi nguồn chủ động dừng bài cũ và tránh hộp thoại trước khi rời trang bị kẹt trong cửa sổ ẩn.
+
+### Tìm kiếm trong app và giới hạn kiểm thử (2026-11-01)
+
+- Zing MP3 và Spotify: nhập từ khóa, nhận tối đa 30 bài, chọn để phát trong nền. WebView tìm kiếm dùng chung profile nhưng không phát âm thanh; tách khỏi player nên tìm kiếm không điều hướng/dừng bài hiện tại. Mỗi lần submit chỉ mở một lượt tìm, timeout 22 giây, không tự gửi lại.
+- Cửa sổ `web-search-*` chỉ có quyền `web_player_search_report`; backend xác minh request ID, label, URL tìm kiếm và origin, chỉ cho phát URL trong kết quả đã nhận. Không lấy credential từ Chrome hay chuyển cookie giữa trình duyệt.
+- Đã kiểm chứng kết quả tìm từ ba nguồn và tìm→phát Zing. **SoundCloud xuất hiện “You have been blocked / unusual activity” trong QA. Đã dừng toàn bộ test online và vô hiệu tìm kiếm nền SoundCloud**, bỏ domain khỏi capability tìm kiếm. Không đổi IP/profile, không xóa cookie hoặc vượt challenge. Không xác định được thời hạn hay nguyên nhân chính xác từ thông báo.
+- Restore chỉ kích hoạt phát một lần rồi chờ media sẵn sàng; không click Play mỗi vài giây. Khi thấy nội dung chặn/challenge thì dừng. Các thay đổi cuối sau sự cố chỉ được unit test, không thử lại online. Spotify tìm kiếm đã có kết quả thật; chọn phát và khôi phục trong WebView cần kiểm chứng riêng, không suy ra từ Chrome.
+- Backend chỉ nhận URL HTTPS của đúng site, không chứa credentials; queue khử trùng và giới hạn độ dài. Trang từ xa vẫn chỉ có quyền report.
+
 ## 6. IPC
 
 | Command | Ai gọi | Chữ ký |
 |---|---|---|
-| `web_player_get_state` | main, island | `() → WebPlayerSnapshot { lifecycle, site?, url?, title?, canGoBack, canGoForward, rev }` |
+| `web_player_get_state` | main, island | `() → WebPlayerSnapshot { lifecycle, siteId?, url?, history, queue, rev }` |
 | `web_player_open` | main, island | `(siteId?: string, url?: string) → ()` |
+| `web_player_resume` | main, island | `(siteId: string) → ()` |
+| `web_player_select_queue` | island | `(url: string) → ()` (phải thuộc queue hiện tại) |
+| `web_player_request_queue` | island | `() → ()` mở queue của site nếu cần |
+| `web_player_search` | main, island | `(siteId, query) → WebQueueItem[]`; hiện chỉ Zing/Spotify |
+| `web_player_play_result` | main, island | `(siteId, url) → ()`; URL phải trong kết quả tìm gần nhất |
+| `web_player_search_report` | web-search-* | `(requestId, items) → ()`; quyền riêng, không được điều khiển app |
 | `web_player_show` / `web_player_hide` | main, island, toolbar | `() → ()` |
 | `web_player_close` | main, toolbar | `() → ()` |
 | `web_player_navigate` | toolbar | `(action: "back" \| "forward" \| "reload" \| "home") → ()` |
@@ -152,7 +176,7 @@ Closed ──open(site)──▶ Visible ──thu gọn──▶ Hidden ──t
 ## 10. Hiệu năng
 
 - RAM: ghi nhận theo từng trang ở G0 (dự kiến 200–500 MB), ghi vào bảng test matrix.
-- Bridge: không chạy timer; chỉ phản ứng theo sự kiện; tối đa 10 tin/giây.
+- Bridge: sự kiện media, tối đa 10 tin/giây; restore có vòng chờ hữu hạn và chỉ một lần kích hoạt. Search poll DOM hữu hạn, không poll HTTP.
 - Tự hủy khi rảnh theo cài đặt.
 
 ## 11. Kiểm thử
@@ -183,9 +207,12 @@ Closed ──open(site)──▶ Visible ──thu gọn──▶ Hidden ──t
 
 ## 13. Lịch sử thay đổi
 
+Island: chọn site có lịch sử tự mở rộng panel để thấy đủ các nút. Chạy tiếp thành công hoặc chọn kết quả tìm kiếm đóng toàn bộ launcher, chọn nguồn web và chuyển về player; metadata chậm vẫn giữ màn hình player đang tải. Lỗi IPC giữ panel để thử lại. Queue mở rộng island theo nội dung, danh sách dài mới cuộn. Đã kiểm tra bằng fixture offline, không gọi website sau sự cố SoundCloud.
+
 | Ngày | Thay đổi |
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Tự tắt khi tạm dừng quá N phút; đổi trang, xóa dữ liệu đăng nhập; toolbar đặt ở tab Nhạc › Online (ADR-013) |
 | 2026-11-01 | Sửa: popup đăng nhập bị chặn (SoundCloud "enable popup windows", Zing màn hình trắng). Thêm `sites::popup_policy` theo §5; `web_player_open` chạy async |
 | 2026-11-01 | Ảnh online tải bất đồng bộ qua ArtworkCache; giới hạn 2 MB/5 s, bảo toàn signed URL, gộp tải và bỏ kết quả cũ. |
+| 2026-11-01 | Lưu phiên từng site, Chạy tiếp/Mở trang gốc, khôi phục vị trí và queue trên island; giữ cookie/cache qua lần chạy. |

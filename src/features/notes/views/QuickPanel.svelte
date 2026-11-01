@@ -92,7 +92,7 @@
     {/if}
     <div class="note-content">
       {#if note}
-        <NoteBody text={note.text} disabled={busy || mode === 'check'} ontoggle={(line) => mutate(() => noteCommands.toggleCheck(selected, line))} />
+      <NoteBody noteId={note.id} island text={note.text} disabled={busy || mode === 'check'} ontoggle={(line) => mutate(() => noteCommands.toggleCheck(selected, line))} />
       {:else}<p>{t(loading ? 'common.loading' : 'notes.empty')}</p>{/if}
     </div>
     {#if mode === 'check' && note}

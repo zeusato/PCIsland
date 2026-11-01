@@ -61,7 +61,7 @@
 4. Thoát.
 
 **Autostart:**
-- Dùng `tauri-plugin-autostart` (khóa `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`).
+- Windows đăng ký trực tiếp qua `platform/autostart.rs`: HKCU Run/PCisland dùng đường dẫn exe có dấu nháy, `--autostart` và `--data-dir` nếu có; đặt StartupApproved enabled rồi đọc lại xác minh. Lỗi trả về UI; rollback dấu tick. Cài đặt có nút Đăng ký lại.
 - Lúc khởi động: nếu `app.autostart = true` mà giá trị trong registry khác đường dẫn exe hiện tại thì ghi lại. Nếu `false` mà khóa vẫn còn thì xóa.
 
 **Phím tắt toàn cục** (`tauri-plugin-global-shortcut`):
@@ -95,13 +95,16 @@
 
 **Panic hook:** ghi `crash-<ts>.log` gồm message, backtrace, phiên bản. Lần chạy sau thấy file mới hơn lần chạy trước thì phát alert `app.crash_recovered`.
 
+`--autostart` trong lần gọi thứ hai không mở cửa sổ chính; cờ chỉ dùng cho lần đăng nhập Windows. Đường dẫn thực tế trong `app_get_info.startupCommand` giúp phát hiện đăng ký trỏ tới exe đã di chuyển. Chưa coi test lệnh/registry là bằng chứng boot thành công; cần khởi động lại Windows.
+
 ## 6. IPC
 
 | Command | Chữ ký |
 |---|---|
 | `app_get_info` | `() → AppInfo { version, portable, dataDir, webview2Version }` |
 | `app_quit` | `() → ()` |
-| `app_set_autostart` | `(enabled: bool) → ()` |
+| `settings_update` | `("app", {autostart: bool}) → Settings` (đăng ký và xác minh) |
+| `app_show_toast` | `(title: string, body: string) → ()` (native, 3 giây) |
 | `app_pause_alerts` | `(minutes: u32) → ()` |
 | `app_resume_alerts` | `() → ()` |
 | `app_check_update_now` | `() → UpdateInfo?` |
@@ -170,3 +173,4 @@ Không có. Q4 đã chốt: giữ phím tắt mặc định, người dùng tự
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Kiểm tra cập nhật từ GitHub Releases (hằng ngày + nút trong Cài đặt); manifest Common-Controls v6 nhúng qua linker (ADR-012); trạng thái module trong Cài đặt |
+| 2026-11-01 | Đăng ký Run có quoting/cờ startup, đọc lại xác minh, báo lỗi/repair trong Settings; IPC toast Windows. |

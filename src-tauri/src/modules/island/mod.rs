@@ -10,7 +10,8 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use tauri::{
-    AppHandle, Emitter, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder,
 };
 use tokio::sync::{mpsc, watch};
 
@@ -28,7 +29,7 @@ pub const LABEL: &str = "island";
 /// WebView2 flags shared by the island and main windows (same environment, so they must
 /// match). One renderer process for both keeps RAM within budget (docs/02 §13).
 pub const APP_BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --renderer-process-limit=1 --disable-background-networking";
-/// Fixed logical size of the island window (docs/04-design-system.md §5).
+/// Resting canvas; interactive panels can grow to 600 logical px plus glow space.
 const WINDOW_W: f64 = 480.0;
 const WINDOW_H: f64 = 264.0;
 /// Cursor poll periods (docs/06-decision-log.md ADR-003).
@@ -37,6 +38,36 @@ const POLL_FAR: Duration = Duration::from_millis(100);
 const NEAR_MARGIN: i32 = 48;
 /// Re-check maximized state and z-order even without foreground events.
 const RECHECK: Duration = Duration::from_secs(1);
+
+fn canvas_height(rects: &[HitRect]) -> f64 {
+    rects
+        .iter()
+        .take(4)
+        .map(|r| r.y + r.height)
+        .filter(|height| height.is_finite())
+        .fold(WINDOW_H - 16.0, f64::max)
+        .clamp(WINDOW_H - 16.0, 600.0)
+        + 16.0
+}
+
+#[cfg(test)]
+mod canvas_tests {
+    use super::*;
+
+    #[test]
+    fn grows_for_queue_and_returns_to_resting_canvas() {
+        let rect = |height| HitRect {
+            x: 40.0,
+            y: 0.0,
+            width: 400.0,
+            height,
+        };
+        assert_eq!(canvas_height(&[rect(450.0)]), 466.0);
+        assert_eq!(canvas_height(&[rect(32.0)]), 264.0);
+        assert_eq!(canvas_height(&[rect(900.0)]), 616.0);
+        assert_eq!(canvas_height(&[rect(f64::NAN)]), 264.0);
+    }
+}
 
 enum Command {
     ToggleHidden(tokio::sync::oneshot::Sender<VisibilityMode>),
@@ -63,6 +94,11 @@ pub struct IslandHandle(Arc<Shared>);
 impl IslandHandle {
     pub fn set_hit_regions(&self, rects: &[HitRect]) -> Result<(), tauri::Error> {
         let scale = self.0.window.scale_factor()?;
+        let height = canvas_height(rects);
+        let current = self.0.window.inner_size()?;
+        if (f64::from(current.height) / scale - height).abs() > 1.0 {
+            self.0.window.set_size(LogicalSize::new(WINDOW_W, height))?;
+        }
         let phys = rects
             .iter()
             .take(4)
@@ -366,7 +402,12 @@ async fn cursor_poller(app: AppHandle, shared: Arc<Shared>, settings: watch::Rec
             left: -NEAR_MARGIN,
             top: -NEAR_MARGIN,
             right: (WINDOW_W * scale) as i32 + NEAR_MARGIN,
-            bottom: (WINDOW_H * scale) as i32 + NEAR_MARGIN,
+            bottom: lock(&shared.hits)
+                .iter()
+                .map(|r| r.bottom)
+                .max()
+                .unwrap_or((WINDOW_H * scale) as i32)
+                + NEAR_MARGIN,
         };
         let near = if follow { NEAR_MARGIN * 5 } else { NEAR_MARGIN };
         let wide = PhysRect {

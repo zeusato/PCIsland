@@ -4,8 +4,10 @@
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import { t, getLocale } from '$lib/i18n/index.svelte';
   import { quickActions, type QuickAction } from '$lib/registry/quickActions.svelte';
+  import { islandInteraction } from '$lib/components/islandInteraction';
+  const { fit } = islandInteraction();
 
-  let { initial = null, onclose }: { initial?: string | null; onclose?: () => void } = $props();
+  let { initial = null, onclose, onopen }: { initial?: string | null; onclose?: () => void; onopen?: () => void } = $props();
   let panel = $state<{ action: QuickAction; component: Component<{ close: () => void }> } | null>(null);
 
   // Open a panel directly (hotkey "quickNote").
@@ -35,12 +37,12 @@
   const time = $derived(now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }));
 
   function choose(action: QuickAction) {
-    if (action.panel) panel = { action, component: action.panel };
+    if (action.panel) { panel = { action, component: action.panel }; onopen?.(); }
     else action.run?.();
   }
 </script>
 
-<div class="launcher">
+<div class="launcher" use:fit>
   <div class="header">
     {#if panel}
       <button class="back" aria-label={t('common.back')} onclick={(e) => { e.stopPropagation(); closePanel(); }}><ChevronLeft size={16} /></button>
@@ -72,7 +74,10 @@
     flex-direction: column;
     gap: var(--sp-5);
     padding: var(--sp-6) var(--sp-7);
-    height: 100%;
+    align-self: start;
+    width: 100%;
+    max-height: var(--island-panel-max-h);
+    overflow-y: auto;
     min-height: 0;
   }
   .header {

@@ -230,9 +230,11 @@ async fn service(app: AppHandle, rx: Shared<Cmd>, ctx: Ctx, mut s: TimerSnapshot
                 if let Some(sound) = sound {
                     ctx.audio.play(sound, vol);
                 }
-                if end.auto_started {
-                    ctx.hub.alert(phase_alert(&end).transient(5_000));
-                }
+                crate::platform::toast::show_brief(
+                    &app.config().identifier,
+                    "Pomodoro",
+                    &phase_notice(&end, &ctx.settings.borrow().app.language),
+                );
                 if end.next != Phase::Work && ctx.settings.borrow().pomodoro.pause_media_on_break {
                     ctx.bus.send(AppEvent::MediaIntent(MediaIntent::Pause));
                 }
@@ -356,18 +358,29 @@ fn record_phase(db: &Db, end: &logic::PhaseEnd) {
     });
 }
 
-fn phase_alert(end: &logic::PhaseEnd) -> Activity {
-    Activity::new(
-        "timer",
-        "timer:pomodoro-end",
-        "pomodoro.phase_end",
-        priority::ALERT,
-        crate::core::activity::payload(&PhaseEndPayload {
-            finished: end.finished,
-            next: end.next,
-            auto_started: end.auto_started,
-        }),
-    )
+fn phase_notice(end: &logic::PhaseEnd, language: &str) -> String {
+    let catalog = if language == "en" {
+        include_str!("../../../../src/lib/i18n/en.json")
+    } else {
+        include_str!("../../../../src/lib/i18n/vi.json")
+    };
+    let strings: serde_json::Value = serde_json::from_str(catalog).unwrap_or_default();
+    let phase = match end.next {
+        Phase::Work => "work",
+        Phase::ShortBreak => "shortBreak",
+        Phase::LongBreak => "longBreak",
+    };
+    let text = strings[format!("pomodoro.next.{phase}")]
+        .as_str()
+        .unwrap_or("Pomodoro");
+    if end.auto_started {
+        text.to_owned()
+    } else {
+        format!(
+            "{text}. {}",
+            strings["pomodoro.waiting"].as_str().unwrap_or_default()
+        )
+    }
 }
 
 fn publish(app: &AppHandle, ctx: &Ctx, s: &TimerSnapshot, now: u64) {
@@ -460,7 +473,7 @@ fn publish(app: &AppHandle, ctx: &Ctx, s: &TimerSnapshot, now: u64) {
                     "timer",
                     "timer:pomodoro-end",
                     "pomodoro.phase_end",
-                    priority::CRITICAL,
+                    priority::LIVE,
                     serde_json::to_value(p).unwrap_or_default(),
                 )
                 .with_actions(vec![
@@ -471,7 +484,6 @@ fn publish(app: &AppHandle, ctx: &Ctx, s: &TimerSnapshot, now: u64) {
         }
         Some(p) => {
             hub.remove("timer:pomodoro-end");
-            let paused = matches!(p.run, PomodoroRun::Paused { .. });
             hub.upsert(
                 Activity::new(
                     "timer",
@@ -481,14 +493,8 @@ fn publish(app: &AppHandle, ctx: &Ctx, s: &TimerSnapshot, now: u64) {
                     serde_json::to_value(p).unwrap_or_default(),
                 )
                 .with_actions(vec![
-                    ActivityAction::new(
-                        if paused { "resume" } else { "pause" },
-                        "pause",
-                        "timer.action.pauseResume",
-                    )
-                    .primary(),
                     ActivityAction::new("skip", "skip-forward", "timer.action.skip"),
-                    ActivityAction::new("stop", "square", "timer.action.stop"),
+                    ActivityAction::new("stop", "square", "timer.action.stop").primary(),
                 ]),
             );
         }
@@ -500,15 +506,6 @@ fn publish(app: &AppHandle, ctx: &Ctx, s: &TimerSnapshot, now: u64) {
     for label in ["island", "main"] {
         let _ = app.emit_to(label, events::TIMER_STATE, s);
     }
-}
-
-#[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub struct PhaseEndPayload {
-    pub finished: Phase,
-    pub next: Phase,
-    pub auto_started: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]

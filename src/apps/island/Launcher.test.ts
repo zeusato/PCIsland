@@ -1,14 +1,14 @@
 import { expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 import { live } from '$lib/stores/live.svelte';
-import { feedback } from '$lib/stores/feedback.svelte';
-import { timerCommands } from '$lib/ipc/commands';
+import { appCommands, timerCommands } from '$lib/ipc/commands';
 import { registerTimer } from '../../features/timer';
 import Launcher from './Launcher.svelte';
 
 it('shows Pomodoro state on the launcher button and feedback after starting', async () => {
   registerTimer();
   const command = vi.spyOn(timerCommands, 'pomodoro').mockResolvedValue();
+  const toast = vi.spyOn(appCommands, 'toast').mockResolvedValue();
   const target = document.createElement('div');
   const component = mount(Launcher, { target });
   flushSync();
@@ -18,7 +18,7 @@ it('shows Pomodoro state on the launcher button and feedback after starting', as
   await Promise.resolve();
   flushSync();
   expect(command).toHaveBeenCalledWith('start');
-  await vi.waitFor(() => expect(feedback.message).toContain('Không thay đổi thông báo Windows'));
+  await vi.waitFor(() => expect(toast).toHaveBeenCalledWith('Pomodoro', expect.stringContaining('Không thay đổi thông báo Windows')));
   live.timer = { timers: [], stopwatch: { accumulatedMs: 0, startedAt: null, laps: [] }, focusManual: false, focusActive: true, rev: 1,
     pomodoro: { phase: 'work', completedWork: 0, phaseMs: 1500000, phaseStartedAt: 0, run: { kind: 'running', endsAt: 1500000 } } };
   flushSync();
@@ -34,6 +34,5 @@ it('shows Pomodoro state on the launcher button and feedback after starting', as
   expect(button.textContent).toContain('Tạm dừng');
   await unmount(component);
   live.timer = null;
-  feedback.message = '';
   vi.restoreAllMocks();
 });

@@ -111,6 +111,7 @@
 
 {#if tab === 'library'}
   <Card>
+    <p class="muted">{t('music.localHint')}</p>
     {#snippet actions()}
       <Button onclick={openFiles}><FileMusic size={14} />{t('music.openFiles')}</Button>
       <Button onclick={addFolder}><FolderPlus size={14} />{t('music.addFolder')}</Button>

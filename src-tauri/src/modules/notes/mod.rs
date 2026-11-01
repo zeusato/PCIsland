@@ -1,5 +1,6 @@
 //! Quick notes: capture from the island, pin one, search (docs/modules/quick-notes.md).
 #![forbid(unsafe_code)]
+pub mod tasks;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
@@ -32,9 +33,18 @@ pub struct NotesHandle {
     db: Db,
     hub: ActivityHub,
     app: AppHandle,
+    changed: std::sync::Arc<tokio::sync::Notify>,
 }
 
-pub fn setup(app: &AppHandle, db: Db, hub: ActivityHub, trash_days: u32) -> NotesHandle {
+pub fn setup(
+    app: &AppHandle,
+    db: Db,
+    hub: ActivityHub,
+    trash_days: u32,
+    bus: crate::core::events::EventBus,
+    audio: crate::core::audio::AudioEngine,
+    settings: tokio::sync::watch::Receiver<crate::core::settings::Settings>,
+) -> NotesHandle {
     let cutoff = now_ms().saturating_sub(u64::from(trash_days) * 86_400_000);
     let _ = db.call(|c| {
         c.execute(
@@ -46,16 +56,21 @@ pub fn setup(app: &AppHandle, db: Db, hub: ActivityHub, trash_days: u32) -> Note
         db,
         hub: hub.clone(),
         app: app.clone(),
+        changed: std::sync::Arc::default(),
     };
     let for_actions = handle.clone();
     hub.register_handler(
         "notes",
-        std::sync::Arc::new(move |_, action| match action {
+        std::sync::Arc::new(move |id, action| match action {
             "unpin" => for_actions.pin(None).map_err(|e| e.to_string()),
+            "complete" => for_actions
+                .complete_task(id.trim_start_matches("notes:task:"))
+                .map_err(|e| e.to_string()),
             _ => Err(format!("unknown notes action `{action}`")),
         }),
     );
     handle.publish();
+    spawn_alarms(handle.clone(), bus, audio, settings);
     handle
 }
 
@@ -85,11 +100,14 @@ impl NotesHandle {
         let now = now_ms();
         let id = id.map_or_else(new_id, str::to_owned);
         self.db.call(|c| {
-            c.execute(
+            let tx = c.unchecked_transaction()?;
+            tx.execute(
                 "INSERT INTO notes_items (id, text, normalized, pinned, created_at, updated_at) VALUES (?1, ?2, ?3, 0, ?4, ?4)
                  ON CONFLICT(id) DO UPDATE SET text = ?2, normalized = ?3, updated_at = ?4",
                 rusqlite::params![id, text, normalize(&text), now as i64],
-            )
+            )?;
+            tasks::sync(&tx, &id, &text, now)?;
+            tx.commit()
         })?;
         self.publish();
         Ok(Note {
@@ -114,6 +132,7 @@ impl NotesHandle {
     }
 
     fn publish(&self) {
+        self.changed.notify_one();
         let pinned = self
             .list("")
             .ok()
@@ -139,6 +158,125 @@ impl NotesHandle {
             let _ = self.app.emit_to(label, events::NOTES_STATE, &pinned);
         }
     }
+
+    fn complete_task(&self, task_id: &str) -> Result<(), StorageError> {
+        let (id, text, line, checked): (String, String, u32, bool) = self.db.call(|c| c.query_row("SELECT n.id,n.text,t.line_index,t.checked FROM note_tasks t JOIN notes_items n ON n.id=t.note_id WHERE t.id=?1 AND n.deleted_at IS NULL", [task_id], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))))?;
+        if !checked {
+            self.save(Some(&id), &toggle_line(&text, line as usize))?;
+        }
+        Ok(())
+    }
+}
+
+fn spawn_alarms(
+    handle: NotesHandle,
+    bus: crate::core::events::EventBus,
+    audio: crate::core::audio::AudioEngine,
+    settings: tokio::sync::watch::Receiver<crate::core::settings::Settings>,
+) {
+    let mut events = bus.subscribe();
+    tauri::async_runtime::spawn(async move {
+        let mut shown = std::collections::HashSet::<String>::new();
+        let mut hidden = false;
+        loop {
+            let now = now_ms();
+            let due = handle
+                .db
+                .call(|c| tasks::fire_due(c, now))
+                .unwrap_or_default();
+            let next: std::collections::HashSet<_> =
+                due.iter().map(|task| task.id.clone()).collect();
+            for id in shown.difference(&next) {
+                handle.hub.remove(&format!("notes:task:{id}"));
+            }
+            for task in due.iter().filter(|task| !shown.contains(&task.id)) {
+                handle.hub.upsert(
+                    Activity::new(
+                        "notes",
+                        format!("notes:task:{}", task.id),
+                        "notes.task_due",
+                        priority::CRITICAL,
+                        crate::core::activity::payload(task),
+                    )
+                    .with_actions(vec![
+                        ActivityAction::new("complete", "check", "reminders.action.done").primary(),
+                    ]),
+                );
+                let settings = settings.borrow().clone();
+                if let Some(sound) =
+                    crate::core::audio::SoundId::named(&settings.app.sound_reminder)
+                {
+                    audio.play(sound, settings.app.sound_volume);
+                }
+                if hidden {
+                    crate::platform::toast::show(
+                        &handle.app.config().identifier,
+                        "PCisland",
+                        &task.label,
+                    );
+                }
+            }
+            if next != shown {
+                for window in ["island", "main"] {
+                    let _ = handle
+                        .app
+                        .emit_to(window, events::NOTES_STATE, Option::<Note>::None);
+                }
+            }
+            shown = next;
+            let wait = handle
+                .db
+                .call(tasks::next_due)
+                .ok()
+                .flatten()
+                .map_or(60000, |due| due.saturating_sub(now).clamp(1, 60000));
+            tokio::select! {
+                () = tokio::time::sleep(std::time::Duration::from_millis(wait)) => {},
+                () = handle.changed.notified() => {},
+                event = events.recv() => { if let Ok(crate::core::events::AppEvent::IslandHidden(value)) = event { hidden = value; } }
+            }
+        }
+    });
+}
+
+#[tauri::command]
+pub fn notes_tasks(notes: State<'_, NotesHandle>, id: String) -> IpcResult<Vec<tasks::NoteTask>> {
+    notes
+        .db
+        .call(|c| {
+            let text: String = c.query_row(
+                "SELECT text FROM notes_items WHERE id=?1 AND deleted_at IS NULL",
+                [&id],
+                |r| r.get(0),
+            )?;
+            let current = tasks::list(c, &id)?;
+            if !current.is_empty() {
+                return Ok(current);
+            }
+            let tx = c.unchecked_transaction()?;
+            tasks::sync(&tx, &id, &text, now_ms())?;
+            tx.commit()?;
+            tasks::list(c, &id)
+        })
+        .map_err(db_err)
+}
+
+#[tauri::command]
+pub fn notes_set_task_alarm(
+    notes: State<'_, NotesHandle>,
+    task_id: String,
+    input: Option<tasks::TaskAlarmInput>,
+) -> IpcResult<()> {
+    notes
+        .db
+        .call(|c| {
+            let tx = c.unchecked_transaction()?;
+            tasks::set_alarm(&tx, &task_id, input.as_ref(), now_ms())?;
+            tx.commit()
+        })
+        .map_err(db_err)?;
+    notes.publish();
+    Ok(())
 }
 
 fn db_err(e: StorageError) -> IpcError {

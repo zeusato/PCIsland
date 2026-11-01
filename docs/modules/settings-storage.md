@@ -148,3 +148,4 @@ Không có.
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Thêm `island.monitor`, `indicators.eyesFollowCursor/eyesMoods`, `pomodoro.pauseMediaOnBreak/focusPlaylistId`, `visualizer`, `webPlayer.unloadAfterPausedMin` |
+| 2026-11-01 | Migration 0008 note_tasks lưu lịch nhắc từng dòng; kv web_player.sessions lưu phiên mỗi site; shelf mặc định 3; autostart xác minh registry. |

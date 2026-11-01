@@ -4,6 +4,8 @@
 
 ## 1. Mục đích
 
+**Cập nhật tương tác 2026-11-01:** Player peek dùng chung cho activity và điều hướng Chạy tiếp từ Nhạc. Khi mở Danh sách phát, island đo chiều cao queue và kéo dài xuống; vùng dòng bài tối đa 340 px rồi mới cuộn. Quay lại thu về player 200 px gồm hàng điều hướng; không yêu cầu mở app đầy đủ. Kiểm chứng bằng dữ liệu giả 24 bài trên trình duyệt cục bộ.
+
 Một điểm duy nhất cho "đang phát gì". Module gom mọi nguồn (app khác qua GSMTC, trình phát file, web player) thành một `NowPlaying`, hiển thị trên island và cho điều khiển từ island. Chính module này cũng hiện thực F10: điều khiển Spotify, YouTube trên Chrome và các app khác mà không cần web player.
 
 ## 2. Phạm vi
@@ -171,3 +173,4 @@ Không có bảng DB.
 | 2026-10-31 | Phát `NowPlayingChanged` qua EventBus; chip chọn nguồn trên peek khi có nhiều trình phát; `MediaIntent::Pause` |
 | 2026-11-01 | Ẩn phiên GSMTC `msedgewebview2` khi web player đang báo qua bridge, tránh trùng nguồn và mất nút next/previous |
 | 2026-11-01 | Tiến trình compact; fallback ảnh hỏng; ảnh nguồn web qua cache nội bộ. |
+| 2026-11-01 | Peek có nút Danh sách phát: local dùng queue của local_player; web dùng queue của web_player, nguồn ngoài chưa có danh sách thì hướng dẫn mở nguồn. |

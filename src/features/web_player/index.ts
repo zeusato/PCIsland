@@ -1,12 +1,12 @@
-import Globe from '@lucide/svelte/icons/globe';
+import Music from '@lucide/svelte/icons/music';
 import { registerQuickAction } from '$lib/registry/quickActions.svelte';
 import QuickPanel from './views/QuickPanel.svelte';
 
 export function registerWebPlayer(): void {
   registerQuickAction({
     id: 'web_player.open',
-    labelKey: 'island.launcher.online',
-    icon: Globe,
+    labelKey: 'main.nav.media',
+    icon: Music,
     order: 60,
     panel: QuickPanel,
   });

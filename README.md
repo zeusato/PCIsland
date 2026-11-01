@@ -2,14 +2,14 @@
 
 Dynamic Island cho Windows. Một "hòn đảo" nhỏ nằm giữa mép trên màn hình, luôn nổi trên cùng, khởi động cùng Windows và chạy ngầm. Nó gom các tương tác nhanh vào một chỗ: nhạc (file trên máy, trang nhạc online, app khác), hẹn giờ, Pomodoro, nhắc việc, ghi chú, kệ file và chỉ báo hệ thống.
 
-> **v0.1.0:** đã triển khai các tính năng P1–P3. Một số kịch bản tích hợp Windows và web player còn cần kiểm thử tay; xem [ghi chú phát hành](docs/releases/v0.1.0.md) và [Handoff](docs/05-handoff.md).
+> **v0.1.1:** đã triển khai các tính năng P1–P3. Một số kịch bản tích hợp Windows và web player còn cần kiểm thử tay; xem [ghi chú phát hành](docs/releases/v0.1.1.md) và [Handoff](docs/05-handoff.md).
 
 ## Tải và chạy
 
-Tải từ [GitHub Releases](https://github.com/zeusato/PCIsland/releases/tag/v0.1.0):
+Tải từ [GitHub Releases](https://github.com/zeusato/PCIsland/releases/tag/v0.1.1):
 
-- **Bộ cài:** `PCisland-0.1.0-setup.exe`, cài theo tài khoản Windows hiện tại.
-- **Portable:** giải nén `PCisland-0.1.0-portable.zip`, chạy `PCisland.exe`; thư mục `data` cạnh exe giữ dữ liệu portable.
+- **Bộ cài:** `PCisland-0.1.1-setup.exe`, cài theo tài khoản Windows hiện tại.
+- **Portable:** giải nén `PCisland-0.1.1-portable.zip`, chạy `PCisland.exe`; thư mục `data` cạnh exe giữ dữ liệu portable.
 - Mỗi gói có file `.sha256` để đối chiếu bằng `Get-FileHash <tên-file> -Algorithm SHA256`.
 
 Yêu cầu Windows 11 x64 và Microsoft Edge WebView2 Runtime. Khi nâng cấp, thoát bản cũ từ tray trước; giữ nguyên thư mục `data` nếu dùng portable. Bản v0.x chưa ký số. Nếu SmartScreen hiện cảnh báo, chỉ tiếp tục sau khi kiểm tra nguồn tải và SHA256; chọn **More info → Run anyway** để chạy bản đã kiểm tra.

@@ -55,6 +55,33 @@ pub fn show(identifier: &str, title: &str, body: &str) {
     });
 }
 
+/// A silent native Windows banner, explicitly withdrawn after three seconds.
+pub fn show_brief(identifier: &str, title: &str, body: &str) {
+    let xml = format!(
+        "<toast duration=\"short\"><visual><binding template=\"ToastGeneric\"><text>{}</text><text>{}</text></binding></visual><audio silent=\"true\"/></toast>",
+        escape(title),
+        escape(body)
+    );
+    let aumid = app_id(identifier);
+    std::thread::spawn(move || {
+        // SAFETY: initialises COM only for this notification worker.
+        let _ = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
+        let result = (|| -> windows::core::Result<()> {
+            let doc = XmlDocument::new()?;
+            doc.LoadXml(&HSTRING::from(xml))?;
+            let toast = ToastNotification::CreateToastNotification(&doc)?;
+            let notifier =
+                ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(aumid))?;
+            notifier.Show(&toast)?;
+            std::thread::sleep(std::time::Duration::from_secs(3));
+            notifier.Hide(&toast)
+        })();
+        if let Err(error) = result {
+            tracing::warn!(%error, "brief toast failed");
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

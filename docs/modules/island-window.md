@@ -50,10 +50,12 @@ Module này không khai báo activity. Nó render những gì hub gửi qua `isl
 Alert lớn (Critical) chặn việc thu về compact cho tới khi người dùng xác nhận.
 
 **Peek khi rảnh: launcher.**
-- Không có activity nào thì peek là **launcher**: hàng ngày giờ + pin, bên dưới là lưới nút tạo nhanh (Hẹn giờ, Bấm giờ, Pomodoro, Nhắc việc, Ghi chú, Online, Mở PCisland).
+- Không có activity nào thì peek là **launcher**: hàng ngày giờ + pin, bên dưới là lưới nút tạo nhanh (Hẹn giờ, Bấm giờ, Pomodoro, Nhắc việc, Ghi chú, Nhạc, Mở PCisland).
 - Nút do từng module đăng ký vào **quick action registry** của frontend (`src/lib/registry/quickActions.ts`), kèm thứ tự và điều kiện hiện. Module bị tắt thì nút ẩn.
 - Bấm một nút sẽ mở panel do module cung cấp (`features/<module>/views/QuickPanel.svelte`) ngay trong peek. Ví dụ: chip preset của hẹn giờ.
 - Khi đang có activity, peek của activity có nút lưới nhỏ ở góc để chuyển sang launcher.
+- Launcher đo chiều cao nội dung bằng ResizeObserver; khi chọn trang nhạc hiện Chạy tiếp/Mở trang gốc thì tự nới island xuống, không ép chooser vào vùng cuộn nhỏ. Danh sách phát cũng đo chiều cao, tối đa 340 px cho các dòng bài rồi mới cuộn. Chiều cao peek tối đa 600 px, trở lại chiều cao cũ khi đóng panel/queue.
+- Chạy tiếp/tìm→phát chuyển thẳng sang player đã chọn, tách khỏi thao tác Quay lại của launcher. Trong lúc metadata chưa đến, hiện trạng thái tải và nút Tính năng; không rơi về lưới tính năng khi hub còn idle hoặc timer đang primary.
 
 ## 5. Thiết kế kỹ thuật
 
@@ -70,7 +72,7 @@ Alert lớn (Critical) chặn việc thu về compact cho tới khi người dù
 | `MonitorInfo` | `platform/monitor.rs` (trait) | Danh sách màn hình, work area, DPI |
 
 **Tạo cửa sổ:**
-- Tauri `WebviewWindowBuilder` với các thuộc tính: `transparent(true)`, `decorations(false)`, `shadow(false)`, `resizable(false)`, `skip_taskbar(true)`, `always_on_top(true)`, `visible(false)`, kích thước 480×264 logic.
+- Tauri `WebviewWindowBuilder` với các thuộc tính: `transparent(true)`, `decorations(false)`, `shadow(false)`, `resizable(false)`, `skip_taskbar(true)`, `always_on_top(true)`, `visible(false)`, kích thước khởi tạo 480×264 logic. `island_set_hit_regions` nới canvas theo đáy region + 16 px, giới hạn 264–616 px; frontend đợi cập nhật region trước morph, gửi region chính xác sau morph để thu canvas. Poller tính khoảng gần theo region mới (ADR-017).
 - Sau khi tạo, platform đặt thêm `WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW` qua `SetWindowLongPtrW` rồi `SetWindowPos(HWND_TOPMOST, SWP_NOACTIVATE…)`.
 
 **Đặt vị trí:**
@@ -225,3 +227,4 @@ Không có. Đã chốt: Q1 (đôi mắt khi rảnh), Q2 (luôn hiện, ở màn
 | 2026-11-01 | Thêm hide_while_active mặc định false (ADR-014), progress minimal/compact và launcher từ mọi activity; trở lại minimal sau hover/alert. |
 | 2026-11-01 | Launcher cao 220 + hàng điều hướng 28 để xem/tick ghi chú; nút Pomodoro phản ánh trạng thái, toast nằm ngoài nội dung activity để giữ khi activity đổi. |
 | 2026-11-01 | Giữ peek khi rời chuột trong mọi form soạn thảo; test tích hợp ghi chú mới/sửa/thêm ô tick và nhắc việc, gồm ô trống, blur, timeout đang chờ và thu gọn lại sau hủy. |
+| 2026-11-01 | Giữ panel launcher khi activity đổi; drag mở kệ 3 slot; form giờ nhắc checklist giữ mở; toast Pomodoro chuyển sang Windows. |

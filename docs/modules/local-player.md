@@ -22,8 +22,8 @@ Phát nhạc từ ổ đĩa ngay trong PCisland: mở file/thư mục, thư vi�
 
 ## 3. Hành vi & luồng người dùng
 
-1. **Phát nhanh:** kéo file nhạc thả vào island → hai vùng thả hiện ra: "Phát ngay" và "Cất vào kệ". Thả vào "Phát ngay" thì file được thêm vào đầu hàng đợi và phát.
-2. **Thư viện:** `main › Nhạc › Thư viện`: thêm thư mục → quét nền với tiến độ → duyệt theo Bài hát / Album / Nghệ sĩ / Thư mục; tìm kiếm tức thì.
+1. **Phát nhanh:** Nhạc › Nhạc trên máy › Mở file; trên island có cùng lựa chọn. Mọi file kéo vào island đi vào Kệ file (ADR-015).
+2. **Thư viện:** `main › Nhạc › Nhạc trên máy`: thêm thư mục → quét nền với tiến độ → duyệt theo Bài hát / Album / Nghệ sĩ / Thư mục; tìm kiếm tức thì.
 3. **Playlist:** tạo, đổi tên, thêm bài (chuột phải hoặc kéo), sắp xếp bằng kéo thả; nhập/xuất `.m3u8`.
 4. **Hàng đợi:** "Phát tiếp theo" / "Thêm vào hàng đợi"; xem và sắp xếp lại trong `main`.
 5. **Mở lại app:** khôi phục hàng đợi, bài và vị trí cuối, ở trạng thái **tạm dừng**.
@@ -172,3 +172,4 @@ Module không tự khai báo activity. Nó là một `MediaSource` (`SourceId = 
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | SMTC riêng (phím media, flyout Windows); nhập/xuất m3u; radio/stream HTTP; tự mở lại thiết bị âm thanh khi đổi thiết bị mặc định; nhận `MediaIntent` từ Pomodoro |
+| 2026-11-01 | Tên Nhạc trên máy, mở file từ launcher Nhạc; chọn bài queue trên peek. |

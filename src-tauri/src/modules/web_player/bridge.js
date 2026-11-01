@@ -12,11 +12,151 @@
   let sessionState = 'none';
   let pending = null;
   let lastSent = 0;
+  let lastPositionReport = 0;
+  let restore = null;
+  let restoreTimer = null;
+  let appNavigation = false;
+  // An explicit source/track change in PCisland must not hang behind a hidden
+  // "leave while playing" dialog. Ordinary navigation keeps the site's own guard.
+  window.addEventListener('beforeunload', (event) => {
+    if (appNavigation) event.stopImmediatePropagation();
+  }, true);
+  const queueNodes = new Map();
+  const isZing = new URL(location.href).hostname === 'zingmp3.vn';
+  const isSoundCloud = new URL(location.href).hostname === 'soundcloud.com';
+  const isSpotify = new URL(location.href).hostname === 'open.spotify.com';
+  const knownTracks = new Map();
+  const zingTracks = new Map();
+  let zingPlaylist = null;
+  const accessBlocked = () => /you have been blocked|we detected unusual activity|verify (?:that )?you are human/i.test(document.body?.innerText?.slice(0, 16000) || '');
+  const urlOf = (value) => {
+    if (typeof value !== 'string' || !value.trim()) return null;
+    try { const url = new URL(value, location.href); return url.protocol === 'https:' && url.origin === new URL(location.href).origin ? url.href : null; }
+    catch { return null; }
+  };
+  // Zing v1.22.4, verified against real Network + player state (2026-11-01).
+  // Only music metadata is retained. Never capture cookies, request signatures or audio URLs.
+  const zingTrack = (item) => {
+    const url = item && urlOf(item.link);
+    if (!url || !item.title || !url.includes('/bai-hat/')) return null;
+    const track = { url, title: clip(item.title), id: item.encodeId, playlistUrl: item.currentPlaylist?.link && urlOf(item.currentPlaylist.link) };
+    if (track.id) { zingTracks.set(track.id, track); if (zingTracks.size > 500) zingTracks.delete(zingTracks.keys().next().value); }
+    return track;
+  };
+  const zingEndpoint = (value) => {
+    try { const u = new URL(value, location.href); return u.hostname === 'zingmp3.vn' && ['/api/v2/page/get/playlist', '/api/v2/song/get/info'].includes(u.pathname) ? u.pathname : null; }
+    catch { return null; }
+  };
+  const captureZing = (endpoint, json) => {
+    if (json?.err !== 0 || !json.data) return;
+    if (endpoint === '/api/v2/page/get/playlist') {
+      zingPlaylist = { url: urlOf(json.data.link), items: (json.data.song?.items ?? []).slice(0, 100).map(zingTrack).filter(Boolean) };
+    } else zingTrack(json.data);
+    report();
+  };
+  if (isZing) {
+    if (window.fetch) {
+      const original = window.fetch;
+      window.fetch = function (...args) {
+        const endpoint = zingEndpoint(typeof args[0] === 'string' ? args[0] : args[0]?.url);
+        return original.apply(this, args).then((response) => {
+          if (endpoint) response.clone().json().then((json) => captureZing(endpoint, json)).catch(() => {});
+          return response;
+        });
+      };
+    }
+    if (window.XMLHttpRequest) {
+      const proto = window.XMLHttpRequest.prototype;
+      const open = proto.open;
+      const urls = new WeakMap();
+      proto.open = function (method, url, ...args) { urls.set(this, zingEndpoint(url)); return open.call(this, method, url, ...args); };
+      const send = proto.send;
+      proto.send = function (...args) {
+        const endpoint = urls.get(this);
+        if (endpoint) this.addEventListener('load', () => {
+          try { captureZing(endpoint, this.responseType === 'json' ? this.response : JSON.parse(this.responseText)); } catch { /* Ignore unrelated/error responses. */ }
+        }, { once: true });
+        return send.apply(this, args);
+      };
+    }
+  }
+  const readZing = () => {
+    if (!isZing) return null;
+    let queue = [], current = null;
+    try {
+      // This exact key contains Zing's persisted queue, including when its sidebar is unmounted.
+      const raw = window.localStorage?.getItem('zmp3_np_queue.v1.1');
+      const saved = raw && raw.length <= 2_000_000 ? JSON.parse(raw) : null;
+      if (saved?.itemMap && Array.isArray(saved.ids)) {
+        queue = saved.ids.slice(0, 100).map((id) => zingTrack(saved.itemMap[id])).filter(Boolean);
+        current = zingTrack(saved.itemMap[saved.currentId]);
+      }
+    } catch { /* DOM/API metadata remains available if storage is blocked. */ }
+    if (metadata?.title && current?.title !== metadata.title) current = [...zingTracks.values()].find((item) => item.title === metadata.title) ?? null;
+    if (!queue.length && zingPlaylist?.items.some((item) => item.title === metadata?.title)) queue = zingPlaylist.items;
+    if (current && !current.playlistUrl) current.playlistUrl = urlOf(document.querySelector('.player-controls .song-title-item a')?.getAttribute('href')) || zingPlaylist?.url;
+    return { queue, current };
+  };
+  const requestQueue = () => {
+    if (isZing && !document.querySelector('.player-queue__list')) document.querySelector('.queue-expand-button')?.click();
+    if (isSpotify) {
+      const button = document.querySelector('[data-testid="control-button-queue"]');
+      if (button?.getAttribute('aria-pressed') !== 'true') button?.click();
+    }
+    report();
+    setTimeout(report, 300);
+  };
+  const readQueue = () => {
+    queueNodes.clear();
+    const zing = readZing();
+    if (zing) {
+      for (const item of zing.queue) queueNodes.set(item.url, { title: item.title, node: null });
+      // Queue rows contain links; playlist-page titles are spans, so map them through observed API metadata.
+      const rows = document.querySelectorAll('.player-queue__list .media-item, .playlist-content .media-item');
+      for (const row of rows) {
+        const title = row.querySelector('figure[title]')?.getAttribute('title');
+        const anchor = row.querySelector('a[href*="/bai-hat/"]');
+        const known = [...zingTracks.values()].find((item) => item.title === title);
+        const url = anchor ? urlOf(anchor.getAttribute('href')) : known?.url;
+        if (url && title && (queueNodes.has(url) || !zing.queue.length)) queueNodes.set(url, { title, node: row.querySelector('button.action-play') || anchor });
+      }
+      if (queueNodes.size) return [...queueNodes].slice(0,100).map(([url, item]) => ({ url, title: item.title }));
+    }
+    const selectors = [
+      'ytd-playlist-panel-video-renderer a#wc-endpoint', 'ytmusic-playlist-panel-video-renderer a[href*="watch?"]',
+      '.player-queue .media-item a[href*="/bai-hat/"]', '.playlist-section .media-item a[href*="/bai-hat/"]',
+      '.list-song-item a[href*="/bai-hat/"]', '[data-testid="tracklist-row"] a[href*="/track/"]',
+      '.queue__item a[href]', '.trackItem a.trackItem__trackTitle', '.soundList__item a.soundTitle__title', '.list_song_in_album a.name_song',
+      'main [role="row"] a[href*="/track/"]',
+    ];
+    for (const node of document.querySelectorAll(selectors.join(','))) {
+      const url = urlOf(node.getAttribute('href'));
+      const title = clip(node.getAttribute('title') || node.querySelector('#video-title')?.textContent || node.innerText || node.textContent)?.trim();
+      if (url && title && !queueNodes.has(url)) queueNodes.set(url, { node, title });
+      if (queueNodes.size >= 100) break;
+    }
+    for (const [url, item] of queueNodes) knownTracks.set(item.title, url);
+    if (knownTracks.size > 500) knownTracks.delete(knownTracks.keys().next().value);
+    // Spotify's queue uses text labels, not track links. Prefer a previously observed
+    // public track URL; otherwise use a local row bookmark, never a fabricated track ID.
+    if (isSpotify) {
+      const queued = new Map();
+      for (const row of document.querySelectorAll('[role="tabpanel"] [data-encore-id="listRow"]')) {
+        const label = row.getAttribute('aria-labelledby');
+        const title = clip(label && document.getElementById(label)?.textContent)?.trim();
+        const node = row.querySelector('[data-testid="play-button"]');
+        if (title && node) queued.set(knownTracks.get(title) || `${location.origin}/#pcisland-queue=${encodeURIComponent(label)}`, { title, node });
+        if (queued.size >= 100) break;
+      }
+      if (queued.size) { queueNodes.clear(); for (const entry of queued) queueNodes.set(...entry); }
+    }
+    return [...queueNodes].map(([url, item]) => ({ url, title: item.title }));
+  };
 
   const invoke = (cmd, args) => window.__TAURI_INTERNALS__?.invoke(cmd, args);
 
   const activeMedia = () => {
-    const all = Array.from(document.querySelectorAll('audio, video')).concat(Array.from(tracked));
+    const all = Array.from(document.querySelectorAll('audio, video')).concat(Array.from(tracked).reverse());
     return all.find((m) => !m.paused && !m.ended) || all.find((m) => m.currentSrc) || null;
   };
 
@@ -34,10 +174,18 @@
 
   const snapshot = () => {
     const media = activeMedia();
+    const zing = readZing();
     const playing = media ? !media.paused && !media.ended : sessionState === 'playing';
     const hasSomething = metadata || media;
+    const queue = readQueue();
+    const currentLink = document.querySelector('.playbackSoundBadge__titleLink, [data-testid="now-playing-widget-v2"] a');
+    const trackUrl = zing?.current?.url || (isSpotify && knownTracks.get(metadata?.title)) || urlOf(currentLink?.getAttribute('href'));
+    const soundContext = isSoundCloud && trackUrl ? new URL(trackUrl).searchParams.get('in') : null;
     return {
       kind: 'state',
+      pageUrl: zing?.current?.playlistUrl || (soundContext && urlOf('/' + soundContext)) || (isSpotify && urlOf(currentLink?.getAttribute('href'))) || location.href,
+      trackUrl: trackUrl || location.href,
+      queue,
       title: clip(metadata?.title || document.title || ''),
       artist: clip(metadata?.artist || null),
       album: clip(metadata?.album || null),
@@ -108,31 +256,112 @@
   // --- Media elements, including ones never attached to the DOM ---
   const play = HTMLMediaElement.prototype.play;
   HTMLMediaElement.prototype.play = function (...args) {
-    tracked.add(this);
+    if (!tracked.has(this)) {
+      tracked.add(this);
+      for (const type of ['play', 'pause', 'ended', 'durationchange', 'ratechange', 'seeked', 'loadedmetadata']) this.addEventListener?.(type, report);
+      // Audio created with new Audio() may never enter the DOM; document listeners
+      // do not receive its timeupdate events, so save its progress here as well.
+      this.addEventListener?.('timeupdate', () => {
+        if (Date.now() - lastPositionReport >= 5000) { lastPositionReport = Date.now(); report(); }
+      });
+      if (tracked.size > 64) tracked.delete(tracked.values().next().value);
+    }
     return play.apply(this, args);
   };
   for (const type of ['play', 'pause', 'ended', 'durationchange', 'ratechange', 'seeked', 'loadedmetadata']) {
     document.addEventListener(type, report, true);
   }
+  document.addEventListener('timeupdate', () => {
+    if (Date.now() - lastPositionReport >= 5000) { lastPositionReport = Date.now(); report(); }
+  }, true);
+  window.addEventListener('popstate', report);
 
   const exec = (action) => {
+    if ((action === 'play' || action === 'play_pause') && accessBlocked()) return false;
+    if (action === 'play' && activeMedia()?.paused === false) return true;
     const handler = handlers.get(action === 'play_pause' ? (activeMedia()?.paused === false ? 'pause' : 'play') : action);
     if (handler) {
       handler({ action });
-      return;
+      return true;
+    }
+    // Some sites restore a paused badge before creating their audio element or handlers.
+    const button = isSoundCloud ? document.querySelector('.playControls__play') : isSpotify ? document.querySelector('[data-testid="control-button-playpause"]') : null;
+    if (button && !button.disabled) {
+      const playing = isSoundCloud ? button.classList.contains('playing') : button.getAttribute('aria-label') === 'Pause';
+      if (action === 'play_pause' || action === 'play' && !playing || action === 'pause' && playing) { button.click(); return true; }
     }
     const media = activeMedia();
-    if (action === 'play_pause' && media) {
-      if (media.paused) media.play();
-      else media.pause();
+    if (media) {
+      if (action === 'play' || action === 'play_pause' && media.paused) media.play()?.catch(() => {});
+      else if (action === 'pause' || action === 'play_pause') media.pause();
+      return true;
     }
+    return false;
+  };
+
+  const select = (url, attempt = 0) => {
+    if (accessBlocked()) return;
+    if ((isZing || isSpotify) && attempt === 0) requestQueue();
+    readQueue();
+    const item = queueNodes.get(url);
+    if (item?.node) {
+      const row = item.node.closest('[data-testid="tracklist-row"], [role="row"], .media-item, .list-song-item, .queue__item, .trackItem, .sound');
+      const playButton = row?.querySelector('button.action-play, [data-testid="play-button"], button[aria-label^="Play"], .playButton, .icon.ic-play, .play');
+      (playButton || item.node).click();
+      setTimeout(() => exec('play'), 1000);
+    } else if ((isZing || isSpotify) && attempt < 8) setTimeout(() => select(url, attempt + 1), 250);
+  };
+  const navigate = (url) => {
+    try {
+      const target = new URL(url);
+      if (target.protocol !== 'https:') return;
+      exec('pause');
+      appNavigation = true;
+      location.assign(target.href);
+    } catch { /* Invalid navigation is rejected by the native caller too. */ }
+  };
+  const resume = (saved) => {
+    restore = { ...saved, attempts: 0, activated: false };
+    const attempt = () => {
+      if (!restore || ++restore.attempts > 28) return;
+      if (accessBlocked()) { restore = null; return; }
+      const media = activeMedia();
+      const matching = metadata?.title?.trim() === restore.title?.trim();
+      if (media && matching && media.readyState >= 1) {
+        if (Number.isFinite(media.duration)) media.currentTime = Math.min(restore.positionMs / 1000, Math.max(0, media.duration - 1));
+        if (media.paused) exec('play'); restore = null; report(); return;
+      }
+      const queue = readQueue();
+      const item = queue.find((item) => item.url === restore.trackUrl || item.title === restore.title);
+      // One activation per restore. Poll readiness, never repeatedly click Play.
+      if (!restore.activated) {
+        if (matching) restore.activated = exec('play');
+        else if (item) { select(item.url); restore.activated = true; }
+        else if (urlOf(restore.trackUrl) === location.href) {
+          const button = isSoundCloud ? document.querySelector('.soundTitle__playButtonHero .playButton') : isSpotify ? document.querySelector('main [data-testid="play-button"]') : null;
+          if (button) { button.click(); restore.activated = true; }
+        }
+      }
+      if (!restore.activated && restore.attempts === 8 && restore.trackUrl && restore.trackUrl !== location.href) {
+        const url = urlOf(restore.trackUrl);
+        if (url) { sessionStorage.setItem('pcisland.resume', JSON.stringify(restore)); navigate(url); return; }
+      }
+      restoreTimer = setTimeout(attempt, 1000);
+    };
+    if (restoreTimer) clearTimeout(restoreTimer);
+    attempt();
   };
 
   Object.defineProperty(window, '__pcisland', {
-    value: Object.freeze({ exec }),
+    value: Object.freeze({ exec, select, resume, requestQueue, navigate }),
     enumerable: false,
     configurable: false,
     writable: false,
   });
   window.addEventListener('pagehide', () => invoke('web_player_report', { msg: { ...snapshot(), status: 'none' } }));
+  try {
+    const saved = window.sessionStorage?.getItem('pcisland.resume');
+    if (saved) { window.sessionStorage.removeItem('pcisland.resume'); resume(JSON.parse(saved)); }
+  } catch { /* Storage may be unavailable before a site's document is ready. */ }
+  document.addEventListener('DOMContentLoaded', report, { once: true });
 })();

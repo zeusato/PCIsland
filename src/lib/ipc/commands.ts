@@ -17,6 +17,8 @@ import type { Reminder } from './bindings/Reminder';
 import type { ReminderInput } from './bindings/ReminderInput';
 import type { ParsedPreview } from './bindings/ParsedPreview';
 import type { Note } from './bindings/Note';
+import type { NoteTask } from './bindings/NoteTask';
+import type { TaskAlarmInput } from './bindings/TaskAlarmInput';
 import type { ShelfItem } from './bindings/ShelfItem';
 import type { LocalPlayerSnapshot } from './bindings/LocalPlayerSnapshot';
 import type { Track } from './bindings/Track';
@@ -33,6 +35,7 @@ import type { Station } from './bindings/Station';
 export const inTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 export const appCommands = {
+  toast: (title: string, body: string) => invoke<void>('app_show_toast', { title, body }),
   info: () => invoke<AppInfo>('app_get_info'),
   quit: () => invoke<void>('app_quit'),
   openDataFolder: () => invoke<void>('app_open_data_folder'),
@@ -98,6 +101,8 @@ export const reminderCommands = {
 };
 
 export const noteCommands = {
+  tasks: (id: string) => invoke<NoteTask[]>('notes_tasks', { id }),
+  setTaskAlarm: (taskId: string, input: TaskAlarmInput | null) => invoke<void>('notes_set_task_alarm', { taskId, input }),
   list: (query?: string) => invoke<Note[]>('notes_list', { query: query ?? null }),
   save: (text: string, id?: string) => invoke<Note>('notes_save', { id: id ?? null, text }),
   remove: (id: string) => invoke<void>('notes_delete', { id }),
@@ -149,6 +154,11 @@ export const lyricsCommands = {
 };
 
 export const webPlayerCommands = {
+  search: (siteId: string, query: string) => invoke<import('./bindings/WebQueueItem').WebQueueItem[]>('web_player_search', { siteId, query }),
+  playResult: (siteId: string, url: string) => invoke<void>('web_player_play_result', { siteId, url }),
+  requestQueue: () => invoke<void>('web_player_request_queue'),
+  resume: (siteId: string) => invoke<void>('web_player_resume', { siteId }),
+  selectQueue: (url: string) => invoke<void>('web_player_select_queue', { url }),
   getState: () => invoke<WebPlayerSnapshot>('web_player_get_state'),
   listSites: () => invoke<SiteDto[]>('web_player_list_sites'),
   open: (siteId: string) => invoke<void>('web_player_open', { siteId, url: null }),

@@ -1,13 +1,13 @@
 <script lang="ts">
   // Island root: presentation machine, spring morph, hit regions, activities from the hub
   // (docs/modules/island-window.md §4–§5, docs/modules/activity-hub.md).
-  import { untrack } from 'svelte';
+  import { setContext, untrack } from 'svelte';
+  import { ISLAND_INTERACTION, type IslandInteraction } from '$lib/components/islandInteraction';
+  import MediaPlayer from '../../features/media/views/Player.svelte';
   import { Spring } from 'svelte/motion';
-  import Music from '@lucide/svelte/icons/music';
-  import Package from '@lucide/svelte/icons/package';
   import LayoutGrid from '@lucide/svelte/icons/layout-grid';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
-  import { activityCommands, inTauri, islandCommands, playerCommands, shelfCommands } from '$lib/ipc/commands';
+  import { activityCommands, inTauri, islandCommands, shelfCommands } from '$lib/ipc/commands';
   import { onDragDrop, onIslandHotkey, onIslandPointer, onIslandVisibility } from '$lib/ipc/events';
   import { morphPreset } from '$lib/motion/springs';
   import { contentIn, contentOut } from '$lib/motion/transitions';
@@ -17,13 +17,12 @@
   import IdleEyes from '../../features/indicators/views/IdleEyes.svelte';
   import Launcher from './Launcher.svelte';
   import MinimalProgress from './MinimalProgress.svelte';
-  import FeedbackToast from '$lib/components/FeedbackToast.svelte';
+  import ShelfSlots from '../../features/shelf/views/Slots.svelte';
   import { flashMood } from '$lib/stores/eyes.svelte';
   import { BUBBLE, geometryFor, hitRects, union, type Content, type Geometry } from './geometry';
   import { initialIslandState, islandMachine, type IslandEvent } from './islandMachine';
   import { hasEditor } from './editing';
 
-  const AUDIO = /\.(mp3|flac|wav|ogg|m4a|aac)$/i;
 
   let ui = $state(initialIslandState);
   let islandElement: HTMLDivElement | undefined = $state();
@@ -36,16 +35,33 @@
   const idle = $derived(!primary || primary.kind === 'indicators.idle');
   let launcherInitial = $state<string | null>(null);
   let launcherOpen = $state(false);
+  let playerSource = $state<string | null>(null);
+  let measured = $state<{ node: HTMLElement; key: string; height: number } | null>(null);
+  setContext<IslandInteraction>(ISLAND_INTERACTION, {
+    measure(node) {
+      const key = contentKey;
+      return {
+        update: (height) => { measured = { node, key, height }; },
+        destroy: () => { if (measured?.node === node) measured = null; },
+      };
+    },
+    showPlayer(source) {
+      launcherInitial = null;
+      launcherOpen = false;
+      playerSource = source;
+      dispatch({ type: 'click' });
+    },
+  });
   $effect(() => {
     if (ui.mode === 'compact' || ui.mode === 'minimal' || ui.mode === 'hidden') {
       launcherOpen = false;
       launcherInitial = null;
+      shelfOpen = false;
+      playerSource = null;
     }
   });
   let dragging = $state(false);
-  let dropSide = $state<'left' | 'right' | null>(null);
-  let dropPaths = $state<string[]>([]);
-  const dropHasAudio = $derived(dropPaths.some((p) => AUDIO.test(p)));
+  let shelfOpen = $state(false);
 
   // Alerts drive the machine.
   let lastAlertId: string | null = null;
@@ -58,10 +74,12 @@
   });
 
   const content: Content = $derived(
-    dragging
+    dragging || shelfOpen
       ? 'drop'
       : ui.mode === 'alert' && alert
         ? isLargeAlert(alert) ? 'alert-large' : 'alert-small'
+        : ui.mode === 'peek' && playerSource && !launcherOpen && !launcherInitial
+          ? 'media'
         : ui.mode === 'peek' && (idle || launcherOpen || launcherInitial)
           ? 'launcher'
           : idle
@@ -70,8 +88,11 @@
               ? 'media'
               : 'activity',
   );
+  const shown = $derived(content === 'alert-large' || content === 'alert-small' ? alert : primary);
+  const variant = $derived(content === 'alert-large' || content === 'alert-small' ? 'alert' : ui.mode === 'peek' ? 'peek' : 'compact');
+  const contentKey = $derived(content === 'launcher' ? 'launcher' : playerSource && content === 'media' ? `player:${playerSource}:${variant}` : `${content}:${variant}:${shown?.id ?? ''}`);
   const showBubble = $derived(!!secondary && !dragging && (ui.mode === 'compact' || ui.mode === 'peek'));
-  const target = $derived(geometryFor(ui.mode, content, primary?.source ?? ''));
+  const target = $derived(geometryFor(ui.mode, content, content === 'media' ? 'media' : primary?.source ?? '', measured?.key === contentKey ? measured.height : 0));
   const size = new Spring<Geometry>(geometryFor('compact', 'idle'), morphPreset());
   const live_ = $derived(!idle && (primary?.priority ?? 0) >= 50 && ui.mode !== 'minimal');
   const critical = $derived(content === 'alert-large');
@@ -82,17 +103,17 @@
     const next = target;
     const mode = ui.mode;
     const bubble = showBubble;
-    sendHit(hitRects(union(untrack(() => size.current), next), mode, bubble));
-    size
-      .set(next)
-      .then(() => {
-        if (untrack(() => ui.mode) === mode) sendHit(hitRects(next, mode, bubble));
-      })
-      .catch(() => {});
+    let cancelled = false;
+    void sendHit(hitRects(union(untrack(() => size.current), next), mode, bubble)).then(async () => {
+      if (cancelled) return;
+      await size.set(next);
+      if (!cancelled) await sendHit(hitRects(next, mode, bubble));
+    }).catch(() => {});
+    return () => { cancelled = true; };
   });
 
-  function sendHit(rects: ReturnType<typeof hitRects>) {
-    if (inTauri) islandCommands.setHitRegions(rects).catch(() => {});
+  async function sendHit(rects: ReturnType<typeof hitRects>) {
+    if (inTauri) await islandCommands.setHitRegions(rects).catch(() => {});
   }
 
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -128,7 +149,9 @@
   function toggleLauncher(event: MouseEvent) {
     event.stopPropagation();
     const open = content !== 'launcher';
+    shelfOpen = false;
     launcherInitial = null;
+    playerSource = null;
     launcherOpen = open;
     dispatch({ type: 'click' });
   }
@@ -155,16 +178,13 @@
           dragging = false;
           return;
         }
-        const half = (window.innerWidth * devicePixelRatio) / 2;
-        dropSide = e.x < half ? 'left' : 'right';
-        dropPaths = e.paths;
         if (e.type === 'drop') {
           dragging = false;
-          const audio = e.paths.filter((p) => AUDIO.test(p));
-          if (dropSide === 'left' && audio.length) playerCommands.playFiles(audio);
-          else shelfCommands.add(e.paths);
+          shelfOpen = true;
+          void shelfCommands.add(e.paths);
         } else {
           dragging = true;
+          dispatch({ type: 'click' });
         }
       }),
     ];
@@ -176,9 +196,6 @@
     };
   });
 
-  const shown = $derived(content === 'alert-large' || content === 'alert-small' ? alert : primary);
-  const variant = $derived(content === 'alert-large' || content === 'alert-small' ? 'alert' : ui.mode === 'peek' ? 'peek' : 'compact');
-  const contentKey = $derived(`${content}:${variant}:${shown?.id ?? ''}`);
   const routeFor = (source?: string) =>
     ({ media: '/media', timer: '/timer', reminders: '/reminders', notes: '/notes', shelf: '/shelf' })[source ?? ''] ?? '/home';
 </script>
@@ -208,15 +225,15 @@
         <span></span>
       {:else if content === 'drop'}
         <div class="drop">
-          {#if dropHasAudio}
-            <div class="zone" class:active={dropSide === 'left'}><Music size={18} />{t('island.drop.play')}</div>
-          {/if}
-          <div class="zone" class:active={dropSide === 'right' || !dropHasAudio}><Package size={18} />{t('island.drop.shelf')}</div>
+          <ShelfSlots items={live.shelf} receiving={dragging} />
+          {#if !dragging}<button onclick={(event) => { event.stopPropagation(); shelfOpen = false; }}>{t('common.back')}</button>{/if}
         </div>
       {:else if content === 'launcher'}
-        <Launcher initial={launcherInitial} onclose={closeLauncherPanel} />
+        <Launcher initial={launcherInitial} onclose={closeLauncherPanel} onopen={() => { launcherOpen = true; }} />
       {:else if ui.mode === 'minimal'}
         <MinimalProgress activity={primary} />
+      {:else if content === 'media' && playerSource && ui.mode === 'peek'}
+        <MediaPlayer source={playerSource} />
       {:else if shown}
         {@const View = viewFor(shown)}
         <View activity={shown} {variant} />
@@ -228,13 +245,12 @@
       {/if}
     </div>
   {/key}
-  {#if ui.mode === 'peek' && !dragging && !idle}
+  {#if ui.mode === 'peek' && !dragging && (!idle || playerSource)}
     <button class="switcher" onclick={toggleLauncher} ondblclick={(event) => event.stopPropagation()} aria-label={t(content === 'launcher' ? 'island.backToActivity' : 'island.features')}>
       {#if content === 'launcher'}<ChevronLeft size={14} />{:else}<LayoutGrid size={14} />{/if}
       {t(content === 'launcher' ? 'island.backToActivity' : 'island.features')}
     </button>
   {/if}
-  {#if ui.mode === 'peek'}<FeedbackToast floating />{/if}
 </div>
 
 {#if showBubble && secondary}
@@ -343,24 +359,8 @@
   }
   .drop {
     display: flex;
-    gap: var(--sp-4);
-    padding: var(--sp-5);
-  }
-  .zone {
-    flex: 1;
-    display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: var(--sp-4);
-    border: 1.5px dashed var(--c-border-strong);
-    border-radius: var(--r-card);
-    color: var(--c-text-2);
-    font-size: var(--fs-small);
-  }
-  .zone.active {
-    border-color: var(--c-accent);
-    color: var(--c-accent-bright);
-    background: var(--c-accent-soft);
   }
   .bubble {
     position: absolute;

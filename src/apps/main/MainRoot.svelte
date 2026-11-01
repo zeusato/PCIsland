@@ -2,7 +2,6 @@
   // Full window shell: title bar, sidebar, hash router (docs/modules/full-window.md).
   import Bell from '@lucide/svelte/icons/bell';
   import Clock from '@lucide/svelte/icons/clock';
-  import Globe from '@lucide/svelte/icons/globe';
   import House from '@lucide/svelte/icons/house';
   import Minus from '@lucide/svelte/icons/minus';
   import Music from '@lucide/svelte/icons/music';
@@ -25,7 +24,6 @@
   const nav = [
     { route: '/home', key: 'main.nav.home', icon: House },
     { route: '/media', key: 'main.nav.media', icon: Music },
-    { route: '/online', key: 'main.nav.online', icon: Globe },
     { route: '/timer', key: 'main.nav.timer', icon: Clock },
     { route: '/reminders', key: 'main.nav.reminders', icon: Bell },
     { route: '/notes', key: 'main.nav.notes', icon: NotebookPen },

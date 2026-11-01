@@ -9,6 +9,8 @@ export interface Geometry {
 }
 
 export const WINDOW_W = 480;
+export const MAX_PEEK_H = 600;
+export const SWITCHER_H = 28;
 /** Invisible hover strip above a minimal island. */
 export const MINIMAL_HOVER = { w: 160, h: 14 };
 export const BUBBLE = { w: 32, h: 32, gap: 6 };
@@ -24,13 +26,13 @@ const PEEK_HEIGHT: Record<string, number> = {
   launcher: 220,
 };
 
-export function geometryFor(mode: Presentation, content: Content, source = ''): Geometry {
-  if (content === 'drop') return { w: 360, h: 88, r: 28 };
+export function geometryFor(mode: Presentation, content: Content, source = '', contentHeight = 0): Geometry {
+  if (content === 'drop') return { w: 400, h: 220, r: 28 };
   switch (mode) {
     case 'minimal':
       return { w: 96, h: 4, r: 2 };
     case 'peek':
-      return { w: 400, h: (PEEK_HEIGHT[content === 'launcher' ? 'launcher' : source] ?? 160) + 28, r: 28 };
+      return { w: 400, h: Math.min(MAX_PEEK_H, Math.max(PEEK_HEIGHT[content === 'launcher' ? 'launcher' : source] ?? 160, contentHeight) + SWITCHER_H), r: 28 };
     case 'alert':
       return content === 'alert-large' ? { w: 400, h: 150, r: 28 } : { w: 260, h: 40, r: 20 };
     case 'compact':
