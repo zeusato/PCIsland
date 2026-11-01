@@ -7,6 +7,7 @@ import RemindersIsland from '../../features/reminders/views/Island.svelte';
 import IndicatorsIsland from '../../features/indicators/views/Island.svelte';
 import NotesIsland from '../../features/notes/views/Island.svelte';
 import ShelfIsland from '../../features/shelf/views/Island.svelte';
+import MeetingIsland from '../../features/meeting/views/Island.svelte';
 import GenericActivity from '../../apps/island/GenericActivity.svelte';
 
 export type Variant = 'compact' | 'peek' | 'alert' | 'bubble';
@@ -19,6 +20,7 @@ const bySource: Record<string, View> = {
   indicators: IndicatorsIsland as View,
   notes: NotesIsland as View,
   shelf: ShelfIsland as View,
+  meeting: MeetingIsland as View,
 };
 
 export function viewFor(activity: Activity): View {

@@ -81,6 +81,7 @@ section!(Shortcuts {
     toggle_hidden: String = "Ctrl+Alt+H".into(),
     quick_note: String = "Ctrl+Alt+N".into(),
     video_open: String = "Ctrl+Alt+V".into(),
+    meeting_mark: String = "Ctrl+Alt+M".into(),
 });
 section!(AppSettings {
     language: String = "vi".into(),
@@ -161,7 +162,7 @@ section!(NotesSettings {
 });
 section!(ShelfSettings {
     expire_hours: u32 = 24,
-    max_items: u32 = 3,
+    max_items: u32 = 0,
 });
 section!(UiSettings {
     accent: String = "orange".into(),

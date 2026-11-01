@@ -1,5 +1,6 @@
 //! Quick notes: capture from the island, pin one, search (docs/modules/quick-notes.md).
 #![forbid(unsafe_code)]
+pub mod desktop;
 pub mod tasks;
 
 use serde::Serialize;
@@ -95,28 +96,20 @@ impl NotesHandle {
         })
     }
 
-    fn save(&self, id: Option<&str>, text: &str) -> Result<Note, StorageError> {
-        let text: String = text.chars().take(MAX_LEN).collect();
-        let now = now_ms();
+    fn save(
+        &self,
+        id: Option<&str>,
+        text: &str,
+        expected: Option<u64>,
+    ) -> Result<Note, StorageError> {
         let id = id.map_or_else(new_id, str::to_owned);
-        self.db.call(|c| {
-            let tx = c.unchecked_transaction()?;
-            tx.execute(
-                "INSERT INTO notes_items (id, text, normalized, pinned, created_at, updated_at) VALUES (?1, ?2, ?3, 0, ?4, ?4)
-                 ON CONFLICT(id) DO UPDATE SET text = ?2, normalized = ?3, updated_at = ?4",
-                rusqlite::params![id, text, normalize(&text), now as i64],
-            )?;
-            tasks::sync(&tx, &id, &text, now)?;
-            tx.commit()
-        })?;
+        self.db
+            .call(|c| persist_note(c, &id, text, expected, now_ms()))?;
         self.publish();
-        Ok(Note {
-            id,
-            text,
-            pinned: false,
-            created_at: now,
-            updated_at: now,
-        })
+        self.list("")?
+            .into_iter()
+            .find(|n| n.id == id)
+            .ok_or(StorageError::Sqlite(rusqlite::Error::QueryReturnedNoRows))
     }
 
     fn pin(&self, id: Option<&str>) -> Result<(), StorageError> {
@@ -154,18 +147,50 @@ impl NotesHandle {
             ),
             None => self.hub.remove("notes:pinned"),
         }
-        for label in ["island", "main"] {
+        for label in ["island", "main", "note-desktop"] {
             let _ = self.app.emit_to(label, events::NOTES_STATE, &pinned);
         }
     }
 
     fn complete_task(&self, task_id: &str) -> Result<(), StorageError> {
-        let (id, text, line, checked): (String, String, u32, bool) = self.db.call(|c| c.query_row("SELECT n.id,n.text,t.line_index,t.checked FROM note_tasks t JOIN notes_items n ON n.id=t.note_id WHERE t.id=?1 AND n.deleted_at IS NULL", [task_id], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))))?;
+        let (id, text, line, checked, version): (String, String, u32, bool, u64) = self.db.call(|c| c.query_row("SELECT n.id,n.text,t.line_index,t.checked,n.updated_at FROM note_tasks t JOIN notes_items n ON n.id=t.note_id WHERE t.id=?1 AND n.deleted_at IS NULL", [task_id], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get::<_, i64>(4)? as u64))))?;
         if !checked {
-            self.save(Some(&id), &toggle_line(&text, line as usize))?;
+            self.save(Some(&id), &toggle_line(&text, line as usize), Some(version))?;
         }
         Ok(())
     }
+}
+
+/// CAS and task synchronization share the same SQLite transaction.
+fn persist_note(
+    c: &rusqlite::Connection,
+    id: &str,
+    text: &str,
+    expected: Option<u64>,
+    now: u64,
+) -> rusqlite::Result<()> {
+    use rusqlite::OptionalExtension;
+    let text: String = text.chars().take(MAX_LEN).collect();
+    let tx = c.unchecked_transaction()?;
+    let previous: Option<(u64, bool)> = tx
+        .query_row(
+            "SELECT updated_at,deleted_at IS NOT NULL FROM notes_items WHERE id=?1",
+            [id],
+            |r| Ok((r.get::<_, i64>(0)? as u64, r.get(1)?)),
+        )
+        .optional()?;
+    let now = match previous {
+        Some((version, false)) if expected == Some(version) => now.max(version + 1),
+        None if expected.is_none() => now,
+        _ => {
+            return Err(rusqlite::Error::InvalidParameterName(
+                "notes.conflict".into(),
+            ));
+        }
+    };
+    tx.execute("INSERT INTO notes_items (id,text,normalized,pinned,created_at,updated_at) VALUES (?1,?2,?3,0,?4,?4) ON CONFLICT(id) DO UPDATE SET text=?2,normalized=?3,updated_at=?4",rusqlite::params![id,text,normalize(&text),now as i64])?;
+    tasks::sync(&tx, id, &text, now)?;
+    tx.commit()
 }
 
 fn spawn_alarms(
@@ -217,7 +242,7 @@ fn spawn_alarms(
                 }
             }
             if next != shown {
-                for window in ["island", "main"] {
+                for window in ["island", "main", "note-desktop"] {
                     let _ = handle
                         .app
                         .emit_to(window, events::NOTES_STATE, Option::<Note>::None);
@@ -344,11 +369,14 @@ pub fn notes_save(
     notes: State<'_, NotesHandle>,
     id: Option<String>,
     text: String,
+    expected_updated_at: Option<u64>,
 ) -> IpcResult<Note> {
     if text.trim().is_empty() {
         return Err(IpcError::new("notes.empty", "empty note"));
     }
-    let note = notes.save(id.as_deref(), &text).map_err(db_err)?;
+    let note = notes
+        .save(id.as_deref(), &text, expected_updated_at)
+        .map_err(db_err)?;
     if id.is_none() {
         notes.hub.alert(
             Activity::new(
@@ -431,21 +459,49 @@ pub fn toggle_line(text: &str, line: usize) -> String {
 
 #[tauri::command]
 pub fn notes_toggle_check(notes: State<'_, NotesHandle>, id: String, line: u32) -> IpcResult<Note> {
-    let text: String = notes
+    let (text, version): (String, u64) = notes
         .db
         .call(|c| {
-            c.query_row("SELECT text FROM notes_items WHERE id = ?1", [&id], |r| {
-                r.get(0)
-            })
+            c.query_row(
+                "SELECT text, updated_at FROM notes_items WHERE id = ?1 AND deleted_at IS NULL",
+                [&id],
+                |r| Ok((r.get(0)?, r.get::<_, i64>(1)? as u64)),
+            )
         })
         .map_err(db_err)?;
     notes
-        .save(Some(&id), &toggle_line(&text, line as usize))
+        .save(Some(&id), &toggle_line(&text, line as usize), Some(version))
         .map_err(db_err)
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn concurrent_note_edits_do_not_overwrite_or_resurrect_deleted_notes() {
+        let db = crate::core::storage::Db::open_in_memory().unwrap();
+        db.call(|c| super::persist_note(c, "n", "[ ] first", None, 100))
+            .unwrap();
+        db.call(|c| super::persist_note(c, "n", "[ ] newer", Some(100), 100))
+            .unwrap();
+        assert!(
+            db.call(|c| super::persist_note(c, "n", "stale", Some(100), 100))
+                .is_err()
+        );
+        assert_eq!(
+            db.call(
+                |c| c.query_row("SELECT text FROM notes_items WHERE id='n'", [], |r| r
+                    .get::<_, String>(0))
+            )
+            .unwrap(),
+            "[ ] newer"
+        );
+        db.call(|c| c.execute("UPDATE notes_items SET deleted_at=102 WHERE id='n'", []))
+            .unwrap();
+        assert!(
+            db.call(|c| super::persist_note(c, "n", "resurrect", Some(101), 103))
+                .is_err()
+        );
+    }
     #[test]
     fn shorthand_uppercase_and_markdown_boxes_toggle_without_losing_lines() {
         let text = "[] việc một\n\n  [X] việc hai\n- [ ] việc ba\n";

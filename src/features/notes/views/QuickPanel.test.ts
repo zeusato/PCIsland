@@ -44,7 +44,7 @@ it('opens the latest note for interaction, adds a task to it, and only composes 
   flushSync();
   target.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
   await settle();
-  expect(save).toHaveBeenCalledWith('Việc hôm nay\n[x] Mua sữa\n[ ] Gọi khách', 'latest');
+  expect(save).toHaveBeenCalledWith('Việc hôm nay\n[x] Mua sữa\n[ ] Gọi khách', 'latest', 2);
   expect(target.querySelectorAll('[role="checkbox"]')).toHaveLength(2);
   button('Tạo mới').click();
   await settle();

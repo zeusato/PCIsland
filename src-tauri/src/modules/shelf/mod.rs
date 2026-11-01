@@ -1,5 +1,6 @@
 //! File shelf: park files on the island, drag them out later (docs/modules/file-shelf.md).
 #![forbid(unsafe_code)]
+pub mod operations;
 
 use std::path::Path;
 
@@ -89,6 +90,7 @@ impl ShelfHandle {
             items
                 .iter()
                 .filter(|i| !cache.contains_key(&i.path))
+                .take(50)
                 .map(|i| i.path.clone())
                 .collect()
         };
@@ -135,16 +137,11 @@ impl ShelfHandle {
     }
 
     fn add(&self, paths: &[String]) -> Result<u32, StorageError> {
-        let max: usize = 3;
-        let existing = self.items()?;
-        let room = max.saturating_sub(existing.len());
+        let existing = self.raw_items()?;
         let mut added = 0;
         let mut seen: std::collections::HashSet<String> =
             existing.iter().map(|item| item.path.clone()).collect();
         for p in paths {
-            if added as usize >= room {
-                break;
-            }
             if !seen.insert(p.clone()) {
                 continue;
             }
@@ -157,7 +154,7 @@ impl ShelfHandle {
                 .map_or_else(|| p.clone(), |n| n.to_string_lossy().into_owned());
             let inserted = self.db.call(|c| {
                 c.execute(
-                    "INSERT INTO shelf_items (id, path, name, size, is_dir, added_at) SELECT ?1, ?2, ?3, ?4, ?5, ?6 WHERE (SELECT COUNT(*) FROM shelf_items)<3 AND NOT EXISTS(SELECT 1 FROM shelf_items WHERE path=?2)",
+                    "INSERT INTO shelf_items (id, path, name, size, is_dir, added_at) SELECT ?1, ?2, ?3, ?4, ?5, ?6 WHERE NOT EXISTS(SELECT 1 FROM shelf_items WHERE path=?2)",
                     rusqlite::params![new_id(), p, name, meta.len() as i64, meta.is_dir(), now_ms() as i64],
                 )
             })?;
@@ -165,7 +162,6 @@ impl ShelfHandle {
                 continue;
             }
             added += 1;
-            self.thumbnail(p);
         }
         self.publish();
         Ok(added)

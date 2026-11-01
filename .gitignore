@@ -8,3 +8,8 @@ data/
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+
+# Local service credentials; embedded only by the native build.
+.env
+.env.*
+!.env.example

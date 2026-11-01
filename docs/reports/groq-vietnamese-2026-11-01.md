@@ -73,3 +73,11 @@ Trước phát hành: chạy thêm tối thiểu 20 clip họp có quyền sử 
 - URL mẫu Hugging Face trả redirect 302 bị Playground từ chối; upload file trực tiếp thành công. Client sản phẩm nên gửi multipart bytes từ file đã hoàn tất.
 
 Kế hoạch triển khai: [Kệ file, note desktop và meeting](../plans/file-note-meeting.md).
+
+## Bổ sung client sản phẩm (2026-11-01)
+
+Đã thử Rust client thật bằng mẫu FLEURS công khai: lượt WAV đầu mất 963 ms; pipeline encode theo codec ứng dụng → Ogg Opus → multipart Groq đạt, lượt Opus khoảng 2.122 ms. Đây là độ trễ quan sát của từng lượt, không phải benchmark hoặc cam kết. Không upload mic/audio cá nhân.
+
+Test ignored `live_public_vietnamese_fixture` xác nhận cả hai định dạng và một phần nội dung tiếng Việt. File `.opus` gửi dưới tên `.ogg`, MIME `audio/ogg`; transcript trả về được giữ riêng bản người dùng sửa. Không suy ra độ chính xác cuộc họp thật từ mẫu đọc rõ.
+
+Sau phép thử, chủ dự án yêu cầu dùng key trong `.env` nhúng native; ADR-020 thay đề xuất backend trung gian ở phần điều kiện ban đầu. Client vẫn cần mạng/quota, không có dịch vụ miễn phí vô hạn.

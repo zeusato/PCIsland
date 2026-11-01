@@ -23,3 +23,9 @@ export async function saveMarkdown(defaultName: string): Promise<string | null> 
 export async function saveM3u(defaultName: string): Promise<string | null> {
   return save({ defaultPath: `${defaultName}.m3u8`, filters: [{ name: 'Playlist', extensions: ['m3u8'] }] });
 }
+
+export const saveExport = (name: string, extension: string) => save({ defaultPath: name + '.' + extension, filters: [{ name: extension.toUpperCase(), extensions: [extension] }] });
+export async function pickShelfFiles(): Promise<string[]> {
+  const result = await open({ multiple: true });
+  return Array.isArray(result) ? result : typeof result === 'string' ? [result] : [];
+}

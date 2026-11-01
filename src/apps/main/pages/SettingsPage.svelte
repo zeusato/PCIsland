@@ -143,7 +143,7 @@
   </Card>
 
   <Card title={t('settings.shortcuts')}>
-    {#each ['togglePeek', 'openMain', 'toggleHidden', 'quickNote', 'videoOpen'] as const as key (key)}
+    {#each ['togglePeek', 'openMain', 'toggleHidden', 'quickNote', 'videoOpen', 'meetingMark'] as const as key (key)}
       <SettingRow label={t(`settings.shortcut.${key}`)}>
         <input
           class="shortcut"

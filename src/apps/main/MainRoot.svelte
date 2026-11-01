@@ -22,6 +22,8 @@
   import ShelfPage from './pages/ShelfPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
   import VideoPage from './pages/VideoPage.svelte';
+  import MeetingPage from './pages/MeetingPage.svelte';
+  import Mic from '@lucide/svelte/icons/mic';
 
   const nav = [
     { route: '/home', key: 'main.nav.home', icon: House },
@@ -31,6 +33,7 @@
     { route: '/reminders', key: 'main.nav.reminders', icon: Bell },
     { route: '/notes', key: 'main.nav.notes', icon: NotebookPen },
     { route: '/shelf', key: 'main.nav.shelf', icon: Package },
+    { route: '/meeting', key: 'main.nav.meeting', icon: Mic },
     { route: '/settings', key: 'main.nav.settings', icon: Settings },
   ];
 
@@ -78,6 +81,8 @@
       <NotesPage />
     {:else if route.startsWith('/shelf')}
       <ShelfPage />
+    {:else if route.startsWith('/meeting')}
+      <MeetingPage />
     {:else if route.startsWith('/settings')}
       <SettingsPage />
     {:else}

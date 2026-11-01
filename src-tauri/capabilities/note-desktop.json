@@ -1,0 +1,1 @@
+{"identifier":"note-desktop","description":"Local pinned note editor","windows":["note-desktop"],"permissions":["core:default","core:window:allow-close","core:window:allow-start-dragging","app-commands"]}

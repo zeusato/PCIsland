@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-notes-desktop-options"
+description = "Enables the notes_desktop_options command without any pre-configured scope."
+commands.allow = ["notes_desktop_options"]
+
+[[permission]]
+identifier = "deny-notes-desktop-options"
+description = "Denies the notes_desktop_options command without any pre-configured scope."
+commands.deny = ["notes_desktop_options"]

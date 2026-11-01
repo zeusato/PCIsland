@@ -34,10 +34,14 @@ pub fn visible_on(g: &Geometry, monitors: &[(i32, i32, u32, u32)]) -> bool {
 
 /// Applies the saved geometry to a hidden, freshly built window, then starts tracking it.
 pub fn restore_and_track(window: &WebviewWindow) {
+    restore_with_key(window, KEY);
+}
+
+pub fn restore_with_key(window: &WebviewWindow, key: &'static str) {
     let Some(db) = window.try_state::<Db>().map(|d| d.inner().clone()) else {
         return;
     };
-    let saved: Option<Geometry> = db.kv_get(KEY).and_then(|v| serde_json::from_str(&v).ok());
+    let saved: Option<Geometry> = db.kv_get(key).and_then(|v| serde_json::from_str(&v).ok());
     let monitors: Vec<_> = window
         .available_monitors()
         .unwrap_or_default()
@@ -83,7 +87,7 @@ pub fn restore_and_track(window: &WebviewWindow) {
             let maximized = w.is_maximized().unwrap_or(false);
             // Keep the last normal bounds while maximized, so un-maximizing restores them.
             let previous: Option<Geometry> =
-                db.kv_get(KEY).and_then(|v| serde_json::from_str(&v).ok());
+                db.kv_get(key).and_then(|v| serde_json::from_str(&v).ok());
             let g = match (maximized, previous) {
                 (true, Some(p)) => Geometry {
                     maximized: true,
@@ -103,7 +107,7 @@ pub fn restore_and_track(window: &WebviewWindow) {
                 }
             };
             if let Ok(json) = serde_json::to_string(&g) {
-                let _ = db.kv_set(KEY, &json);
+                let _ = db.kv_set(key, &json);
             }
         });
     });

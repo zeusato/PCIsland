@@ -1,6 +1,19 @@
 # Kế hoạch nâng cấp kệ file ghi chú desktop và meeting
 
-Ngày: 2026-11-01. Trạng thái: thiết kế triển khai; chưa code hoặc build theo kế hoạch này.
+Ngày: 2026-11-01. Trạng thái: đã triển khai bản thử local của ba module, compile/debug QA và đóng gói v0.1.2 theo yêu cầu phát hành tiếp theo; chưa hoàn tất nghiệm thu thực tế.
+
+## Cập nhật triển khai
+
+Đặc tả hiện hành: [Kệ file](../modules/file-shelf.md), [Ghi chú](../modules/quick-notes.md), [Meeting](../modules/meeting.md). Các mục bên dưới giữ lại làm kế hoạch/nghiệm thu ban đầu, không có nghĩa mọi tiêu chí đã hoàn tất.
+
+- Theo quyết định trực tiếp của chủ dự án, client Rust gọi Groq bằng key lấy từ `.env` lúc build; không dùng backend trung gian trong bản thử này. ADR-020 thay đề xuất backend bắt buộc bên dưới. Không kèm model nhận dạng local.
+- Kệ không còn giới hạn 3 mục, có chọn nhiều/tất cả, kéo và clipboard file thực, ZIP nền có hủy, đổi một ảnh PNG/JPEG sang PNG/JPEG/WebP. Output do người dùng chọn nơi lưu, không có kho output tự dọn; chưa đổi ảnh hàng loạt, chưa thêm nền cho ảnh alpha sang JPEG.
+- Note desktop có tăng/giảm chữ, topmost, sửa/xóa/đóng, countdown dùng scheduler chung, chống ghi đè bản sửa cũ và giữ draft. Cửa sổ mở theo yêu cầu, chưa tự mở lại sau restart; clamp đầy đủ theo DPI/work area còn cần làm và nghiệm thu.
+- Meeting có WASAPI mic/system, Opus, đánh dấu lùi 15 giây, clip không ngắt ghi, timeline/notes, hàng đợi transcript và xuất ZIP. Key dùng chung có thể trích xuất từ binary và dùng chung hạn mức; chủ dự án đã lựa chọn phương án này.
+- Dropdown thiết bị/lịch sử đã thay bằng component riêng có cuộn, bàn phím, ellipsis tên dài, tự đổi hướng trong launcher.
+- Còn nghiệm thu: cuộc họp 60 phút, chất lượng mic + loopback/mất thiết bị, crash đúng thời điểm publish file, phát/seek native, nhiều DPI, 20 clip tiếng Việt thực tế; kéo nhiều file vào chat phải xác minh attachment thật. Thêm hàng nghìn file chưa có tiến trình/hủy riêng; backend trả số nhận, chưa trả báo cáo lỗi từng file.
+
+[Báo cáo kiểm tra và giới hạn](../reports/file-note-meeting-implementation-2026-11-01.md).
 
 Mục tiêu là biến island thành nơi thao tác nhanh với file, theo dõi ghi chú trên desktop và ghi lại phần quan trọng của cuộc họp. App vẫn nhẹ, không kèm model AI hàng GB. Groq Large V3 đã qua phép thử tiếng Việt cơ bản và được chọn làm ứng viên transcript nháp; chất lượng họp thật và backend dùng chung còn là điều kiện trước phát hành. Xem [báo cáo thử Groq](../reports/groq-vietnamese-2026-11-01.md).
 

@@ -28,6 +28,8 @@
   const recentNotes = $derived([...notes].sort((a, b) => b.updatedAt - a.updatedAt));
   let editing = $state<string | null>(null);
   let editText = $state('');
+  let editVersion: number | undefined;
+  let editError = $state(false);
   let draftArea: HTMLTextAreaElement | undefined = $state();
   let editArea: HTMLTextAreaElement | undefined = $state();
   async function beginCreate() {
@@ -40,7 +42,7 @@
     savingCheck = true;
     checkError = false;
     try {
-      await noteCommands.save(appendCheckbox(note.text) + label, note.id);
+      await noteCommands.save(appendCheckbox(note.text) + label, note.id, note.updatedAt);
       addingCheck = null;
       await load();
     } catch { checkError = true; }
@@ -50,6 +52,7 @@
     addingCheck = null;
     editing = note.id;
     editText = note.text;
+    editVersion = note.updatedAt; editError = false;
     await tick();
     editArea?.focus();
   }
@@ -83,7 +86,7 @@
     load();
   }
   async function saveEdit(id: string) {
-    if (editText.trim()) await noteCommands.save(editText, id);
+    try { if (editText.trim()) await noteCommands.save(editText, id, editVersion); } catch { editError = true; return; }
     editing = null;
     load();
   }
@@ -101,6 +104,7 @@
 </script>
 
 <h1>{t('main.nav.notes')}</h1>
+{#if editError}<p role="alert">{t('notes.conflict')}</p>{/if}
 
 <Card>
   <div class="bar">
@@ -133,6 +137,7 @@
       <Button variant="ghost" title={n.pinned ? t('notes.action.unpin') : t('notes.pin')} onclick={() => noteCommands.pin(n.pinned ? null : n.id).then(load)}>
         {#if n.pinned}<PinOff size={14} />{:else}<Pin size={14} />{/if}
       </Button>
+      <Button variant="ghost" onclick={() => noteCommands.desktop(n.id)}>{t('notes.desktop')}</Button>
       <Button variant="danger" title={t('common.delete')} onclick={() => remove(n.id)}><Trash2 size={14} /></Button>
     {/snippet}
     {#if editing === n.id}

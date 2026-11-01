@@ -2,3 +2,5 @@
 pub mod lrc;
 pub mod nlp_vi;
 pub mod spectrum;
+
+pub mod archive;

@@ -27,6 +27,7 @@ export default defineConfig({
         main: fileURLToPath(new URL('./main.html', import.meta.url)),
         'web-player-toolbar': fileURLToPath(new URL('./web-player-toolbar.html', import.meta.url)),
         video: fileURLToPath(new URL('./video.html', import.meta.url)),
+        'note-desktop': fileURLToPath(new URL('./note-desktop.html', import.meta.url)),
       },
     },
   },

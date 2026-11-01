@@ -104,6 +104,8 @@ PCisland đưa trải nghiệm Dynamic Island lên Windows. Một vùng nhỏ �
 
 ## 7. Ràng buộc
 
+**Mở rộng được chủ dự án duyệt cho v0.1.2:** kệ file không trần 3 với thao tác nhóm; note desktop có cỡ chữ/topmost; ghi meeting/clip lùi 15 giây và transcript clip tùy chọn; video nổi và maintenance. Không kèm model AI lớn, không tự gửi cả cuộc họp, không tự gửi tin nhắn chứa file. Chi tiết và giới hạn theo [plan file/note/meeting](plans/file-note-meeting.md), [meeting](modules/meeting.md), [maintenance](modules/maintenance.md) và [video](modules/video-player.md).
+
 - **Hệ điều hành:** chỉ hỗ trợ chính thức **Windows 11**. Windows 10 không được hỗ trợ: không test, không sửa lỗi riêng. Nếu app tình cờ chạy được trên Win10 thì không chặn. Lý do: Microsoft đã ngừng hỗ trợ Win10 từ 10/2025 ([ADR-008](06-decision-log.md#adr-008--mặc-định-sản-phẩm)). Kiến trúc x64; ARM64 để sau v1.0.
 - **Runtime:** WebView2 Evergreen, có sẵn trên Windows 11. Không đóng gói kèm runtime.
 - **Quyền:** không cần admin, không cài service hay driver, không sửa cài đặt hệ thống.

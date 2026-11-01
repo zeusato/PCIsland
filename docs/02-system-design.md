@@ -2,6 +2,8 @@
 
 > Cập nhật: 2026-10-31 · Trạng thái: bản thiết kế đầu, chốt sau Gate G0. Mọi thay đổi lớn phải đi kèm ADR trong [06-decision-log](06-decision-log.md).
 
+**Bổ sung 0.1.2 (2026-11-01):** [ADR-018](06-decision-log.md) thêm video; ADR-019 thêm maintenance; ADR-020 thêm note desktop/meeting và nâng kệ file. `note-desktop` là WebView local tạo theo yêu cầu, capability riêng; meeting dùng worker WASAPI/Opus và journal, metadata trong kv, file trong data/meetings. Protocol `meetingaudio` phục vụ file theo ID đã lưu. `shared/archive` phục vụ ZIP cho shelf/meeting, Win32 clipboard/publish ở platform. Groq gọi từ Rust với key build-time theo lựa chọn chủ dự án; nguồn này chỉ gửi clip khi người dùng yêu cầu. Xem module docs để có trạng thái triển khai hiện tại; các sơ đồ ban đầu bên dưới không liệt kê đầy đủ phần mở rộng.
+
 ## Mục lục
 
 1. [Bối cảnh](#1-bối-cảnh)

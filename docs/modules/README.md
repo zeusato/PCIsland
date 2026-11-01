@@ -10,7 +10,7 @@
 | [app-lifecycle](app-lifecycle.md) | `app` | F03, F08, F45 | P1–P3 | Đang làm |
 | [activity-hub](activity-hub.md) | `activity` | F06 | P1 | Đang làm |
 | [settings-storage](settings-storage.md) | `settings`, `storage` | Hạ tầng | P1 | Đang làm |
-| [maintenance](maintenance.md) | `maintenance` | RAM toàn PC, dọn rác một chạm | Bổ sung theo yêu cầu | Có source + test, chưa đóng gói |
+| [maintenance](maintenance.md) | `maintenance` | RAM toàn PC, dọn rác một chạm | Bổ sung theo yêu cầu | Đóng gói v0.1.2, còn nghiệm thu thực tế |
 | [full-window](full-window.md) | `ui-main` | F02, F07, F09 | P1–P3 | Đang làm |
 | [media-hub](media-hub.md) | `media` | F10 | P1 | Đang làm |
 | [local-player](local-player.md) | `local_player` | F11, F13 | P2–P3 | Đang làm |
@@ -21,6 +21,7 @@
 | [system-indicators](system-indicators.md) | `indicators` | F30–F34 | P1–P4 | Đang làm |
 | [quick-notes](quick-notes.md) | `notes` | F26 | P3 | Đang làm |
 | [file-shelf](file-shelf.md) | `shelf` | F27 | P3 | Đang làm |
+| [meeting](meeting.md) | `meeting` | Ghi họp, highlight, transcript | Bổ sung theo yêu cầu | Có source/test, còn nghiệm thu native |
 | [video-player](video-player.md) | `video` | F46 | Backlog | Đã code, chờ test tay |
 | [future-modules](future-modules.md) | — | F40–F44 | P4 | Phác thảo |
 

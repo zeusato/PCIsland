@@ -23,6 +23,12 @@ use modules::{
 
 pub fn run() {
     let args: Vec<String> = std::env::args().collect();
+    // Native UI smoke tests use their own database and never change startup or
+    // global shortcuts. This flag is deliberately unavailable in release builds.
+    let qa = cfg!(debug_assertions) && args.iter().any(|a| a == "--qa");
+    if qa && core::paths::arg_value(&args, "--data-dir").is_none() {
+        panic!("--qa requires an isolated --data-dir");
+    }
     let paths = core::paths::resolve(&args);
     if args.iter().any(|a| a == "--cleanup") {
         app::cleanup(&paths);
@@ -79,6 +85,12 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .register_uri_scheme_protocol("artwork", move |_ctx, request| {
             artwork_for_protocol.respond(&request)
+        })
+        .register_uri_scheme_protocol("meetingaudio", |ctx, request| {
+            modules::meeting::playback::respond(
+                &ctx.app_handle().state::<modules::meeting::MeetingHandle>(),
+                &request,
+            )
         })
         // Media requests of the video window (docs/modules/video-player.md §5.4).
         .register_asynchronous_uri_scheme_protocol("vstream", move |_ctx, request, responder| {
@@ -177,16 +189,21 @@ pub fn run() {
                 paths.local_dir.clone(),
             );
             let island = island::setup(handle, hub.clone(), &settings, bus.clone())?;
+            let meeting = modules::meeting::setup(
+                handle,
+                db.clone(),
+                paths.data_dir.join("meetings"),
+                hub.clone(),
+            );
 
             media.attach_smtc(island.hwnd());
             app::update::spawn(db.clone(), hub.clone(), settings.subscribe());
-            if let Err(error) = app::sync_autostart(handle, settings.get().app.autostart) {
-                tracing::warn!(%error, "autostart registration failed");
-            }
-            app::shortcuts::register(handle, &settings.get().app.shortcuts);
-            app::tray::setup(handle)?;
-            if let Some(route) = open_route.as_deref() {
-                let _ = island::open_main(handle, Some(route));
+            if !qa {
+                if let Err(error) = app::sync_autostart(handle, settings.get().app.autostart) {
+                    tracing::warn!(%error, "autostart registration failed");
+                }
+                app::shortcuts::register(handle, &settings.get().app.shortcuts);
+                app::tray::setup(handle)?;
             }
             if paths.fell_back {
                 tracing::warn!("portable data folder is read-only; using %APPDATA%");
@@ -232,10 +249,15 @@ pub fn run() {
             app.manage(player);
             app.manage(notes);
             app.manage(shelf);
+            app.manage(shelf::operations::ExportState::default());
             app.manage(lyrics);
             app.manage(visualizer);
             app.manage(video);
+            app.manage(meeting);
             app.manage(island);
+            if let Some(route) = open_route.as_deref() {
+                let _ = island::open_main(app.handle(), Some(route));
+            }
             tracing::info!("PCisland started");
             Ok(())
         })
@@ -316,12 +338,20 @@ pub fn run() {
             notes::notes_toggle_check,
             notes::notes_tasks,
             notes::notes_set_task_alarm,
+            notes::desktop::notes_desktop_open,
+            notes::desktop::notes_desktop_state,
+            notes::desktop::notes_desktop_options,
             shelf::shelf_list,
             shelf::shelf_add,
             shelf::shelf_remove,
             shelf::shelf_clear,
             shelf::shelf_open,
             shelf::shelf_drag_icon,
+            shelf::operations::shelf_copy,
+            shelf::operations::shelf_remove_many,
+            shelf::operations::shelf_zip,
+            shelf::operations::shelf_convert,
+            shelf::operations::shelf_cancel,
             reminders::commands::reminders_list,
             reminders::commands::reminders_create,
             reminders::commands::reminders_update,
@@ -360,6 +390,15 @@ pub fn run() {
             modules::video::commands::video_refresh,
             modules::video::commands::video_set_quality,
             modules::video::commands::video_sniff_report,
+            modules::meeting::meeting_state,
+            modules::meeting::meeting_devices,
+            modules::meeting::meeting_start,
+            modules::meeting::meeting_stop,
+            modules::meeting::meeting_mark,
+            modules::meeting::meeting_notes,
+            modules::meeting::meeting_retry,
+            modules::meeting::meeting_transcript_edit,
+            modules::meeting::meeting_export,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PCisland");

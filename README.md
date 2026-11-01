@@ -2,20 +2,24 @@
 
 Dynamic Island cho Windows. Một "hòn đảo" nhỏ nằm giữa mép trên màn hình, luôn nổi trên cùng, khởi động cùng Windows và chạy ngầm. Nó gom các tương tác nhanh vào một chỗ: nhạc (file trên máy, trang nhạc online, app khác), hẹn giờ, Pomodoro, nhắc việc, ghi chú, kệ file và chỉ báo hệ thống.
 
-> **v0.1.1:** đã triển khai các tính năng P1–P3. Một số kịch bản tích hợp Windows và web player còn cần kiểm thử tay; xem [ghi chú phát hành](docs/releases/v0.1.1.md) và [Handoff](docs/05-handoff.md).
+> **v0.1.2:** thêm kệ file nhiều mục, note desktop, ghi cuộc họp và transcript tùy chọn; gồm video nổi và tiện ích dọn dẹp. Một số kịch bản Windows và meeting còn cần nghiệm thu; xem [ghi chú phát hành](docs/releases/v0.1.2.md) và [Handoff](docs/05-handoff.md).
 
 ## Tải và chạy
 
-Tải từ [GitHub Releases](https://github.com/zeusato/PCIsland/releases/tag/v0.1.1):
+Tải từ [GitHub Releases](https://github.com/zeusato/PCIsland/releases/tag/v0.1.2):
 
-- **Bộ cài:** `PCisland-0.1.1-setup.exe`, cài theo tài khoản Windows hiện tại.
-- **Portable:** giải nén `PCisland-0.1.1-portable.zip`, chạy `PCisland.exe`; thư mục `data` cạnh exe giữ dữ liệu portable.
+- **Bộ cài:** `PCisland-0.1.2-setup.exe`, cài theo tài khoản Windows hiện tại.
+- **Portable:** giải nén `PCisland-0.1.2-portable.zip`, chạy `PCisland.exe`; thư mục `data` cạnh exe giữ dữ liệu portable.
 - Mỗi gói có file `.sha256` để đối chiếu bằng `Get-FileHash <tên-file> -Algorithm SHA256`.
 
 Yêu cầu Windows 11 x64 và Microsoft Edge WebView2 Runtime. Khi nâng cấp, thoát bản cũ từ tray trước; giữ nguyên thư mục `data` nếu dùng portable. Bản v0.x chưa ký số. Nếu SmartScreen hiện cảnh báo, chỉ tiếp tục sau khi kiểm tra nguồn tải và SHA256; chọn **More info → Run anyway** để chạy bản đã kiểm tra.
 
 ## Điểm chính
 
+- **Kệ file:** chọn nhiều/tất cả, kéo hoặc sao chép file thực, ZIP có tiến trình và hủy, đổi ảnh tĩnh PNG/JPEG sang PNG/JPEG/WebP. Bỏ giới hạn 3 mục.
+- **Note desktop:** ghim một ghi chú ra cửa sổ riêng, tùy chọn luôn trên cùng, tăng/giảm cỡ chữ, sửa/xóa; giữ countdown và chuông báo.
+- **Cuộc họp:** ghi mic/âm thanh máy tính, đánh dấu bằng `Ctrl+Alt+M` lùi 15 giây, xuất clip khi bản ghi vẫn chạy, timeline và notes. Transcript Groq tiếng Việt tùy chọn, chỉ gửi clip theo yêu cầu; cần mạng và chịu hạn mức dịch vụ.
+- **Video và dọn dẹp:** trình phát video nổi; thu hồi RAM app nền và dọn file tạm/cache theo phạm vi bảo thủ. Xem giới hạn trong release notes.
 - **Các trạng thái hiển thị:** thu gọn (compact), mở rộng khi hover (peek), vạch mảnh (minimal), ẩn (hidden) và cửa sổ đầy đủ. Mặc định còn tác vụ thì giữ island ở minimal khi cần; ẩn hoàn toàn là tùy chọn. Khi đang soạn thảo, rời chuột không làm thu gọn island.
 - **Portable:** một file exe, không cần cài, không cần quyền admin.
 - **Giao diện:** nền đen, neon cam, bo góc, chuyển động spring.

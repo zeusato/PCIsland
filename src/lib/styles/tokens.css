@@ -93,6 +93,7 @@
   --media-progress-h: 3px;
   --shelf-slot: 96px;
   --shelf-thumb: 48px;
+  --dropdown-max-h: 176px;
 
   /* Idle eyes (docs/04-design-system.md §11) */
   --eye-w: 7px;

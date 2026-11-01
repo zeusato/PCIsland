@@ -21,6 +21,7 @@
   let error = $state(false);
   let area: HTMLTextAreaElement | undefined = $state();
   let revision = 0;
+  let editVersion: number | undefined;
 
   async function load() {
     const request = ++revision;
@@ -51,6 +52,7 @@
 
   async function begin(next: 'create' | 'edit') {
     text = next === 'edit' ? note?.text ?? '' : '';
+    editVersion = note?.updatedAt;
     mode = next;
     await tick();
     area?.focus();
@@ -70,7 +72,7 @@
   async function save() {
     if (!text.trim()) return;
     const id = mode === 'edit' ? selected : undefined;
-    await mutate(() => noteCommands.save(text, id));
+    await mutate(() => id ? noteCommands.save(text, id, editVersion) : noteCommands.save(text, id));
   }
 </script>
 
@@ -102,11 +104,12 @@
       {:else}<p>{t(loading ? 'common.loading' : 'notes.empty')}</p>{/if}
     </div>
     {#if mode === 'check' && note}
-      <ChecklistInput bind:this={checkInput} {busy} onadd={(label) => mutate(() => noteCommands.save(appendCheckbox(note!.text) + label, selected))} oncancel={() => mode = 'view'} />
+      <ChecklistInput bind:this={checkInput} {busy} onadd={(label) => mutate(() => noteCommands.save(appendCheckbox(note!.text) + label, selected, note!.updatedAt))} oncancel={() => mode = 'view'} />
     {:else}
       <div class="actions">
         <button disabled={busy || loading} onclick={() => begin('create')}>{t('notes.new')}</button>
         <button disabled={busy || !note} onclick={() => mode = 'check'}>{t('notes.addCheckbox')}</button>
+        <button disabled={busy || !note} onclick={() => noteCommands.desktop(selected)}>{t('notes.desktop')}</button>
         <button disabled={busy || !note} onclick={() => begin('edit')}>{t('common.edit')}</button>
       </div>
     {/if}

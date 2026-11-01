@@ -111,7 +111,17 @@ Scheduler ngủ tới deadline gần nhất (tối đa 60 giây dự phòng), th
 
 ## 12. Câu hỏi mở
 
-Không có.
+Còn nghiệm thu desktop với bộ gõ, DPI 100/150/200%, rút màn hình và báo chuông khi đóng view. Chưa tự mở lại cửa sổ note sau restart; geometry dùng helper hiện có, chưa clamp đầy đủ theo work area/DPI.
+
+### Mở rộng desktop (2026-11-01)
+
+Nút Ghim ra desktop trên main/island mở tối đa một WebView `note-desktop`, chỉ tạo khi dùng. Có topmost, đóng, sửa/lưu/hủy, xóa/hoàn tác và A−/A+ (12–40 px, mặc định 18, bước 2), Ctrl+wheel đổi chữ. Countdown/giờ hẹn dùng renderer và scheduler chung, đóng view không hủy alarm. Ghim desktop độc lập ghim island.
+
+IPC: `notes_desktop_open(id)`, `notes_desktop_state()`, `notes_desktop_options(font,topmost,id?)`. Lưu `notes.desktop.id/font/topmost/geometry` trong kv. Events notes được phát thêm tới desktop. Chọn note khác hoặc đóng khi có draft yêu cầu Lưu/Bỏ/Hủy; draft lưu localStorage để phục hồi.
+
+`notes_desktop_open` là async command: tạo WebView2 ngoài main thread IPC để tránh deadlock Windows, theo coding principles §3.
+
+`notes_save` nhận `expectedUpdatedAt`; CAS nguyên tử dùng updated_at tăng đơn điệu, từ chối ghi đè bản mới hoặc hồi sinh note đã xóa. Main/island/desktop truyền version khi sửa. Có test hai bản sửa, timestamp cùng mili giây và xóa trước lưu.
 
 ## 13. Lịch sử thay đổi
 
@@ -124,3 +134,4 @@ Không có.
 | 2026-11-01 | Form tạo/sửa/thêm checklist giữ mở khi rời chuột, gồm ô trống và mất focus; 3 test tích hợp trên IslandRoot. |
 | 2026-11-01 | Nhắc riêng từng task với ba kiểu giờ, phụ thuộc dòng checklist ngay trên, lưu bền và kiểm thử undo/đổi thứ tự/xóa. |
 | 2026-11-01 | Thêm nút Danh sách ghi chú với list cuộn và chọn trực tiếp; ghi chú ghim cũng có nút mở trình chọn. |
+| 2026-11-01 | Cửa sổ desktop, cỡ chữ/topmost, giữ draft và CAS chống ghi đè; dùng lại alarm/timer backend. |

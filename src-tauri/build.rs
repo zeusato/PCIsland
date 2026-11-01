@@ -7,6 +7,26 @@
 const REMOTE_ONLY: &[&str] = &["web_player_report", "web_player_search_report"];
 
 fn main() {
+    // Keep the shared key out of JavaScript, logs and source control. A desktop
+    // binary can still be inspected: this is a convenience key, not a secret vault.
+    println!("cargo:rerun-if-changed=../.env");
+    println!("cargo:rerun-if-env-changed=GROQ_API_KEY");
+    let key = std::env::var("GROQ_API_KEY")
+        .ok()
+        .or_else(|| {
+            std::fs::read_to_string("../.env")
+                .ok()?
+                .lines()
+                .find_map(|line| {
+                    let line = line.trim().strip_prefix("export ").unwrap_or(line.trim());
+                    let (name, value) = line.split_once('=')?;
+                    (name.trim() == "GROQ_API_KEY")
+                        .then(|| value.trim().trim_matches(['\'', '"']).to_owned())
+                })
+        })
+        .unwrap_or_default();
+    let out = std::path::PathBuf::from(std::env::var_os("OUT_DIR").expect("OUT_DIR"));
+    std::fs::write(out.join("groq_key.rs"), format!("{key:?}")).expect("write build configuration");
     println!("cargo:rerun-if-changed=src/lib.rs");
     // One manifest for every linked binary, test harnesses included (see the XML).
     println!("cargo:rerun-if-changed=windows-app-manifest.xml");

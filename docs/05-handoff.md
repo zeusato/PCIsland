@@ -10,6 +10,12 @@
 
 ## 2. Snapshot
 
+**Bản phát hành v0.1.2:** theo yêu cầu cập nhật docs, push code và release của chủ dự án. Exe và bộ cài ProductVersion 0.1.2; portable/NSIS và hai SHA256 trong `release/0.1.2/`, [trang release](https://github.com/zeusato/PCIsland/releases/tag/v0.1.2). Đã kiểm tra ZIP chỉ có exe, README, marker `data/.portable` và hash exe khớp bản build. Key transcript nhúng native theo yêu cầu; `.env` không nằm trong Git/gói source. Sửa thêm `notes_desktop_open` sang async. Build wrapper đã dọn 8,140 GiB file sinh ra, ổ đĩa tăng thực tế **7,458 GiB**; giữ exe, installer, portable và dữ liệu. Những đoạn bên dưới ghi lại từng phiên trước đó; bảng hiện hành đã cập nhật.
+
+**Mới nhất — File / note desktop / meeting (2026-11-01):** đã triển khai bản thử theo yêu cầu trực tiếp trên nền commit `f4d320a`, giữ module video. Bỏ trần 3 file, chọn/kéo/copy/ZIP nhóm, đổi ảnh; note desktop có cỡ chữ/topmost/CAS; meeting WASAPI + Opus + đánh dấu 15 giây + notes/transcript Groq. Dropdown meeting đã sửa theo phản hồi, có fixture 400 px không tràn. Key native từ `.env` theo quyết định chủ dự án, ADR-020. [Báo cáo và giới hạn](reports/file-note-meeting-implementation-2026-11-01.md), [đặc tả meeting](modules/meeting.md). Đã compile/debug QA, **chưa rebuild release/installer**. User yêu cầu đóng QA và dọn cache; giữ dữ liệu QA/app.
+
+Kiểm tra cuối: 238 Rust đạt/4 ignored; 81 frontend đạt; check/i18n 497 khóa, frontend build, fmt và clippy all-targets đạt. Native system capture/device enum đạt, mic bị Windows Access denied. Groq thật nhận WAV và Opus của mẫu công khai; chưa thu/upload âm thanh cá nhân. Các snapshot cũ bên dưới là lịch sử, không phải số test hiện tại.
+
 **Bổ sung module Dọn dẹp (2026-11-01):** đã có source RAM toàn PC, dọn rác một chạm Windows/app/browser theo allowlist và log cũ; có trên launcher island/Cài đặt. [Phạm vi, API và giới hạn](modules/maintenance.md), ADR-019. Chưa đóng gói exe mới; không xóa rác thật/trim app thật trong phiên phát triển. Agent khác đang verify các module còn lại, không reset/format hàng loạt hoặc xóa cache target dùng chung khi họ còn chạy.
 
 Kiểm tra bổ sung Dọn dẹp: 194 Rust đạt (1 smoke native mặc định ignored đã chạy riêng đạt), 77 frontend đạt, check/i18n 365 khóa, frontend build, fmt và clippy `--lib` đạt. Clippy `--all-targets` còn `items_after_test_module` tại `web_player/mod.rs:660`; không sửa chồng phần agent khác. Preview dùng số liệu giả, server và fixture đã dọn. Bản exe release cũ không đổi.
@@ -20,10 +26,10 @@ Kiểm tra bổ sung Dọn dẹp: 194 Rust đạt (1 smoke native mặc định 
 |---|---|
 | Cập nhật lần cuối | 2026-11-01 |
 | Phase | **P1–P3 đã code đủ đặc tả** (trừ P4: F32–F34, F40–F44); chưa qua kiểm thử tay, Gate G0 chưa đóng |
-| Phiên bản | [v0.1.1](https://github.com/zeusato/PCIsland/releases/tag/v0.1.1): phát hành theo yêu cầu chủ dự án, có bộ cài + portable + SHA256 |
+| Phiên bản | [v0.1.2](https://github.com/zeusato/PCIsland/releases/tag/v0.1.2): NSIS + portable + hai SHA256, theo yêu cầu chủ dự án |
 | Code | Nhánh `main` trên https://github.com/zeusato/PCIsland |
-| Kiểm tra | 2026-11-01: 171 Rust + 72 frontend (24 file); fmt, clippy all-targets -D warnings, svelte-check/eslint, i18n 310 khóa, frontend build đạt. Thêm regression album/trang bài hát riêng ngoài queue cũ, đúng URL bài, chờ xác nhận phát và nút Kệ file. [Báo cáo sửa tìm→phát](reports/search-playback-2026-11-01.md). Chủ dự án yêu cầu dừng, chưa build nhánh trang bài hát riêng |
-| Bản build gần nhất | Exe chạy thử 0.1.1 lúc 17:51 ngày 2026-11-01: `src-tauri/target/release/pcisland.exe`, 18.449.920 byte; SHA256 `61276B9F33CFED5D4013EFEE2AAC434772E62F005F65CD73AFEC8F6EEBA55481`. Có Kệ file và sửa chọn bài trên album. Native tìm→phát Lee Phú Quý đạt. Nhánh Zing trang bài hát riêng chỉ có trong source/test: lần build sau đã hủy theo yêu cầu dừng để tắt máy. Chưa tạo installer/phát hành. Cleanup sau build 17:51 giải phóng thực tế 5,623 GiB, đã xóa cả hai exe cũ |
+| Kiểm tra | 238 Rust đạt/4 ignored; 81 frontend/27 file; fmt, clippy all-targets -D warnings, Svelte/eslint, i18n 497 khóa, frontend và Tauri NSIS build đạt. Giới hạn native/meeting ghi trong release notes |
+| Bản build gần nhất | `src-tauri/target/release/pcisland.exe`: 21.685.760 byte, ProductVersion 0.1.2, SHA256 `BEEC59853554129FF8E8C1E91B91B1CCD5C3BFBE3F6D9FA9F4CD67246665DC30`. NSIS 5.876.045 byte; portable 7.747.167 byte. Cache đã dọn sau build |
 | Đang chặn | SoundCloud báo “You have been blocked / unusual activity” khi QA. Dừng thử nghiệm SoundCloud, tắt tìm kiếm nền SoundCloud và bỏ click phát lặp. Chưa rõ thời hạn/phạm vi chặn. Không đổi IP/profile hay vượt challenge |
 
 UI launcher mới (2026-11-01): nội dung rảnh lên 28 px, header ở y=16, tổng chiều cao 226 px với đủ 7 nút; chữ ký “by Zeusato” nét mảnh nghiêng neon cam ở đáy phải. Đã QA localhost, panel Hẹn giờ mở đúng; `pnpm check`, 51 test frontend và `pnpm build` đạt (296 khóa i18n). Đã build exe release bằng `pnpm tauri build --no-bundle` theo yêu cầu chạy thử, đầu ra `src-tauri/target/release/pcisland.exe`; chưa tạo lại installer hay phát hành.
@@ -73,9 +79,11 @@ Quy trình build mới: dùng `pnpm build:exe` / `pnpm build:app` để tự d�
 
 ## 3. Việc tiếp theo
 
+Ưu tiên mới: nghiệm thu ba module theo [plan cập nhật](plans/file-note-meeting.md), đặc biệt kéo nhiều file thành attachment thật, note desktop nhiều DPI/chuông, quyền mic, meeting 60 phút và crash đúng lúc publish file. Chưa đóng các tiêu chí này bằng unit test. Bản release tiếp theo cần đo kích thước/RAM rồi dọn theo `pnpm clean:build`.
+
 Theo thứ tự. Đánh dấu `[x]` khi xong và thêm việc mới phát sinh vào đúng chỗ.
 
-- [ ] **Chờ chủ dự án cho tiếp tục:** build sửa Zing trang bài hát riêng (`.song-header button.btn-play-all`), kiểm tra đổi từ Lee Phú Quý sang Chu Thúy Quỳnh rồi dọn cache. Đã check/test, lần build bị hủy theo yêu cầu dừng ngày 2026-11-01.
+- [ ] Sửa Zing trang bài hát riêng (`.song-header button.btn-play-all`) được đưa vào bản v0.1.2; còn nghiệm thu đổi từ Lee Phú Quý sang Chu Thúy Quỳnh. Yêu cầu dừng build cũ đã được thay bằng yêu cầu phát hành hiện tại.
 
 - [ ] Kiểm tra native kéo file lên island đang phát nhạc ở compact/peek/minimal; kéo ra/hủy/thả file, kiểm tra đa DPI. Có test logic, chưa chạy end-to-end trên exe mới.
 - [ ] Nghiệm thu [Dọn dẹp](modules/maintenance.md) trên exe khi build bản tiếp theo: RAM trước/sau/30 giây, nhạc không gián đoạn, dọn cache profile đã đóng và file tạm cũ; source/test đã có. Không chạy cleanup build dùng chung khi agent verify còn hoạt động.
@@ -112,6 +120,10 @@ Theo thứ tự. Đánh dấu `[x]` khi xong và thêm việc mới phát sinh v
 - [x] Đóng gói v0.1.1: bộ cài, portable chỉ chứa exe/README/data marker, hai file SHA256; cập nhật README và release notes theo yêu cầu push + release.
 
 ## 4. Câu hỏi mở
+
+Chủ dự án đã cho phép push toàn bộ thay đổi và phát hành phiên bản mới; không chờ xác nhận phát hành thêm. Những hạn chế QA được ghi công khai trong release notes.
+
+Ba module đã được chủ dự án cho triển khai; `.env` là nguồn key Groq và key được nhúng native theo yêu cầu, không cần hỏi lại về backend. Tài khoản dùng chung quota; không đổi IP/vượt hạn mức. Mic QA bị Windows từ chối quyền: chưa đổi privacy settings. Ghi âm/timeline có code nhưng chất lượng 60 phút và phục hồi mọi cửa sổ crash còn chưa nghiệm thu.
 
 Đã chốt phạm vi Dọn dẹp: RAM toàn PC, không riêng PCisland; disk một chạm tự quét/xóa/báo kết quả, không chọn nhóm. Cache mới/đang dùng và dữ liệu đăng nhập/cá nhân được giữ. Đây là yêu cầu triển khai bổ sung được chủ dự án cho phép, không chờ P4.
 
@@ -167,6 +179,10 @@ Sổ rủi ro đầy đủ ở [00 §8](00-vision-scope.md#8-sổ-rủi-ro). Nh�
 | R10 Virtual desktop | P0.4 |
 
 ## 7. Nhật ký phiên
+
+- 2026-11-01 · Codex: đóng gói v0.1.2 theo yêu cầu push + release; đồng bộ README/CHANGELOG/roadmap/kiến trúc/module/handoff, thêm script package allowlist và tự tìm CMake. 238 Rust + 81 frontend đạt; exe/NSIS/portable đúng version, hash và nội dung ZIP được kiểm tra; dọn cache giải phóng thực tế 7,458 GiB. Link/gói tại snapshot.
+
+- 2026-11-01 · Codex: triển khai file/note/meeting, sửa dropdown theo ảnh phản hồi, QA codec/Groq bằng mẫu công khai và system capture. 238 Rust + 81 frontend đạt, chưa release; đóng QA và dọn cache theo lựa chọn chủ dự án. Chi tiết tại báo cáo triển khai.
 
 - 2026-11-01 · Codex: triển khai module maintenance tách biệt, tích hợp additive island/Cài đặt/IPC, RAM theo tiến trình và cleanup một chạm; test fixture filesystem và UI, native RAM smoke chỉ đọc, preview localhost. Chưa build exe; giữ cache dùng chung cho agent khác đang verify.
 

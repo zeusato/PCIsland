@@ -41,6 +41,19 @@ import type { Note } from './bindings/Note';
 import type { NoteTask } from './bindings/NoteTask';
 import type { TaskAlarmInput } from './bindings/TaskAlarmInput';
 import type { ShelfItem } from './bindings/ShelfItem';
+import type { MeetingSnapshot } from './bindings/MeetingSnapshot';
+
+export const meetingCommands = {
+  state: () => invoke<MeetingSnapshot>('meeting_state'),
+  devices: () => invoke<Array<{id: string; name: string; system: boolean}>>('meeting_devices'),
+  start: (title: string, mic: boolean, system: boolean, transcribe: boolean, micDevice: string | null = null, systemDevice: string | null = null) => invoke<string>('meeting_start', {title,mic,system,transcribe,micDevice,systemDevice}),
+  stop: () => invoke<void>('meeting_stop'),
+  mark: () => invoke<void>('meeting_mark'),
+  notes: (id: string, text: string, revision: number) => invoke<void>('meeting_notes', {id,text,revision}),
+  retry: (id: string, clipId: string) => invoke<void>('meeting_retry', {id,clipId}),
+  editTranscript: (id: string, clipId: string, text: string) => invoke<void>('meeting_transcript_edit', {id,clipId,text}),
+  export: (id: string, destination: string) => invoke<void>('meeting_export', {id,destination}),
+};
 import type { LocalPlayerSnapshot } from './bindings/LocalPlayerSnapshot';
 import type { Track } from './bindings/Track';
 import type { Folder } from './bindings/Folder';
@@ -125,7 +138,10 @@ export const noteCommands = {
   tasks: (id: string) => invoke<NoteTask[]>('notes_tasks', { id }),
   setTaskAlarm: (taskId: string, input: TaskAlarmInput | null) => invoke<void>('notes_set_task_alarm', { taskId, input }),
   list: (query?: string) => invoke<Note[]>('notes_list', { query: query ?? null }),
-  save: (text: string, id?: string) => invoke<Note>('notes_save', { id: id ?? null, text }),
+  save: (text: string, id?: string, expectedUpdatedAt?: number) => invoke<Note>('notes_save', { id: id ?? null, text, expectedUpdatedAt: expectedUpdatedAt ?? null }),
+  desktop: (id: string) => invoke<void>('notes_desktop_open', { id }),
+  desktopState: () => invoke<{id: string; font: number; topmost: boolean}>('notes_desktop_state'),
+  desktopOptions: (font: number, topmost: boolean, id?: string) => invoke<void>('notes_desktop_options', { font, topmost, id: id ?? null }),
   remove: (id: string) => invoke<void>('notes_delete', { id }),
   /** Writes all notes to a Markdown file; resolves to the count written. */
   exportMarkdown: (path: string) => invoke<number>('notes_export', { path }),
@@ -135,6 +151,14 @@ export const noteCommands = {
 };
 
 export const shelfCommands = {
+  copy: (ids: string[]) => invoke<void>('shelf_copy', { ids }),
+  removeMany: (ids: string[]) => invoke<void>('shelf_remove_many', { ids }),
+  cancel: () => invoke<void>('shelf_cancel'),
+  zip: (ids: string[], destination: string, onProgress: (p: {completed: number; total: number; name: string}) => void) => {
+    const progress = new Channel<{completed: number; total: number; name: string}>(); progress.onmessage = onProgress;
+    return invoke<string>('shelf_zip', { ids, destination, progress });
+  },
+  convert: (id: string, destination: string, format: string, maxEdge: number | null) => invoke<string>('shelf_convert', { id, destination, format, maxEdge }),
   list: () => invoke<ShelfItem[]>('shelf_list'),
   add: (paths: string[]) => invoke<number>('shelf_add', { paths }),
   remove: (id: string) => invoke<void>('shelf_remove', { id }),

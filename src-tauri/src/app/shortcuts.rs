@@ -33,12 +33,13 @@ pub fn register(app: &AppHandle, shortcuts: &Shortcuts) {
     let mut errors = Vec::new();
     let gs = app.global_shortcut();
     let _ = gs.unregister_all();
-    let bindings: [(&'static str, &str); 5] = [
+    let bindings: [(&'static str, &str); 6] = [
         ("togglePeek", &shortcuts.toggle_peek),
         ("openMain", &shortcuts.open_main),
         ("toggleHidden", &shortcuts.toggle_hidden),
         ("quickNote", &shortcuts.quick_note),
         ("videoOpen", &shortcuts.video_open),
+        ("meetingMark", &shortcuts.meeting_mark),
     ];
     for (action, accel) in bindings {
         if accel.trim().is_empty() {
@@ -48,7 +49,16 @@ pub fn register(app: &AppHandle, shortcuts: &Shortcuts) {
             .parse::<Shortcut>()
             .map_err(|e| e.to_string())
             .and_then(|sc| {
+                let held = std::sync::atomic::AtomicBool::new(false);
                 gs.on_shortcut(sc, move |app, _, event| {
+                    if action == "meetingMark" {
+                        let pressed = event.state() == ShortcutState::Pressed;
+                        let previous = held.swap(pressed, std::sync::atomic::Ordering::Relaxed);
+                        if pressed && !previous {
+                            run(app, action);
+                        }
+                        return;
+                    }
                     if event.state() == ShortcutState::Pressed {
                         run(app, action);
                     }
@@ -70,6 +80,11 @@ pub fn register(app: &AppHandle, shortcuts: &Shortcuts) {
 
 fn run(app: &AppHandle, action: &str) {
     match action {
+        "meetingMark" => {
+            if let Some(meeting) = app.try_state::<crate::modules::meeting::MeetingHandle>() {
+                let _ = meeting.mark();
+            }
+        }
         "openMain" => {
             let _ = island::open_main(app, None);
         }

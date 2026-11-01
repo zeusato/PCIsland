@@ -12,6 +12,7 @@ import type { RemindersSnapshot } from './bindings/RemindersSnapshot';
 import type { ShortcutError } from './bindings/ShortcutError';
 import type { Note } from './bindings/Note';
 import type { ShelfItem } from './bindings/ShelfItem';
+import type { MeetingSnapshot } from './bindings/MeetingSnapshot';
 import type { LocalPlayerSnapshot } from './bindings/LocalPlayerSnapshot';
 import type { LyricsDto } from './bindings/LyricsDto';
 
@@ -32,6 +33,7 @@ export const onTimerState = on<TimerSnapshot>('timer://state');
 export const onRemindersState = on<RemindersSnapshot>('reminders://state');
 export const onNotesState = on<Note | null>('notes://state');
 export const onShelfState = on<ShelfItem[]>('shelf://state');
+export const onMeetingState = on<MeetingSnapshot>('meeting://state');
 export const onPlayerState = on<LocalPlayerSnapshot>('local_player://state');
 export const onLyrics = on<LyricsDto | null>('lyrics://current');
 
@@ -61,3 +63,5 @@ export function onVisualizerFrame(handler: (bands: number[]) => void): Promise<v
 /** Eye gaze toward the cursor, x/y in -100..100 (only when the setting is on). */
 export const onShortcutErrors = on<ShortcutError[]>('app://shortcut-errors');
 export const onIslandGaze = on<[number, number]>('island://gaze');
+
+export const onDesktopNoteSelect = on<string>('notes://desktop-select');

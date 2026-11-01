@@ -14,6 +14,7 @@ import { registerNotes } from '../../features/notes';
 import { registerShelf } from '../../features/shelf';
 import { registerMaintenance } from '../../features/maintenance';
 import { registerVideo } from '../../features/video';
+import { registerMeeting } from '../../features/meeting';
 import IslandRoot from './IslandRoot.svelte';
 
 registerTimer();
@@ -23,6 +24,7 @@ registerShelf();
 registerMaintenance();
 registerWebPlayer();
 registerVideo();
+registerMeeting();
 registerQuickAction({
   id: 'app.open_main',
   labelKey: 'island.launcher.openMain',

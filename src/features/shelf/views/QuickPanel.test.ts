@@ -16,7 +16,7 @@ it('opens the saved file shelf from the launcher while another activity owns the
   const component = mount(Launcher, { target }); flushSync();
   [...target.querySelectorAll('button')].find((b) => b.textContent?.includes('Kệ file'))!.click(); flushSync();
   expect(target.textContent).toContain('saved.txt');
-  target.querySelector('.file')!.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+  target.querySelector('[aria-label="Kéo mục đã chọn: saved.txt"]')!.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
   expect(dragFilesOut).toHaveBeenCalledExactlyOnceWith(['D:\\saved.txt']);
   await unmount(component); live.shelf = [];
 });

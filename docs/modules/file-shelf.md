@@ -1,6 +1,6 @@
 # Module: Kệ file (`shelf`)
 
-> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P3 · Tính năng: F27 · Cập nhật: 2026-10-31
+> Trạng thái: Đã mở rộng source/test, còn nghiệm thu native và batch lớn · Phase: P3 + yêu cầu bổ sung · Tính năng: F27 · Cập nhật: 2026-11-01
 
 ## 1. Mục đích
 
@@ -11,28 +11,28 @@ Một chỗ để file tạm thời khi kéo thả giữa các cửa sổ: kéo 
 **Trong phạm vi:**
 - Thả file/thư mục vào island.
 - Danh sách mục trên peek và trong `main`.
-- Kéo mục ra ngoài; mở, mở thư mục chứa, sao chép đường dẫn, xóa.
+- Chọn một/nhiều/tất cả; kéo file thực ra ngoài, sao chép file vào clipboard, mở/reveal, bỏ khỏi kệ.
+- ZIP nền có tiến trình/hủy; chuyển một ảnh tĩnh PNG/JPEG sang PNG/JPEG/WebP và thu nhỏ giữ tỷ lệ.
 - Tự dọn mục quá hạn.
 
 **Ngoài phạm vi:**
 - Đồng bộ đám mây, chia sẻ.
 - Thả văn bản/URL: backlog.
-- Nén/chuyển đổi file.
+- Chuyển đổi Office/PDF/video, đổi ảnh hàng loạt, đồng bộ hoặc gửi tin nhắn tự động.
 
 ## 3. Hành vi & luồng người dùng
 
 1. **Thả vào:** kéo bất kỳ file/thư mục nào (kể cả nhạc) chạm island → bung vùng thả 400×220, gồm các thumbnail đang có và một ô vuông dấu +. Thả vào thêm tham chiếu vào kệ, giữ giao diện này để thấy kết quả; không có alert thay thế thumbnail.
-2. **Xem:** mở **Tính năng → Kệ file** trên island, ngay trước nút Home; nút luôn có và kèm số file đang giữ. Compact hiện icon + số mục; peek tối đa 3 slot theo thứ tự thêm, một ô + khi còn chỗ. Đủ 3 thì hiện thông báo kệ đầy. Mục cũ vượt 3 được giữ trong main, không tự xóa dữ liệu. Mở kệ không dừng nhạc; Escape quay lại menu.
-3. **Kéo ra:** kéo thumbnail từ peek thả vào Explorer, Zalo, Gmail… File được kéo dưới dạng **tham chiếu tới file gốc**, không phải bản sao.
-4. **Thao tác:** chuột phải một mục → Mở · Mở thư mục chứa · Sao chép đường dẫn · Xóa khỏi kệ. Nút "Dọn kệ".
+2. **Xem:** mở **Tính năng → Kệ file** trên island. Không còn trần 3 mục ở backend hoặc UI. Danh sách dùng chung main/island, 50 mục/trang, vùng cuộn tối đa 340 px. Click chọn, Ctrl chọn rời, Shift chọn dải, Ctrl+A chọn tất cả, Escape bỏ chọn. Mở kệ không dừng nhạc.
+3. **Kéo ra:** dùng tay nắm kéo mục/nhóm hoặc Kéo tất cả. Plugin native gửi danh sách file thực; clipboard dùng `CF_HDROP`, không dán text đường dẫn. Không tự bấm Send; chưa nghiệm thu attachment trong chat thật.
+4. **Thao tác:** thanh công cụ chọn nhiều/tất cả, sao chép file, ZIP, bỏ khỏi kệ; một mục có mở/reveal và chuyển ảnh. ZIP/ảnh chọn vị trí qua hộp Save, thêm kết quả thành công vào kệ; giữ file nguồn. Không ghi đè file đã có. Không mở full app qua double-click.
 5. **Tự dọn:** mục quá `shelf.expire_hours` (24 giờ) tự rời kệ. File gốc không bị đụng tới.
 
 ## 4. Activity
 
 | Kind | Ưu tiên | Compact | Peek | Alert | Hành động |
 |---|---|---|---|---|---|
-| `shelf.items` | Ambient | Icon kệ + số mục | Lưới thumbnail, kéo ra được | — | `clear`, `open_main` |
-| `shelf.dropped` | Alert (ttl 1,5 s) | — | — | "Đã cất N mục" | — |
+| `shelf.items` | Ambient | Icon kệ + số mục | Danh sách phân trang, chọn và kéo nhóm | — | `clear` |
 | Trạng thái thả (frontend) | — | — | Vùng thả lớn, viền cam đứt nét | — | — |
 
 ## 5. Thiết kế kỹ thuật
@@ -46,8 +46,8 @@ Một chỗ để file tạm thời khi kéo thả giữa các cửa sổ: kéo 
 
 **Lưu mục:**
 - Frontend nạp danh sách đã lưu khi khởi động, sau khi đăng ký sự kiện; snapshot khởi động không ghi đè sự kiện mới hơn.
-- Mặc định lưu **tham chiếu**: đường dẫn, kích thước, `mtime`.
-- Tùy chọn `shelf.copy_mode = "copy"`: sao chép vào `data/shelf/<id>/`, dùng khi muốn giữ bản tạm dù file gốc bị xóa. Giới hạn 500 MB tổng; vượt thì từ chối và báo.
+- Lưu **tham chiếu**: đường dẫn, tên, kích thước, loại thư mục và thời điểm thêm. Không có copy mode trong implementation hiện tại.
+- ZIP/ảnh được lưu ở nơi người dùng chọn; không có kho output tự dọn. Bỏ khỏi kệ chỉ xóa tham chiếu.
 
 **Thumbnail:**
 - Platform `ShellThumbnails`: `IShellItemImageFactory::GetImage` 96×96 → PNG → `ArtworkCache`.
@@ -63,55 +63,58 @@ Một chỗ để file tạm thời khi kéo thả giữa các cửa sổ: kéo 
 
 | Command | Chữ ký |
 |---|---|
-| `shelf_get_state` | `() → ShelfSnapshot { items: ShelfItemDto[], rev }` |
-| `shelf_add` | `(paths: string[]) → ShelfItemDto[]` |
-| `shelf_remove` | `(ids: string[]) → ()` |
+| `shelf_list` | `() → ShelfItem[]` |
+| `shelf_add` | `(paths: string[]) → number` (số nhận) |
+| `shelf_remove` / `shelf_remove_many` | `(id)` / `(ids) → ()` |
 | `shelf_clear` | `() → ()` |
-| `shelf_open` / `shelf_reveal` | `(id) → ()` |
-| `shelf_copy_paths` | `(ids) → ()` (ghi clipboard) |
-| `shelf_start_drag` | `(ids) → ()` |
+| `shelf_open` | `(path,reveal) → ()` |
+| `shelf_copy` | `(ids) → ()` (clipboard file thực) |
+| `shelf_drag_icon` | `() → string`, drag qua plugin native |
+| `shelf_zip` / `shelf_cancel` | `(ids,destination,progress:Channel<ShelfProgress>)` / `()` |
+| `shelf_convert` | `(id,destination,format,maxEdge?) → string` |
 
 | Event | Payload |
 |---|---|
-| `shelf://state` | `ShelfSnapshot` |
+| `shelf://state` | `ShelfItem[]` |
 
 ## 7. Dữ liệu & cài đặt
 
-**Bảng:** `shelf_items (id, path, name, size, mtime, is_dir, copy_path, added_at, missing)`
+**Bảng sử dụng:** `shelf_items` với id, path, name, size, is_dir, added_at; `missing` tính khi đọc.
 
 | Khóa | Mặc định |
 |---|---|
 | `shelf.expire_hours` | `24` (0 = không tự dọn) |
-| `shelf.copy_mode` | `"reference"` (`"reference"` · `"copy"`) |
-| `shelf.max_items` | `3` (giới hạn nhận mới cố định 3, kể cả cấu hình cũ lớn hơn) |
+| `shelf.max_items` | `0`, trường tương thích cũ, không áp trần nhận mới |
 | `shelf.sound_on_drop` | `false` |
 
 ## 8. Phụ thuộc
 
 - **Core:** ActivityHub, storage, settings, ArtworkCache, SoundService.
 - **Platform trait:** `ShellThumbnails`, `ShellOpen` (mở file / mở thư mục chứa).
-- **Crate:** `tauri-plugin-drag` (hoặc `drag`), `windows` (`Win32_UI_Shell`).
+- **Crate:** `tauri-plugin-drag`, `windows`, `zip`, `image` (PNG/JPEG/WebP). ZIP dùng `shared/archive`; clipboard/publish file nằm trong platform, ADR-020.
 
 ## 9. Trường hợp biên & lỗi
 
 | Tình huống | Xử lý |
 |---|---|
 | Thả thư mục rất lớn | Chỉ lưu tham chiếu thư mục, không duyệt nội dung |
-| Thả vượt 3 slot | Nhận tới giới hạn; vùng kệ hiện hướng dẫn bỏ một file |
+| Thả nhiều file | Không trần 3; bỏ trùng/missing, trả số nhận. Chưa có báo cáo từng lỗi/progress/hủy khi thêm hàng nghìn mục |
+| ZIP có junction/symlink hoặc output nằm trong thư mục nguồn | Từ chối, không theo link ra ngoài cây |
+| Ảnh động/ảnh alpha sang JPEG | Từ chối, giữ nguồn; chọn PNG/WebP để giữ alpha |
 | File gốc bị xóa/đổi tên | `missing`, thumbnail mờ, chặn kéo ra |
 | Thả từ app chạy quyền admin (UIPI) | Windows chặn kéo từ tiến trình quyền cao sang tiến trình thường; ghi trong hướng dẫn |
 | Đang fullscreen | Island ẩn nên không thả được; chấp nhận |
 
 ## 10. Hiệu năng
 
-Thumbnail tạo một lần khi thả và cache theo hash. Công việc dọn dẹp chỉ chạy khi kệ có mục.
+Thumbnail cache trong phiên, tạo tối đa 50 thumbnail chưa có mỗi lần đọc. ZIP stream theo khối 64 KB, chạy nền, một job/hủy được. Decode ảnh có giới hạn 128 MB; cạnh resize 64–8192 px. Backend vẫn trả toàn bộ danh sách, chưa virtualize dữ liệu hoặc benchmark hàng nghìn mục.
 
 ## 11. Kiểm thử
 
-**Unit:** hết hạn theo TestClock; giới hạn số mục và dung lượng chế độ copy; đánh dấu `missing`.
+**Unit:** thêm vượt 3, chọn dải/Ctrl+A/Escape với 75 mục; ZIP trùng tên, nội dung, hủy và không ghi đè output. Không suy ra native drag/chat đã đạt từ test mock.
 
 **Checklist thủ công:**
-- [ ] Thả 1, 2, 3, 4 file, file trùng và thư mục; chỉ nhận tới 3, giữ thứ tự
+- [ ] Thả 4/50/500 file, file trùng và thư mục; giữ thứ tự, không trần 3
 - [ ] Kéo ra Explorer (di chuyển/sao chép theo phím giữ), Chrome (upload), Zalo/Telegram
 - [ ] Thả file nhạc cũng vào kệ; phát file qua Nhạc › Nhạc trên máy › Chọn thư mục
 - [ ] Xóa file gốc → mục chuyển `missing`
@@ -129,3 +132,4 @@ Thumbnail tạo một lần khi thả và cache theo hash. Công việc dọn d�
 | 2026-11-01 | Mọi file thả vào kệ, 3 slot, thumbnail + một ô chờ, không thay bằng alert. |
 | 2026-11-01 | Preview kéo từ ngoài vùng đỉnh, ưu tiên kệ trước media/minimal; giữ qua morph, báo lỗi thêm file; 3 test frontend và 2 test backend DPI. |
 | 2026-11-01 | Nút Kệ file trong launcher, số mục và nạp lại danh sách lúc khởi động; regression test mở kệ và gọi kéo file gốc ra. |
+| 2026-11-01 | Bỏ trần 3; chọn nhiều/tất cả, clipboard file, ZIP có hủy, đổi ảnh và phân trang. Đặc tả trên thay hành vi 3 slot cũ. |

@@ -1,6 +1,8 @@
 # 01 · Lộ trình
 
-> Cập nhật: 2026-10-31 · Phase hiện tại: **P0 (chưa bắt đầu)**
+> Cập nhật: 2026-11-01 · P1–P3 đã có source; Gate G0 và nghiệm thu Windows còn mở. Các mốc phiên bản trong bảng dưới là kế hoạch ban đầu; lịch phát hành thực tế xem [CHANGELOG](../CHANGELOG.md).
+
+Bổ sung được chủ dự án yêu cầu trực tiếp: video nổi, maintenance, mở rộng kệ file, note desktop và meeting. Source được gom vào v0.1.2; phần chưa nghiệm thu không được coi là đã đóng gate. [Trạng thái hiện hành](05-handoff.md), [phạm vi ba module](plans/file-note-meeting.md).
 
 ## 1. Tổng quan
 

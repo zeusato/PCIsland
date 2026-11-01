@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-meeting-retry"
+description = "Enables the meeting_retry command without any pre-configured scope."
+commands.allow = ["meeting_retry"]
+
+[[permission]]
+identifier = "deny-meeting-retry"
+description = "Denies the meeting_retry command without any pre-configured scope."
+commands.deny = ["meeting_retry"]

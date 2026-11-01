@@ -200,3 +200,7 @@ Nhìn theo chuột cần backend gửi vị trí chuột, và chỉ gửi khi ch
 ### Scrollbar dùng chung (2026-11-01)
 
 Mọi vùng cuộn của UI app dùng scrollbar 8 px: nền surface-2, tay kéo cam neon accent bo tròn ngay ở trạng thái mặc định, hover accent-bright. Khai báo trong base.css với token; color-scheme dark cho điều khiển native. Áp dụng island, playlist, search, textarea và cửa sổ đầy đủ; không chèn CSS vào website nhạc bên ngoài.
+
+### Dropdown trong island (2026-11-01)
+
+Meeting dùng `form/Dropdown.svelte`: trigger/listbox cùng bề ngang, `min-width: 0`, tên chọn ellipsis và tooltip; option xuống dòng để đọc tên thiết bị. Menu có chiều cao tối đa token `--dropdown-max-h` 176 px, cuộn nội bộ và tự mở phía trên khi thiếu chỗ trong launcher. Hỗ trợ Arrow/Home/End/Enter/Escape, focus và aria-selected; đóng khi click ngoài. Không để native select kéo giãn panel hoặc hiện ngoài biên island.

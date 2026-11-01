@@ -5,6 +5,15 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Push-Location $repoRoot
 try {
+    # audiopus builds libopus from source; Visual Studio ships a suitable CMake.
+    if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) {
+        $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+        $cmakePath = if (Test-Path -LiteralPath $vswhere) {
+            & $vswhere -latest -products '*' -find '**\CMake\bin\cmake.exe' | Select-Object -First 1
+        }
+        if (-not $cmakePath) { throw 'CMake is required for Opus. Install the C++ CMake tools in Visual Studio Build Tools.' }
+        $env:PATH = (Split-Path -Parent $cmakePath) + ';' + $env:PATH
+    }
     $buildArgs = @('tauri', 'build')
     if ($NoBundle) { $buildArgs += '--no-bundle' }
     & pnpm.cmd @buildArgs

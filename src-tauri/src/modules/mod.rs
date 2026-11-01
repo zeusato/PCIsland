@@ -3,6 +3,7 @@ pub mod island;
 pub mod local_player;
 pub mod lyrics;
 pub mod media;
+pub mod meeting;
 pub mod notes;
 pub mod reminders;
 pub mod shelf;

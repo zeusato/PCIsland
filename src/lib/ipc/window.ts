@@ -6,3 +6,5 @@ export const currentWindow = {
   toggleMaximize: () => getCurrentWindow().toggleMaximize(),
   close: () => getCurrentWindow().close(),
 };
+
+export const onWindowClose = (canClose: () => boolean) => getCurrentWindow().onCloseRequested(e => { if (!canClose()) e.preventDefault(); });

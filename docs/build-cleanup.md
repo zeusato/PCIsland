@@ -11,6 +11,8 @@ Theo yêu cầu chủ dự án ngày 2026-11-01: ưu tiên dung lượng đĩa, 
 
 Build lỗi không tự dọn để còn chẩn đoán. Nếu đang lặp sửa/test, giữ cache trong lúc làm; kết thúc phiên build phải dọn. `pnpm build` vẫn chỉ build frontend, phục vụ Tauri và CI, không gọi dọn giữa chừng.
 
+Từ 0.1.2, codec Opus cần CMake lúc build. Wrapper tự tìm CMake đi kèm Visual Studio nếu PATH chưa có; cài workload C++/CMake của Visual Studio Build Tools khi chưa có. Build xong chạy `powershell -NoProfile -File scripts/package-release.ps1`: lấy đúng phiên bản trong Tauri config, kiểm ProductVersion exe, tạo NSIS/portable và SHA256 trong `release/<version>/`. ZIP chỉ chứa exe, README và marker `data/.portable`; không đưa dữ liệu local hay `.env` vào gói. Script từ chối ghi đè gói đã tồn tại.
+
 Nếu nhiều agent cùng làm trên checkout, chỉ dọn cache dùng chung sau khi tất cả lượt build/verify đã kết thúc; ghi việc dọn còn chờ vào Handoff. Có thể dọn ngay fixture và server QA do chính phiên mình tạo, không dừng tác vụ của agent khác.
 
 ## Giữ và xóa

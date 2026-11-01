@@ -4,10 +4,12 @@
 pub mod audio_endpoint;
 pub mod autostart;
 pub mod clipboard;
+pub mod files;
 pub mod foreground;
 pub mod gsmtc;
 pub mod loopback;
 pub mod maintenance;
+pub mod meeting_audio;
 pub mod memory;
 pub mod process;
 pub mod shell;

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-meeting-transcript-edit"
+description = "Enables the meeting_transcript_edit command without any pre-configured scope."
+commands.allow = ["meeting_transcript_edit"]
+
+[[permission]]
+identifier = "deny-meeting-transcript-edit"
+description = "Denies the meeting_transcript_edit command without any pre-configured scope."
+commands.deny = ["meeting_transcript_edit"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-meeting-mark"
+description = "Enables the meeting_mark command without any pre-configured scope."
+commands.allow = ["meeting_mark"]
+
+[[permission]]
+identifier = "deny-meeting-mark"
+description = "Denies the meeting_mark command without any pre-configured scope."
+commands.deny = ["meeting_mark"]

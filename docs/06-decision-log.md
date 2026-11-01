@@ -260,6 +260,16 @@
   - Cần spike S2 (đồng bộ tiếng-hình) trước khi code trình phát, và S1 trước khi bật A.
   - Rủi ro về điều khoản của YouTube/Facebook do chủ dự án chấp nhận.
 
+## ADR-020 · File theo nhóm, note desktop và meeting nhẹ
+
+- **Ngày:** 2026-11-01 · **Trạng thái:** Accepted theo yêu cầu trực tiếp của chủ dự án; nghiệm thu release còn mở.
+- **Quyết định:** bỏ giới hạn 3 của ADR-015; phân trang UI 50 mục, native drag/CF_HDROP file thực, ZIP stream và đổi ảnh một mục. Kết quả lưu tại vị trí người dùng chọn; chưa có kho output tự dọn. Tạo một note WebView theo yêu cầu, giữ draft và CAS bằng updated_at tăng đơn điệu.
+- **Meeting:** WASAPI native, Opus mono 48 kHz/48 kbps, journal packet bền và remux highlight lùi 15 giây; hàng đợi giới hạn, không giữ PCM cả buổi trong RAM. Không kèm model AI/FFmpeg. Ghi chú cá nhân độc lập transcript; chỉ clip có yêu cầu mới được gửi.
+- **Groq:** chủ dự án chọn nhúng key từ `.env` lúc build vào native, thay đề xuất backend trung gian trong plan. Không coi đây là cách giấu key khỏi người có binary; mọi người dùng chung hạn mức. Thiếu key vẫn dùng phần local. Không đưa key vào Git/frontend/log.
+- **Dependencies mới:** `opus 0.3.1` (MIT, native libopus BSD-3-Clause), `ogg 0.9.2` (BSD-3-Clause), `zip 2.6.1` (MIT), `image =0.25.5` (MIT OR Apache-2.0, chỉ PNG/JPEG/WebP); bật multipart của reqwest hiện có. Cargo.lock là nguồn phiên bản chính xác. Native libopus cần CMake lúc build, không cần cài runtime riêng. Chưa đo delta exe release nên không công bố số MB tăng.
+- **QA:** flag debug-only `--qa` bắt buộc data-dir riêng, bỏ đăng ký autostart/tray/hotkey để không thay phiên người dùng. Không áp dụng vào release.
+- **Hệ quả:** thêm IPC/capability local, protocol audio kiểm tra ID từ storage; shared archive phục vụ shelf/meeting. Mất thiết bị, crash, DPI, attachment chat và họp dài cần nghiệm thu trước phát hành.
+
 ## Template
 
 ## ADR-019 · Dọn rác một chạm và thu hồi RAM của app nền toàn PC

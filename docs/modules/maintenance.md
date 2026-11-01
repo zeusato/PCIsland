@@ -1,6 +1,6 @@
 # Dọn dẹp và RAM toàn máy
 
-Ngày cập nhật: 2026-11-01. Triển khai theo yêu cầu trực tiếp của chủ dự án, mở rộng đề xuất [quick wins](../reports/quick-wins-2026-11-01.md). Có source và kiểm thử; chưa đóng gói exe mới.
+Ngày cập nhật: 2026-11-01. Triển khai theo yêu cầu trực tiếp của chủ dự án, mở rộng đề xuất [quick wins](../reports/quick-wins-2026-11-01.md). Có source và kiểm thử, được đóng gói cùng v0.1.2; nghiệm thu RAM/dọn rác thực tế còn mở.
 
 ## Hành vi
 
