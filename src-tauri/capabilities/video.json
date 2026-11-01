@@ -1,0 +1,24 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "video",
+  "description": "The floating video window: its own player commands only (docs/modules/video-player.md §6).",
+  "windows": [
+    "video"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-is-fullscreen",
+    "core:window:allow-minimize",
+    "allow-video-current",
+    "allow-video-report",
+    "allow-video-refresh",
+    "allow-video-set-quality",
+    "allow-video-window",
+    "allow-video-get-state",
+    "allow-video-open-in-browser",
+    "allow-settings-get",
+    "allow-video-open"
+  ]
+}

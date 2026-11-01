@@ -99,6 +99,47 @@ pub(crate) fn sniff_mime(bytes: &[u8]) -> &'static str {
     }
 }
 
+const MAX_REMOTE_BYTES: usize = 2 * 1024 * 1024;
+
+fn append_bounded(bytes: &mut Vec<u8>, chunk: &[u8]) -> Result<(), &'static str> {
+    if chunk.len() > MAX_REMOTE_BYTES.saturating_sub(bytes.len()) {
+        return Err("cover exceeds 2 MB");
+    }
+    bytes.extend_from_slice(chunk);
+    Ok(())
+}
+
+/// Downloads a remote cover (https, ≤ 2 MB, must be an image) into the cache and returns
+/// its `artwork.localhost` URL. Shared by the web player and the video module.
+pub async fn download_remote(cache: &ArtworkCache, url: &str) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .https_only(true)
+        .timeout(std::time::Duration::from_secs(5))
+        .redirect(reqwest::redirect::Policy::limited(3))
+        .build()
+        .map_err(|_| "cannot create artwork client")?;
+    let mut response = client
+        .get(url)
+        .send()
+        .await
+        .and_then(reqwest::Response::error_for_status)
+        .map_err(|_| "artwork request failed")?;
+    if response
+        .content_length()
+        .is_some_and(|n| n > MAX_REMOTE_BYTES as u64)
+    {
+        return Err("cover exceeds 2 MB".into());
+    }
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(|_| "cannot read artwork")? {
+        append_bounded(&mut bytes, &chunk)?;
+    }
+    if !sniff_mime(&bytes).starts_with("image/") {
+        return Err("unsupported artwork content".into());
+    }
+    Ok(cache.put(std::sync::Arc::new(bytes)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

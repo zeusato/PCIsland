@@ -3,5 +3,5 @@ import { registerQuickAction } from '$lib/registry/quickActions.svelte';
 import QuickPanel from './views/QuickPanel.svelte';
 
 export function registerNotes(): void {
-  registerQuickAction({ id: 'notes.create', labelKey: 'island.launcher.note', icon: NotebookPen, order: 50, panel: QuickPanel });
+  registerQuickAction({ id: 'notes.create', labelKey: 'island.launcher.note', icon: NotebookPen, order: 20, panel: QuickPanel });
 }

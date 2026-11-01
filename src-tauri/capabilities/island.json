@@ -8,6 +8,7 @@
   "permissions": [
     "core:default",
     "app-commands",
-    "drag:default"
+    "drag:default",
+    "dialog:allow-open"
   ]
 }

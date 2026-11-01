@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-maintenance-logs"
+description = "Enables the maintenance_logs command without any pre-configured scope."
+commands.allow = ["maintenance_logs"]
+
+[[permission]]
+identifier = "deny-maintenance-logs"
+description = "Denies the maintenance_logs command without any pre-configured scope."
+commands.deny = ["maintenance_logs"]

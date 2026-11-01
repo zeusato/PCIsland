@@ -31,7 +31,7 @@ pub async fn web_player_play_result(
     site_id: String,
     url: String,
 ) -> IpcResult<()> {
-    super::search::play(&app, &player, &site_id, &url)
+    super::search::play(&app, &player, &site_id, &url).await
 }
 
 #[tauri::command]
@@ -119,6 +119,19 @@ pub fn web_player_request_queue(app: AppHandle) -> IpcResult<()> {
     if let Some(win) = app.get_webview_window(super::LABEL) {
         win.eval("window.__pcisland?.requestQueue()")?;
     }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn web_player_set_repeat(app: AppHandle, mode: super::dto::WebRepeatMode) -> IpcResult<()> {
+    use tauri::Manager;
+    let win = app
+        .get_webview_window(super::LABEL)
+        .ok_or_else(|| IpcError::new("web_player.closed", "player is closed"))?;
+    win.eval(format!(
+        "window.__pcisland?.setRepeat({})",
+        serde_json::to_string(&mode).unwrap_or_default()
+    ))?;
     Ok(())
 }
 

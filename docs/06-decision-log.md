@@ -235,7 +235,40 @@
 - **Điều hướng:** callback phát thành công chuyển về player của nguồn đã chọn, độc lập Quay lại của launcher. Hiện trạng thái tải khi chờ metadata, lỗi IPC giữ panel.
 - **Kiểm chứng:** test tích hợp nội dung/điều hướng, test Rust canvas và QA trình duyệt với fixture offline. Không truy cập lại website nhạc.
 
+## ADR-018 · Trình phát video nổi: tự lấy stream và phát (phương thức B), trình phát nhúng làm đường lui
+
+- **Ngày:** 2026-11-01 · **Trạng thái:** Accepted theo quyết định của chủ dự án.
+- **Bối cảnh:** F46: dán link YouTube/Facebook/trang có video → một cửa sổ nhỏ chỉ có video + nút. Có hai cách:
+  - (A) trình phát nhúng chính thức;
+  - (B) giải link ra luồng thật rồi phát bằng trình phát của app, giống addon stream-pocket bắt request mạng.
+- **Quyết định:**
+  - Làm **B** làm phương thức chính:
+    - yt-dlp (tải khi người dùng đồng ý, kiểm SHA-256) giải link YouTube/Facebook;
+    - WebView ẩn + `WebResourceResponseReceived` dò luồng trang bất kỳ;
+    - proxy `vstream://` gắn header + Range, chỉ chuyển tiếp URL đã giải;
+    - trang cục bộ phát bằng cặp `<video>` + `<audio>` đồng bộ (MSE nếu spike S2 không đạt) hoặc hls.js.
+  - **A** (trình phát nhúng) chỉ làm đường lui khi B không phát được.
+  - Tối đa 1 cửa sổ, có phím tắt, island điều khiển được qua media hub (nguồn `video`).
+- **Lý do:** chủ dự án muốn trình phát không bị trang gốc can thiệp (quảng cáo, giao diện thừa) và có toàn quyền điều khiển (island, phím, chất lượng). Chỉ B làm được việc này.
+- **Phương án đã cân nhắc:**
+  - A làm chính: ít code nhưng vẫn là trình phát của trang gốc.
+  - Nhúng libmpv: mạnh nhưng nặng (~30 MB), khó vẽ nút đè lên.
+  - Tự viết bộ giải chữ ký YouTube: không làm, dùng yt-dlp được cộng đồng bảo trì.
+- **Hệ quả:**
+  - Phụ thuộc yt-dlp và tốc độ cập nhật của nó; phải có cơ chế tự cập nhật và đường lui A.
+  - App chạy một exe ngoài, có thể bị antivirus cảnh báo.
+  - Cần spike S2 (đồng bộ tiếng-hình) trước khi code trình phát, và S1 trước khi bật A.
+  - Rủi ro về điều khoản của YouTube/Facebook do chủ dự án chấp nhận.
+
 ## Template
+
+## ADR-019 · Dọn rác một chạm và thu hồi RAM của app nền toàn PC
+
+- **Ngày:** 2026-11-01 · **Trạng thái:** Accepted theo yêu cầu trực tiếp của chủ dự án.
+- **Bối cảnh:** chủ dự án yêu cầu triển khai quick wins, làm rõ RAM phải ở phạm vi PC và dọn rác giống CCleaner: một lần bấm, có tiến trình/kết quả, không chọn từng nhóm.
+- **Quyết định:** thêm service `app/maintenance` với adapter Win32 ở `platform`, chỉ chạy khi bấm. Disk theo allowlist nguồn/file cache và file tạm quá 7 ngày, bỏ app đang chạy/file đang dùng, không theo reparse point, giữ dữ liệu đăng nhập/cá nhân; worker báo tiến trình qua channel. RAM dùng bộ lọc bảo thủ và PID + thời điểm khởi chạy, trim working set các app nền được người dùng chọn, đo trước/sau/30 giây; không kill, không purge standby.
+- **Lý do:** không có phép suy luận chung rằng mọi cache/bộ nhớ chiếm dụng đều vô giá trị. Giới hạn rõ recipe và đo kết quả thực tế để tránh ảnh hưởng dữ liệu/phiên đang dùng.
+- **Hệ quả:** chưa bao phủ mọi app/profile tùy chỉnh; không hứa mức MB hoặc tăng tốc. Không triển khai mới unload/suspend web player vì yêu cầu đã mở rộng sang PC. [Đặc tả, phạm vi và nghiệm thu](modules/maintenance.md).
 
 ```markdown
 ## ADR-NNN · <Tiêu đề>

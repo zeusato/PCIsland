@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import type { NowPlayingDto } from '$lib/ipc/bindings/NowPlayingDto';
   import { lyricsCommands, mediaCommands } from '$lib/ipc/commands';
   import { t } from '$lib/i18n/index.svelte';
@@ -10,13 +11,14 @@
   import { formatTime, media, positionAt } from '../store.svelte';
   import { live } from '$lib/stores/live.svelte';
 
-  let { np }: { np: NowPlayingDto } = $props();
+  // `trailing`: extra buttons on the right of the transport row (video window controls).
+  let { np, active = true, trailing }: { np: NowPlayingDto; active?: boolean; trailing?: Snippet } = $props();
   let now = $state(Date.now());
   let failedArtwork = $state('');
 
   // Progress only ticks while the peek is mounted and the track plays.
   $effect(() => {
-    if (np.status !== 'playing') return;
+    if (!active || np.status !== 'playing') return;
     const id = setInterval(() => (now = Date.now()), 250);
     return () => clearInterval(id);
   });
@@ -84,6 +86,8 @@
   {/if}
 
   <div class="controls">
+    <span></span>
+    <div class="transport">
     <button aria-label={t('media.peek.previous')} disabled={!np.caps.previous} onclick={() => mediaCommands.previous()}>
       <SkipBack size={18} />
     </button>
@@ -93,6 +97,8 @@
     <button aria-label={t('media.peek.next')} disabled={!np.caps.next} onclick={() => mediaCommands.next()}>
       <SkipForward size={18} />
     </button>
+    </div>
+    <div class="trailing">{#if trailing}{@render trailing()}{/if}</div>
   </div>
 </div>
 
@@ -103,6 +109,10 @@
     gap: var(--sp-5);
     padding: var(--sp-6) var(--sp-7) var(--sp-5);
     height: 100%;
+    /* Long titles (YouTube) must ellipsize, not widen the island. */
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
   .top {
     display: flex;
@@ -124,6 +134,7 @@
     color: var(--c-text-2);
   }
   .text {
+    flex: 1;
     min-width: 0;
   }
   .title {
@@ -211,10 +222,20 @@
     background: var(--c-accent);
     transform-origin: 0 50%;
   }
+  /* Three columns keep the transport centred whether or not trailing buttons exist. */
   .controls {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+  }
+  .transport {
     display: flex;
-    justify-content: center;
     gap: var(--sp-6);
+  }
+  .trailing {
+    display: flex;
+    justify-content: flex-end;
+    min-width: 0;
   }
   button {
     display: grid;

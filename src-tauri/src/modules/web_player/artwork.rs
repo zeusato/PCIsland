@@ -1,12 +1,7 @@
 //! Downloads remote covers into the app's artwork scheme without relaxing the UI CSP.
 
-use std::sync::Arc;
-use std::time::Duration;
-
 use crate::core::artwork::ArtworkCache;
 use crate::modules::media::dto::NowPlayingDto;
-
-const MAX_BYTES: usize = 2 * 1024 * 1024;
 
 /// Keeps the latest metadata while a cover is loading. A generation rejects late
 /// results after changing tracks, navigating, closing, or reopening the player.
@@ -61,41 +56,8 @@ pub fn remote_url(value: &str) -> Option<String> {
     .then(|| url.to_string())
 }
 
-fn append(bytes: &mut Vec<u8>, chunk: &[u8]) -> Result<(), &'static str> {
-    if chunk.len() > MAX_BYTES.saturating_sub(bytes.len()) {
-        return Err("cover exceeds 2 MB");
-    }
-    bytes.extend_from_slice(chunk);
-    Ok(())
-}
-
 pub async fn download(cache: &ArtworkCache, url: &str) -> Result<String, String> {
-    let client = reqwest::Client::builder()
-        .https_only(true)
-        .timeout(Duration::from_secs(5))
-        .redirect(reqwest::redirect::Policy::limited(3))
-        .build()
-        .map_err(|_| "cannot create artwork client")?;
-    let mut response = client
-        .get(url)
-        .send()
-        .await
-        .and_then(reqwest::Response::error_for_status)
-        .map_err(|_| "artwork request failed")?;
-    if response
-        .content_length()
-        .is_some_and(|n| n > MAX_BYTES as u64)
-    {
-        return Err("cover exceeds 2 MB".into());
-    }
-    let mut bytes = Vec::new();
-    while let Some(chunk) = response.chunk().await.map_err(|_| "cannot read artwork")? {
-        append(&mut bytes, &chunk)?;
-    }
-    if !crate::core::artwork::sniff_mime(&bytes).starts_with("image/") {
-        return Err("unsupported artwork content".into());
-    }
-    Ok(cache.put(Arc::new(bytes)))
+    crate::core::artwork::download_remote(cache, url).await
 }
 
 #[cfg(test)]
@@ -169,9 +131,5 @@ mod tests {
         ] {
             assert!(remote_url(bad).is_none());
         }
-        let mut bytes = vec![0; MAX_BYTES - 1];
-        assert!(append(&mut bytes, &[1]).is_ok());
-        assert!(append(&mut bytes, &[2]).is_err());
-        assert_eq!(bytes.len(), MAX_BYTES);
     }
 }

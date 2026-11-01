@@ -3,6 +3,7 @@
 
 pub mod commands;
 pub mod main_window;
+pub mod maintenance;
 pub mod shortcuts;
 pub mod tray;
 pub mod update;

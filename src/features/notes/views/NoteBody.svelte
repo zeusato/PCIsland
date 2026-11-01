@@ -1,6 +1,7 @@
 <script lang="ts">
   import { checklistLine } from '../checklist';
-  import { t } from '$lib/i18n/index.svelte';
+  import { t, getLocale } from '$lib/i18n/index.svelte';
+  import { ceilSeconds, formatDuration } from '$lib/format';
   import Bell from '@lucide/svelte/icons/bell';
   import { inTauri, noteCommands } from '$lib/ipc/commands';
   import { onNotesState } from '$lib/ipc/events';
@@ -19,9 +20,25 @@
   let busy = $state(false);
   let tasks: NoteTask[] = $state([]);
   let editingAlarm: string | null = $state(null);
+  let now = $state(Date.now());
+  $effect(() => {
+    if (!tasks.some((task) => task.alarm && task.alarm.mode !== 'at' && task.dueAt !== null && !task.checked && !task.firedAt)) return;
+    now = Date.now();
+    const timer = setInterval(() => now = Date.now(), 1000);
+    return () => clearInterval(timer);
+  });
+  function alarmLabel(task: NoteTask) {
+    if (task.firedAt) return t('notes.alarmDue');
+    if (task.dueAt === null) return `${t('notes.waitingShort')} · ${formatDuration(task.alarm?.delayMs ?? 0)}`;
+    if (task.alarm?.mode !== 'at') return formatDuration(ceilSeconds(task.dueAt - now));
+    return new Date(task.dueAt).toLocaleString(getLocale() === 'vi' ? 'vi-VN' : 'en-GB', {
+      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    });
+  }
   $effect(() => {
     const id = noteId;
     void text;
+    tasks = [];
     if (!id || !inTauri) return;
     let active = true;
     let revision = 0;
@@ -50,9 +67,9 @@
       <button class="task" class:done={task.checked} role="checkbox" aria-checked={task.checked} aria-label={task.text || t('notes.checkbox')} disabled={busy || disabled} onclick={(event) => { event.stopPropagation(); void toggle(i); }}>
         <span class="box" aria-hidden="true">{task.checked ? '✓' : ''}</span><span>{task.text}</span>
       </button>
+      {#if saved?.alarm && !task.checked}<span class="alarm-time tabular" title={saved.dueAt !== null ? new Date(saved.dueAt).toLocaleString() : t('notes.alarmWaiting')}>{alarmLabel(saved)}</span>{/if}
       {#if saved}<button class="alarm" class:armed={!!saved.alarm} aria-label={t('notes.alarm')} title={t('notes.alarm')} disabled={busy || disabled || (task.checked && !saved.alarm)} onclick={(event) => { event.stopPropagation(); editingAlarm = editingAlarm === saved.id ? null : saved.id; }}><Bell size={14} /></button>{/if}
       </div>
-      {#if saved?.alarm && !task.checked}<small>{saved.firedAt ? t('notes.alarmDue') : saved.dueAt ? new Date(saved.dueAt).toLocaleString() : t('notes.alarmWaiting')}</small>{/if}
       {#if saved && editingAlarm === saved.id}<TaskAlarmEditor task={saved} hasPrevious={tasks.some((entry) => entry.lineIndex < i)} {island} close={() => editingAlarm = null} />{/if}
     {:else if onedit}
       <button class="line" onclick={onedit}>{line || '\u00a0'}</button>
@@ -70,7 +87,7 @@
   .task { display: flex; align-items: flex-start; gap: var(--sp-4); flex: 1; min-width: 0; }
   .alarm { display: grid; place-items: center; border: 0; background: none; color: var(--c-text-3); padding: var(--sp-2); }
   .alarm.armed { color: var(--c-accent); }
-  small { color: var(--c-text-3); font-size: var(--fs-caption); }
+  .alarm-time { flex: none; max-width: 45%; padding-top: var(--sp-1); color: var(--c-accent-bright); font-size: var(--fs-caption); text-align: right; }
   .box { flex: none; display: grid; place-items: center; width: var(--sp-6); height: var(--sp-6); border: 1px solid var(--c-border-strong); border-radius: var(--sp-2); color: var(--c-accent); font-size: var(--fs-caption); }
   .done { color: var(--c-text-3); text-decoration: line-through; }
 </style>

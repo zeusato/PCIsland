@@ -8,6 +8,8 @@
   import { noteCommands } from '$lib/ipc/commands';
   import { t } from '$lib/i18n/index.svelte';
   import NoteBody from './NoteBody.svelte';
+  import { islandInteraction } from '$lib/components/islandInteraction';
+  const { showFeature } = islandInteraction();
 
   let { activity, variant }: { activity: Activity; variant: string } = $props();
   const note: Note = $derived(payload(activity, 'notes.pinned'));
@@ -21,6 +23,7 @@
   <div class="row compact"><Pin size={14} /><span class="snippet">{note.text.split('\n')[0]?.slice(0, 24)}</span></div>
 {:else}
   <div class="peek">
+    <button onclick={(event) => { event.stopPropagation(); showFeature('notes.create'); }}>{t('notes.savedList')}</button>
     <NoteBody noteId={note.id} island text={note.text} limit={6} ontoggle={(line) => noteCommands.toggleCheck(note.id, line)} />
     <ActionButtons {activity} />
   </div>

@@ -23,6 +23,11 @@
   --c-accent-deep: #e04e0b;
   --c-accent-soft: rgba(255, 106, 26, 0.14);
   --c-glow: rgba(255, 106, 26, 0.45);
+  /* Video window control bars over moving pictures */
+  --c-video-scrim: rgba(0, 0, 0, 0.62);
+  --c-signature: #ff8a45;
+  --glow-signature: 0 0 6px rgba(255, 106, 26, 0.45), 0 0 12px rgba(255, 106, 26, 0.2);
+  --signature-tracking: 0.06em;
 
   /* Status */
   --c-success: #34d399;
@@ -41,6 +46,7 @@
   --fs-display: 28px;
   --fs-timer-xl: 40px;
   --fw-regular: 400;
+  --fw-light: 300;
   --fw-medium: 500;
   --fw-semibold: 600;
 

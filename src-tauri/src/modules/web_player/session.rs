@@ -27,14 +27,42 @@ pub fn queue(items: Vec<WebQueueItem>, site_id: &str) -> Vec<WebQueueItem> {
             Some(WebQueueItem {
                 url,
                 title: item.title.chars().take(512).collect(),
+                artist: clean_credit(item.artist),
+                uploader: clean_credit(item.uploader),
             })
         })
         .take(100)
         .collect()
 }
 
+fn clean_credit(value: Option<String>) -> Option<String> {
+    value
+        .map(|v| {
+            v.split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+                .chars()
+                .take(256)
+                .collect::<String>()
+        })
+        .filter(|v| !v.is_empty())
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn old_queues_load_and_search_credits_are_bounded() {
+        let old: super::WebQueueItem =
+            serde_json::from_str(r#"{"url":"https://zingmp3.vn/bai-hat/a/123.html","title":"A"}"#)
+                .unwrap();
+        assert!(old.artist.is_none() && old.uploader.is_none());
+        let mut item = old;
+        item.artist = Some("  Ca sĩ\nA  ".into());
+        item.uploader = Some("x".repeat(500));
+        let clean = super::queue(vec![item], "zing_mp3");
+        assert_eq!(clean[0].artist.as_deref(), Some("Ca sĩ A"));
+        assert_eq!(clean[0].uploader.as_ref().unwrap().len(), 256);
+    }
     #[test]
     fn resume_and_queue_urls_cannot_escape_the_selected_site() {
         assert!(super::site_url("https://zingmp3.vn/bai-hat/a/123.html", "zing_mp3").is_some());

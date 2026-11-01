@@ -174,3 +174,5 @@ Không có bảng DB.
 | 2026-11-01 | Ẩn phiên GSMTC `msedgewebview2` khi web player đang báo qua bridge, tránh trùng nguồn và mất nút next/previous |
 | 2026-11-01 | Tiến trình compact; fallback ảnh hỏng; ảnh nguồn web qua cache nội bộ. |
 | 2026-11-01 | Peek có nút Danh sách phát: local dùng queue của local_player; web dùng queue của web_player, nguồn ngoài chưa có danh sách thì hướng dẫn mở nguồn. |
+| 2026-11-01 | Giữ player mounted khi chuyển tính năng, nút Về trình phát nhạc, giữ query/queue; không gọi pause/stop khi điều hướng, ngừng tick UI khi ẩn. |
+| 2026-11-01 | Nguồn mới `video` (cửa sổ video nổi); ẩn phiên GSMTC `msedgewebview2` khi có `web` hoặc `video`. `Peek` có slot `trailing` cho nút phụ cùng hàng điều khiển; peek không còn bị tiêu đề dài kéo rộng |

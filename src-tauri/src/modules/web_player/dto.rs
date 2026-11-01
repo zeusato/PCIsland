@@ -10,6 +10,15 @@ pub enum Lifecycle {
     Hidden,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub enum WebRepeatMode {
+    Off,
+    All,
+    One,
+}
+
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
@@ -19,6 +28,8 @@ pub struct WebPlayerSnapshot {
     pub url: Option<String>,
     pub history: Vec<WebSession>,
     pub queue: Vec<WebQueueItem>,
+    pub repeat: Option<WebRepeatMode>,
+    pub repeat_error: bool,
     #[ts(type = "number")]
     pub rev: u64,
 }
@@ -38,6 +49,12 @@ pub struct SiteDto {
 pub struct WebQueueItem {
     pub url: String,
     pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub artist: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub uploader: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -93,6 +110,10 @@ pub struct BridgeMessage {
     pub track_url: Option<String>,
     #[serde(default)]
     pub queue: Vec<WebQueueItem>,
+    #[serde(default)]
+    pub repeat: Option<WebRepeatMode>,
+    #[serde(default)]
+    pub repeat_error: bool,
 }
 
 fn one() -> f32 {

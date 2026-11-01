@@ -31,7 +31,7 @@ it('opens the latest note for interaction, adds a task to it, and only composes 
   await settle();
   const button = (label: string) => [...target.querySelectorAll('button')].find((b) => b.textContent === label)!;
   expect(target.querySelector('textarea')).toBeNull();
-  expect(target.querySelector('select')?.value).toBe('latest');
+  expect(target.querySelector('.note-content')?.textContent).toContain('Việc hôm nay');
   target.querySelector<HTMLButtonElement>('[role="checkbox"]')!.click();
   await settle();
   expect(toggle).toHaveBeenCalledWith('latest', 1);
@@ -57,10 +57,10 @@ it('opens the latest note for interaction, adds a task to it, and only composes 
   await settle();
   expect(save).toHaveBeenLastCalledWith('Ghi chú mới', undefined);
   expect(target.querySelector('textarea')).toBeNull();
-  expect(target.querySelector('select')?.value).toBe('new');
-  const select = target.querySelector('select')!;
-  select.value = 'old';
-  select.dispatchEvent(new Event('change', { bubbles: true }));
+  expect(target.querySelector('.note-content')?.textContent).toContain('Ghi chú mới');
+  button('Danh sách ghi chú').click();
+  flushSync();
+  button('Ghim cũ').click();
   flushSync();
   expect(target.querySelector('.note-content')?.textContent).toContain('Ghim cũ');
   await unmount(component);

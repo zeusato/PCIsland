@@ -14,7 +14,7 @@ it('offers resume or homepage for saved sites and opens new sites directly', asy
     { id: 'zing_mp3', name: 'Zing MP3', homeUrl: 'https://zingmp3.vn/' },
     { id: 'youtube', name: 'YouTube', homeUrl: 'https://www.youtube.com/' },
   ]);
-  const state: WebPlayerSnapshot = { lifecycle: 'closed', siteId: null, url: null, rev: 0, queue: [], history: [{ siteId: 'zing_mp3', pageUrl: 'https://zingmp3.vn/album/test', title: 'Last track', trackUrl: null, positionMs: 12000, queue: [] }] };
+  const state: WebPlayerSnapshot = { repeat: null, repeatError: false, lifecycle: 'closed', siteId: null, url: null, rev: 0, queue: [], history: [{ siteId: 'zing_mp3', pageUrl: 'https://zingmp3.vn/album/test', title: 'Last track', trackUrl: null, positionMs: 12000, queue: [] }] };
   vi.spyOn(webPlayerCommands, 'getState').mockResolvedValue(state);
   const open = vi.spyOn(webPlayerCommands, 'open').mockResolvedValue();
   const resume = vi.spyOn(webPlayerCommands, 'resume').mockResolvedValue();
@@ -41,7 +41,7 @@ it('shows the active site on island and reveals site choices only after Change s
     { id: 'zing_mp3', name: 'Zing MP3', homeUrl: 'https://zingmp3.vn/' },
     { id: 'soundcloud', name: 'SoundCloud', homeUrl: 'https://soundcloud.com/' },
   ]);
-  vi.spyOn(webPlayerCommands, 'getState').mockResolvedValue({ lifecycle: 'hidden', siteId: 'zing_mp3', url: 'https://zingmp3.vn/album/saved', rev: 1, queue: [], history: [{ siteId: 'zing_mp3', pageUrl: 'https://zingmp3.vn/album/saved', title: 'Saved song', trackUrl: null, positionMs: 42000, queue: [] }] });
+  vi.spyOn(webPlayerCommands, 'getState').mockResolvedValue({ repeat: null, repeatError: false, lifecycle: 'hidden', siteId: 'zing_mp3', url: 'https://zingmp3.vn/album/saved', rev: 1, queue: [], history: [{ siteId: 'zing_mp3', pageUrl: 'https://zingmp3.vn/album/saved', title: 'Saved song', trackUrl: null, positionMs: 42000, queue: [] }] });
   media.snapshot = { nowPlaying: null, sources: [{ sourceId: 'web', appName: 'Zing MP3', status: 'playing' }], rev: 1 };
   const show = vi.spyOn(webPlayerCommands, 'show').mockResolvedValue();
   const open = vi.spyOn(webPlayerCommands, 'open').mockResolvedValue();

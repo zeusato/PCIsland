@@ -22,7 +22,7 @@ Một chỗ để file tạm thời khi kéo thả giữa các cửa sổ: kéo 
 ## 3. Hành vi & luồng người dùng
 
 1. **Thả vào:** kéo bất kỳ file/thư mục nào (kể cả nhạc) chạm island → bung vùng thả 400×220, gồm các thumbnail đang có và một ô vuông dấu +. Thả vào thêm tham chiếu vào kệ, giữ giao diện này để thấy kết quả; không có alert thay thế thumbnail.
-2. **Xem:** compact hiện icon + số mục; peek tối đa 3 slot theo thứ tự thêm, một ô + khi còn chỗ. Đủ 3 thì hiện thông báo kệ đầy. Mục cũ vượt 3 được giữ trong main, không tự xóa dữ liệu.
+2. **Xem:** mở **Tính năng → Kệ file** trên island, ngay trước nút Home; nút luôn có và kèm số file đang giữ. Compact hiện icon + số mục; peek tối đa 3 slot theo thứ tự thêm, một ô + khi còn chỗ. Đủ 3 thì hiện thông báo kệ đầy. Mục cũ vượt 3 được giữ trong main, không tự xóa dữ liệu. Mở kệ không dừng nhạc; Escape quay lại menu.
 3. **Kéo ra:** kéo thumbnail từ peek thả vào Explorer, Zalo, Gmail… File được kéo dưới dạng **tham chiếu tới file gốc**, không phải bản sao.
 4. **Thao tác:** chuột phải một mục → Mở · Mở thư mục chứa · Sao chép đường dẫn · Xóa khỏi kệ. Nút "Dọn kệ".
 5. **Tự dọn:** mục quá `shelf.expire_hours` (24 giờ) tự rời kệ. File gốc không bị đụng tới.
@@ -41,9 +41,11 @@ Một chỗ để file tạm thời khi kéo thả giữa các cửa sổ: kéo 
 - Cửa sổ island đang ở chế độ click xuyên. [island-window](island-window.md) xử lý như sau: khi chuột (đang giữ nút trái) đi vào hit region, poller tắt ignore để cửa sổ nhận `DragEnter`.
 - Frontend dùng `onDragDropEvent` của Tauri (`enter`/`over`/`drop`/`leave`) để lấy danh sách đường dẫn.
 - Khi `enter`: frontend chuyển sang trạng thái `dropTarget` (bung pill thành vùng thả) và gửi hit region mới, rộng hơn.
-- **Hạn chế đã biết:** island không biết khi nào người dùng *bắt đầu* kéo ở nơi khác, nên chỉ bung khi chuột đã chạm pill. Chấp nhận ở v1.
+- Poller theo dõi nhấn trái ngoài island và dịch chuyển ≥8 px; đến vùng 400×64 sát đỉnh thì phát `island://drag-hover` và mở receiver, kể cả khi nhạc đang primary hoặc island minimal. Giữ vùng 400×220 trong lúc kéo. Đây là preview kéo chuột (có thể hiện khi kéo đối tượng khác); chỉ sự kiện native drop có paths mới thêm file. Không dùng DOM hover làm điều kiện nhận file.
+- Preview và native drag cùng giữ kệ mở để tránh `leave` do đổi kích thước làm tắt vùng thả; rời ngoài cả hai thì trả lại panel trước. Không pause nhạc; lỗi thêm file hiển thị ngay tại kệ.
 
 **Lưu mục:**
+- Frontend nạp danh sách đã lưu khi khởi động, sau khi đăng ký sự kiện; snapshot khởi động không ghi đè sự kiện mới hơn.
 - Mặc định lưu **tham chiếu**: đường dẫn, kích thước, `mtime`.
 - Tùy chọn `shelf.copy_mode = "copy"`: sao chép vào `data/shelf/<id>/`, dùng khi muốn giữ bản tạm dù file gốc bị xóa. Giới hạn 500 MB tổng; vượt thì từ chối và báo.
 
@@ -111,12 +113,12 @@ Thumbnail tạo một lần khi thả và cache theo hash. Công việc dọn d�
 **Checklist thủ công:**
 - [ ] Thả 1, 2, 3, 4 file, file trùng và thư mục; chỉ nhận tới 3, giữ thứ tự
 - [ ] Kéo ra Explorer (di chuyển/sao chép theo phím giữ), Chrome (upload), Zalo/Telegram
-- [ ] Thả file nhạc cũng vào kệ; phát file qua Nhạc › Nhạc trên máy › Mở file
+- [ ] Thả file nhạc cũng vào kệ; phát file qua Nhạc › Nhạc trên máy › Chọn thư mục
 - [ ] Xóa file gốc → mục chuyển `missing`
 
 ## 12. Câu hỏi mở
 
-- Có nên phát hiện "đang kéo file ở đâu đó" để bung island sẵn không? Hiện chưa có API sạch; để backlog.
+- Preview dựa trên kéo chuột ngoài island, chưa xác định kiểu dữ liệu OLE trước DragEnter; native drop vẫn là nguồn đường dẫn duy nhất.
 
 ## 13. Lịch sử thay đổi
 
@@ -125,3 +127,5 @@ Thumbnail tạo một lần khi thả và cache theo hash. Công việc dọn d�
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Thumbnail qua IShellItemImageFactory (cache theo đường dẫn); kéo file từ kệ ra app khác (plugin drag) |
 | 2026-11-01 | Mọi file thả vào kệ, 3 slot, thumbnail + một ô chờ, không thay bằng alert. |
+| 2026-11-01 | Preview kéo từ ngoài vùng đỉnh, ưu tiên kệ trước media/minimal; giữ qua morph, báo lỗi thêm file; 3 test frontend và 2 test backend DPI. |
+| 2026-11-01 | Nút Kệ file trong launcher, số mục và nạp lại danh sách lúc khởi động; regression test mở kệ và gọi kéo file gốc ra. |

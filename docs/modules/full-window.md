@@ -20,7 +20,7 @@ Chế độ hiển thị thứ ba: một cửa sổ riêng, hiển thị rõ m�
 
 ## 3. Hành vi & luồng người dùng
 
-1. **Mở:** từ tray, phím tắt `Ctrl+Alt+I`, double-click island, hoặc nút ⤢ trong peek (mở đúng trang của activity).
+1. **Mở:** từ nút Mở PCisland trên island hoặc lệnh mở app có chủ đích trong tray. Nhấp đúp trên island không mở cửa sổ đầy đủ.
 2. **Đóng:** nút X hủy cửa sổ để trả RAM. Lần mở sau khôi phục kích thước, vị trí và trang cuối cùng.
 3. **Điều hướng:** sidebar; `Ctrl+1…8` nhảy trang; `Ctrl+,` mở Cài đặt; `Esc` đóng hộp thoại.
 4. **Đổi ngôn ngữ:** áp dụng ngay cho cả `main` và island, không cần khởi động lại.
@@ -125,3 +125,4 @@ Cửa sổ này dùng command của các module khác. Command riêng:
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Nhớ vị trí, kích thước, trạng thái phóng to của cửa sổ; bỏ qua vị trí nằm trên màn hình đã rút |
 | 2026-11-01 | Gộp Online vào Nhạc; nhãn Nhạc trên máy rõ nguồn file; chọn trang có lịch sử hiện hai hành động. |
+| 2026-11-01 | Thêm trang Video (`#/video`): dán link, trạng thái và cập nhật công cụ yt-dlp; cài đặt video trong trang Cài đặt |

@@ -22,7 +22,8 @@ Phát nhạc từ ổ đĩa ngay trong PCisland: mở file/thư mục, thư vi�
 
 ## 3. Hành vi & luồng người dùng
 
-1. **Phát nhanh:** Nhạc › Nhạc trên máy › Mở file; trên island có cùng lựa chọn. Mọi file kéo vào island đi vào Kệ file (ADR-015).
+1. **Phát nhanh:** Trên island: Nhạc › Nhạc trên máy › **Chọn thư mục** → quét và phát các bài trong thư mục đó cùng thư mục con; không lấy nhạc của thư mục bên cạnh. Hủy hộp thoại hoặc thư mục rỗng không thay hàng đợi; báo rõ nếu không có nhạc. Trang đầy đủ vẫn hỗ trợ mở file và thêm thư mục. Mọi file kéo vào island đi vào Kệ file (ADR-015).
+   Cửa sổ island được cấp `dialog:allow-open` để mở hộp thoại chọn thư mục native; remote web player không được cấp quyền này.
 2. **Thư viện:** `main › Nhạc › Nhạc trên máy`: thêm thư mục → quét nền với tiến độ → duyệt theo Bài hát / Album / Nghệ sĩ / Thư mục; tìm kiếm tức thì.
 3. **Playlist:** tạo, đổi tên, thêm bài (chuột phải hoặc kéo), sắp xếp bằng kéo thả; nhập/xuất `.m3u8`.
 4. **Hàng đợi:** "Phát tiếp theo" / "Thêm vào hàng đợi"; xem và sắp xếp lại trong `main`.
@@ -62,6 +63,7 @@ Module không tự khai báo activity. Nó là một `MediaSource` (`SourceId = 
 - `Vec<QueueItem>` + `current_index`.
 - Shuffle bằng Fisher–Yates trên phần chưa phát, giữ lịch sử để ⏮ quay lại đúng bài trước.
 - Repeat: `off` · `all` · `one`.
+- Nút lặp trên island và trang Nhạc mở lựa chọn **Lặp 1 bài / Lặp tất cả / Không lặp**. Nhãn phản chiếu trạng thái backend, không đổi giả trước khi lệnh được xử lý.
 - Bấm ⏮ khi vị trí > 3 s thì về đầu bài; ≤ 3 s thì về bài trước.
 
 **Khôi phục phiên:** lúc `stop()` và mỗi 30 s khi đang phát, lưu `{queue, index, position_ms, shuffle, repeat}` vào `kv` với khóa `local_player.session`.

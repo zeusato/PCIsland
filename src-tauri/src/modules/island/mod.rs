@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 pub mod commands;
+mod drag_hover;
 pub mod dto;
 pub mod policy;
 
@@ -359,10 +360,15 @@ async fn cursor_poller(app: AppHandle, shared: Arc<Shared>, settings: watch::Rec
     let mut other_monitor_since: Option<(PhysRect, std::time::Instant)> = None;
     let mut last_gaze = (0i8, 0i8);
     let mut was_pressed = false;
+    let mut drag = drag_hover::DragHover::default();
     let mut period = POLL_FAR;
     loop {
         tokio::time::sleep(period).await;
         if lock(&shared.visibility).mode == VisibilityMode::Hidden {
+            if drag.active {
+                let _ = app.emit_to(LABEL, "island://drag-hover", false);
+            }
+            drag = drag_hover::DragHover::default();
             period = POLL_FAR;
             continue;
         }
@@ -421,8 +427,14 @@ async fn cursor_poller(app: AppHandle, shared: Arc<Shared>, settings: watch::Rec
         } else {
             POLL_FAR
         };
-        let now_inside = lock(&shared.hits).iter().any(|r| r.contains(rx, ry));
+        let hit = lock(&shared.hits).iter().any(|r| r.contains(rx, ry));
         let pressed = win::left_button_down();
+        let was_dragging = drag.active;
+        let drag_hover = drag.update(pressed, (rx, ry), hit, scale);
+        let now_inside = hit || drag_hover;
+        if drag_hover != was_dragging {
+            let _ = app.emit_to(LABEL, "island://drag-hover", drag_hover);
+        }
         if !now_inside && pressed && !was_pressed {
             let _ = app.emit_to(
                 LABEL,

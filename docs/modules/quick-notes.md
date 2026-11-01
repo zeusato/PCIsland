@@ -50,6 +50,7 @@
 ### Nhắc từng dòng checklist (2026-11-01)
 
 - Nút chuông cạnh từng ô tick mở form đặt giờ; mở form trên island xin focus và giữ peek khi rời chuột.
+- Thời gian nằm ở cuối chính dòng checklist, trước nút chuông: `afterNow` và `afterPrevious` đã kích hoạt hiện đếm ngược cập nhật mỗi giây, `at` hiện ngày/giờ hẹn; phụ thuộc chưa kích hoạt hiện “Chờ dòng trước · thời lượng”. Đã báo thì hiện “Đã đến giờ nhắc”; dòng đã tick không hiện thời gian. Timer chỉ tồn tại khi view có đếm ngược chưa hoàn thành.
 - Ba chế độ: `at` (giờ địa phương chuyển sang epoch), `afterNow` (1 giây–365 ngày), `afterPrevious` (đếm từ lúc hoàn thành dòng checklist ngay phía trên, bỏ qua dòng văn bản thường). Dòng checklist đầu không có chế độ phụ thuộc.
 - Bỏ tick dòng trước hủy deadline chưa báo của dòng sau; tick lại bắt đầu lại từ lần hoàn thành mới. Tick xong task thì bỏ cảnh báo của chính task. Xóa ghi chú/dòng task không phát nhắc; bỏ giờ nhắc xóa quy tắc.
 - Migration 0008 thêm `note_tasks`: ID riêng, dòng, nhãn, trạng thái hoàn thành, quy tắc, deadline, thời điểm đã báo, ID dòng trước. Nhãn khớp giữ ID qua chèn/đổi thứ tự; đổi tên tại cùng vị trí giữ ID. Với nhãn trùng nhau, ghép theo thứ tự xuất hiện.
@@ -122,3 +123,4 @@ Không có.
 | 2026-11-01 | Theo yêu cầu chủ dự án: mặc định xem/tương tác ghi chú gần nhất; Tạo mới và thêm mục checklist riêng trên island/main, chọn ghi chú và cuộn nội dung trong island. |
 | 2026-11-01 | Form tạo/sửa/thêm checklist giữ mở khi rời chuột, gồm ô trống và mất focus; 3 test tích hợp trên IslandRoot. |
 | 2026-11-01 | Nhắc riêng từng task với ba kiểu giờ, phụ thuộc dòng checklist ngay trên, lưu bền và kiểm thử undo/đổi thứ tự/xóa. |
+| 2026-11-01 | Thêm nút Danh sách ghi chú với list cuộn và chọn trực tiếp; ghi chú ghim cũng có nút mở trình chọn. |

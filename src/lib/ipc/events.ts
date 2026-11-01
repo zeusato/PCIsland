@@ -22,6 +22,7 @@ const on =
 
 export const onIslandVisibility = on<VisibilityEvent>('island://visibility');
 export const onIslandPointer = on<IslandPointerEvent>('island://pointer');
+export const onIslandDragHover = on<boolean>('island://drag-hover');
 export const onIslandHotkey = on<string>('island://hotkey');
 export const onIslandState = on<IslandState>('island://state');
 export const onSettings = on<Settings>('settings://changed');

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-video-open-in-browser"
+description = "Enables the video_open_in_browser command without any pre-configured scope."
+commands.allow = ["video_open_in_browser"]
+
+[[permission]]
+identifier = "deny-video-open-in-browser"
+description = "Denies the video_open_in_browser command without any pre-configured scope."
+commands.deny = ["video_open_in_browser"]

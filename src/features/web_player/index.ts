@@ -7,7 +7,7 @@ export function registerWebPlayer(): void {
     id: 'web_player.open',
     labelKey: 'main.nav.media',
     icon: Music,
-    order: 60,
+    order: 10,
     panel: QuickPanel,
   });
 }

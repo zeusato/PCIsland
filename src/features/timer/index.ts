@@ -7,7 +7,7 @@ import StopwatchPanel from './views/StopwatchPanel.svelte';
 import { pomodoroLabel, pomodoroState, pomodoroUi, quickPomodoro } from './pomodoro.svelte';
 
 export function registerTimer(): void {
-  registerQuickAction({ id: 'timer.start', labelKey: 'island.launcher.timer', icon: Timer, order: 10, panel: QuickPanel });
-  registerQuickAction({ id: 'stopwatch.start', labelKey: 'island.launcher.stopwatch', icon: Watch, order: 20, panel: StopwatchPanel });
-  registerQuickAction({ id: 'pomodoro.start', labelKey: 'island.launcher.pomodoro', icon: Brain, order: 30, run: quickPomodoro, state: pomodoroState, status: pomodoroLabel, busy: () => pomodoroUi.busy });
+  registerQuickAction({ id: 'timer.start', labelKey: 'island.launcher.timer', icon: Timer, order: 50, panel: QuickPanel });
+  registerQuickAction({ id: 'stopwatch.start', labelKey: 'island.launcher.stopwatch', icon: Watch, order: 60, panel: StopwatchPanel });
+  registerQuickAction({ id: 'pomodoro.start', labelKey: 'island.launcher.pomodoro', icon: Brain, order: 40, run: quickPomodoro, state: pomodoroState, status: pomodoroLabel, busy: () => pomodoroUi.busy });
 }

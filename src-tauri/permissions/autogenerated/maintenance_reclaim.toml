@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-maintenance-reclaim"
+description = "Enables the maintenance_reclaim command without any pre-configured scope."
+commands.allow = ["maintenance_reclaim"]
+
+[[permission]]
+identifier = "deny-maintenance-reclaim"
+description = "Denies the maintenance_reclaim command without any pre-configured scope."
+commands.deny = ["maintenance_reclaim"]

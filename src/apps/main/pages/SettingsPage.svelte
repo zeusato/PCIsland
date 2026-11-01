@@ -2,6 +2,7 @@
   // Settings (docs/modules/full-window.md §5). Every change goes through settings_update,
   // which validates, persists and broadcasts to both windows.
   import Card from '$lib/components/Card.svelte';
+  import MaintenancePanel from '../../../features/maintenance/views/Panel.svelte';
   import Button from '$lib/components/Button.svelte';
   import SettingRow from '$lib/components/form/SettingRow.svelte';
   import Toggle from '$lib/components/form/Toggle.svelte';
@@ -142,7 +143,7 @@
   </Card>
 
   <Card title={t('settings.shortcuts')}>
-    {#each ['togglePeek', 'openMain', 'toggleHidden', 'quickNote'] as const as key (key)}
+    {#each ['togglePeek', 'openMain', 'toggleHidden', 'quickNote', 'videoOpen'] as const as key (key)}
       <SettingRow label={t(`settings.shortcut.${key}`)}>
         <input
           class="shortcut"
@@ -198,6 +199,18 @@
     <SettingRow label={t('settings.visualizer')} hint={t('settings.visualizerHint')}>
       <Select label={t('settings.visualizer')} value={s.visualizer.mode} options={['real', 'fake', 'off'].map((v) => ({ value: v, label: t(`settings.visualizers.${v}`) }))} onchange={set('visualizer', 'mode')} />
     </SettingRow>
+    <SettingRow label={t('settings.video.engine')} hint={t('settings.video.engineHint')}>
+      <Select label={t('settings.video.engine')} value={s.video.engine} options={['stream', 'embed'].map((v) => ({ value: v, label: t(`settings.video.engines.${v}`) }))} onchange={set('video', 'engine')} />
+    </SettingRow>
+    <SettingRow label={t('settings.video.maxHeight')}>
+      <Select label={t('settings.video.maxHeight')} value={String(s.video.maxHeight)} options={['360', '480', '720', '1080', '1440', '2160'].map((v) => ({ value: v, label: `${v}p` }))} onchange={(v) => updateSettings('video', { maxHeight: Number(v) })} />
+    </SettingRow>
+    <SettingRow label={t('settings.video.width')}>
+      <NumberInput label={t('settings.video.width')} value={s.video.defaultWidth} min={240} max={960} suffix="px" onchange={set('video', 'defaultWidth')} />
+    </SettingRow>
+    <SettingRow label={t('settings.video.autoUpdate')} hint={t('settings.video.autoUpdateHint')}>
+      <Toggle label={t('settings.video.autoUpdate')} checked={s.video.autoUpdateTools} onchange={set('video', 'autoUpdateTools')} />
+    </SettingRow>
     <SettingRow label={t('settings.webUnload')} hint={t('settings.webUnloadHint')}>
       <NumberInput label={t('settings.webUnload')} value={s.webPlayer.unloadAfterPausedMin} min={0} max={480} suffix={t('timer.minutes')} onchange={set('webPlayer', 'unloadAfterPausedMin')} />
     </SettingRow>
@@ -238,6 +251,7 @@
       <Button variant="danger" onclick={() => appCommands.quit()}>{t('settings.quit')}</Button>
     </SettingRow>
   </Card>
+  <Card title={t('maintenance.title')}><MaintenancePanel /></Card>
 {/if}
 
 <style>

@@ -40,6 +40,7 @@
 ```
 
 **Luật màu:**
+- Chữ ký “by Zeusato” trên lưới launcher là ngoại lệ trang trí theo yêu cầu: cam cố định `--c-signature: #ff8a45`, glow nhẹ 6/12 px; chữ nghiêng 12 px, weight 400, tracking 0.06em. Hiệu ứng opacity 0.8–1 chỉ chạy hai nhịp khi hiện, tắt với giảm chuyển động.
 - Ở trạng thái rảnh, chỉ đôi mắt được dùng màu nhấn, ở mức `opacity` 0.9 và không có glow. Đồng hồ và pill trống không có màu nhấn.
 - Mỗi lúc chỉ một phần tử glow. Nếu có hai activity, chỉ activity chính được glow.
 - Không dùng cam cho chữ thân bài dài. Cam dành cho icon, thanh tiến độ, số đếm, viền trạng thái.
@@ -103,7 +104,7 @@ Cột "Bo góc" dưới đây là bán kính 2 góc dưới; ở kiểu nổi th
 | Compact có activity | 160–280 × 32 | 16 | Trái: icon/ảnh bìa 20 px; phải: thông tin ngắn hoặc sóng nhạc |
 | Phần phụ (secondary) | 32 × 32 | 16 | Một "tab" riêng cũng dính mép, cách pill 6 px, nằm bên phải |
 | Peek | 400 × 120–200 | 28 | Chiều cao theo nội dung, tối đa 200 |
-| Peek có điều hướng tính năng (2026-11-01) | 400 × (nội dung + 28), tối đa 600 cao | 28 | Launcher tối thiểu 220 (tổng 248), đo nội dung để mở rộng; hàng điều hướng 28. Queue mở rộng theo số bài, vùng danh sách tối đa 340 rồi mới cuộn; quay lại player thu về 200 |
+| Peek có điều hướng tính năng (2026-11-01) | 400 × (nội dung + 28 nếu có nút chuyển tác vụ), tối đa 600 cao | 28 | Launcher tối thiểu 220, đo nội dung để mở rộng; lúc rảnh bỏ hàng điều hướng trống, nội dung cách mép trên 16 px. Queue mở rộng theo số bài, vùng danh sách tối đa 340 rồi mới cuộn; quay lại player thu về 200 |
 | Alert nhỏ | 260 × 40 | 20 | Âm lượng, sạc, đổi bài |
 | Alert lớn | 400 × 112 | 28 | Nhắc việc, hết giờ: có nút hành động |
 

@@ -247,7 +247,8 @@ async fn service(
 
         // Our web player also shows up in GSMTC as a generic WebView2 session; while the
         // bridge reports it as `web`, that duplicate is hidden.
-        let web_active = entries.contains_key(WEB_SOURCE_ID);
+        // The video window's WebView2 also registers a generic GSMTC session.
+        let web_active = entries.contains_key(WEB_SOURCE_ID) || entries.contains_key("video");
         let visible = |id: &str| !(web_active && is_webview2_session(id));
         let candidates: Vec<select::Candidate<'_>> = entries
             .iter()

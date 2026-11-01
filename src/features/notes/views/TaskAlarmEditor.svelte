@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { holdFocus } from '$lib/ipc/focus';
   import { tick, untrack } from 'svelte';
   import type { NoteTask } from '$lib/ipc/bindings/NoteTask';
-  import { inTauri, islandCommands, noteCommands } from '$lib/ipc/commands';
+  import { inTauri, noteCommands } from '$lib/ipc/commands';
   import { t } from '$lib/i18n/index.svelte';
   let { task, hasPrevious, island = false, close }: { task: NoteTask; hasPrevious: boolean; island?: boolean; close: () => void } = $props();
   let mode = $state(untrack(() => task.alarm?.mode ?? 'afterNow'));
@@ -17,8 +18,9 @@
   $effect(() => {
     if (!island || !inTauri) return;
     let active = true;
-    void islandCommands.requestFocus().then(async () => { await tick(); if (active) form?.querySelector<HTMLInputElement>('input')?.focus(); });
-    return () => { active = false; void islandCommands.releaseFocus(); };
+    const focus = holdFocus();
+    void focus.ready.then(async () => { await tick(); if (active) form?.querySelector<HTMLInputElement>('input')?.focus(); });
+    return () => { active = false; focus.release(); };
   });
   async function save(remove = false) {
     if (busy) return;

@@ -13,7 +13,7 @@
     "windows": [],
     "withGlobalTauri": false,
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: artwork: http://artwork.localhost; connect-src ipc: http://ipc.localhost"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: artwork: http://artwork.localhost; media-src 'self' blob: http://vstream.localhost; connect-src ipc: http://ipc.localhost http://vstream.localhost; frame-src https://www.youtube-nocookie.com https://www.facebook.com"
     }
   },
   "bundle": {

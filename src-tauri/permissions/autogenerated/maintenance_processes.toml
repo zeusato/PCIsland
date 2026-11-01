@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-maintenance-processes"
+description = "Enables the maintenance_processes command without any pre-configured scope."
+commands.allow = ["maintenance_processes"]
+
+[[permission]]
+identifier = "deny-maintenance-processes"
+description = "Denies the maintenance_processes command without any pre-configured scope."
+commands.deny = ["maintenance_processes"]

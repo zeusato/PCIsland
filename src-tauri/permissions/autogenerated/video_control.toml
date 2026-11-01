@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-video-control"
+description = "Enables the video_control command without any pre-configured scope."
+commands.allow = ["video_control"]
+
+[[permission]]
+identifier = "deny-video-control"
+description = "Denies the video_control command without any pre-configured scope."
+commands.deny = ["video_control"]

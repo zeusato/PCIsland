@@ -1,5 +1,5 @@
 // Only this file and events.ts may talk to Tauri (docs/03-coding-principles.md §4).
-import { invoke } from '@tauri-apps/api/core';
+import { Channel, invoke } from '@tauri-apps/api/core';
 import type { HitRect } from './bindings/HitRect';
 import type { IslandSnapshot } from './bindings/IslandSnapshot';
 import type { VisibilityMode } from './bindings/VisibilityMode';
@@ -9,6 +9,27 @@ import type { SiteDto } from './bindings/SiteDto';
 import type { IslandState } from './bindings/IslandState';
 import type { Settings } from './bindings/Settings';
 import type { AppInfo } from './bindings/AppInfo';
+import type { ResourceSnapshot } from './bindings/ResourceSnapshot';
+import type { CleanupResult } from './bindings/CleanupResult';
+import type { CleanupProgress } from './bindings/CleanupProgress';
+import type { MemoryProcess } from './bindings/MemoryProcess';
+import type { MemoryTarget } from './bindings/MemoryTarget';
+import type { MemoryReclaim } from './bindings/MemoryReclaim';
+import type { MemoryMeasurement } from './bindings/MemoryMeasurement';
+
+export const maintenanceCommands = {
+  clean: (onProgress: (p: CleanupProgress) => void) => {
+    const progress = new Channel<CleanupProgress>();
+    progress.onmessage = onProgress;
+    return invoke<CleanupProgress>('maintenance_clean', { progress });
+  },
+  resources: () => invoke<ResourceSnapshot>('maintenance_resources'),
+  logs: (clean: boolean) => invoke<CleanupResult>('maintenance_logs', { clean }),
+  processes: () => invoke<MemoryProcess[]>('maintenance_processes'),
+  reclaim: (targets: MemoryTarget[]) => invoke<MemoryReclaim>('maintenance_reclaim', { targets }),
+  measure: (targets: MemoryTarget[]) => invoke<MemoryMeasurement>('maintenance_measure', { targets }),
+  open: (tool: 'storage' | 'task_manager') => invoke<void>('maintenance_open', { tool }),
+};
 import type { SoundId } from './bindings/SoundId';
 import type { TimerSnapshot } from './bindings/TimerSnapshot';
 import type { Countdown } from './bindings/Countdown';
@@ -154,6 +175,7 @@ export const lyricsCommands = {
 };
 
 export const webPlayerCommands = {
+  setRepeat: (mode: 'off' | 'all' | 'one') => invoke<void>('web_player_set_repeat', { mode }),
   search: (siteId: string, query: string) => invoke<import('./bindings/WebQueueItem').WebQueueItem[]>('web_player_search', { siteId, query }),
   playResult: (siteId: string, url: string) => invoke<void>('web_player_play_result', { siteId, url }),
   requestQueue: () => invoke<void>('web_player_request_queue'),

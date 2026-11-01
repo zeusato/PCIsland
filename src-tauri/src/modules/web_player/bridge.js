@@ -16,12 +16,17 @@
   let restore = null;
   let restoreTimer = null;
   let appNavigation = false;
+  let repeatMode = null;
+  let repeatError = false;
+  const handledEnds = new WeakSet();
   // An explicit source/track change in PCisland must not hang behind a hidden
   // "leave while playing" dialog. Ordinary navigation keeps the site's own guard.
   window.addEventListener('beforeunload', (event) => {
     if (appNavigation) event.stopImmediatePropagation();
   }, true);
   const queueNodes = new Map();
+  // Album/search rows can select a song without belonging to the playing queue.
+  const pageNodes = new Map();
   const isZing = new URL(location.href).hostname === 'zingmp3.vn';
   const isSoundCloud = new URL(location.href).hostname === 'soundcloud.com';
   const isSpotify = new URL(location.href).hostname === 'open.spotify.com';
@@ -106,9 +111,10 @@
     report();
     setTimeout(report, 300);
   };
-  const readQueue = () => {
+  // `zing` may be passed in so one report parses Zing's stored queue only once.
+  const readQueue = (zing = readZing()) => {
     queueNodes.clear();
-    const zing = readZing();
+    pageNodes.clear();
     if (zing) {
       for (const item of zing.queue) queueNodes.set(item.url, { title: item.title, node: null });
       // Queue rows contain links; playlist-page titles are spans, so map them through observed API metadata.
@@ -116,9 +122,14 @@
       for (const row of rows) {
         const title = row.querySelector('figure[title]')?.getAttribute('title');
         const anchor = row.querySelector('a[href*="/bai-hat/"]');
-        const known = [...zingTracks.values()].find((item) => item.title === title);
+        const candidates = (zingPlaylist?.items ?? [...zingTracks.values()]).filter((item) => item.title === title);
+        const known = candidates.length === 1 ? candidates[0] : null;
         const url = anchor ? urlOf(anchor.getAttribute('href')) : known?.url;
-        if (url && title && (queueNodes.has(url) || !zing.queue.length)) queueNodes.set(url, { title, node: row.querySelector('button.action-play') || anchor });
+        if (url && title) {
+          const entry = { title, node: row.querySelector('button.action-play') || anchor };
+          pageNodes.set(url, entry);
+          if (queueNodes.has(url) || !zing.queue.length) queueNodes.set(url, entry);
+        }
       }
       if (queueNodes.size) return [...queueNodes].slice(0,100).map(([url, item]) => ({ url, title: item.title }));
     }
@@ -177,7 +188,7 @@
     const zing = readZing();
     const playing = media ? !media.paused && !media.ended : sessionState === 'playing';
     const hasSomething = metadata || media;
-    const queue = readQueue();
+    const queue = readQueue(zing);
     const currentLink = document.querySelector('.playbackSoundBadge__titleLink, [data-testid="now-playing-widget-v2"] a');
     const trackUrl = zing?.current?.url || (isSpotify && knownTracks.get(metadata?.title)) || urlOf(currentLink?.getAttribute('href'));
     const soundContext = isSoundCloud && trackUrl ? new URL(trackUrl).searchParams.get('in') : null;
@@ -186,6 +197,8 @@
       pageUrl: zing?.current?.playlistUrl || (soundContext && urlOf('/' + soundContext)) || (isSpotify && urlOf(currentLink?.getAttribute('href'))) || location.href,
       trackUrl: trackUrl || location.href,
       queue,
+      repeat: repeatMode,
+      repeatError,
       title: clip(metadata?.title || document.title || ''),
       artist: clip(metadata?.artist || null),
       album: clip(metadata?.album || null),
@@ -254,10 +267,40 @@
   }
 
   // --- Media elements, including ones never attached to the DOM ---
+  const onEnded = (event) => {
+    if (repeatMode === null || handledEnds.has(event) || accessBlocked() || document.querySelector('.ad-showing')) return;
+    const media = event.target;
+    if (!media || media !== activeMedia()) return;
+    const state = snapshot();
+    let index = state.queue.findIndex((item) => item.url === state.trackUrl);
+    if (index < 0) index = state.queue.findIndex((item) => item.title === state.title);
+    if (repeatMode !== 'one' && index < 0) {
+      if (repeatMode === 'all') { repeatError = true; report(); }
+      return;
+    }
+    handledEnds.add(event);
+    event.stopImmediatePropagation();
+    if (repeatMode === 'one') {
+      media.currentTime = 0;
+      media.play()?.catch(() => { repeatError = true; report(); });
+    } else {
+      const next = state.queue[index + 1] || (repeatMode === 'all' ? state.queue[0] : null);
+      if (next && state.queue.length === 1) {
+        media.currentTime = 0;
+        media.play()?.catch(() => { repeatError = true; report(); });
+      } else if (next) select(next.url);
+      else media.pause();
+    }
+    report();
+  };
+  // Capture before site handlers advance the queue; detached Audio has its own listener.
+  window.addEventListener('ended', onEnded, true);
   const play = HTMLMediaElement.prototype.play;
   HTMLMediaElement.prototype.play = function (...args) {
+    if (repeatMode !== null && !document.querySelector('.ad-showing')) this.loop = repeatMode === 'one';
     if (!tracked.has(this)) {
       tracked.add(this);
+      this.addEventListener?.('ended', onEnded, true);
       for (const type of ['play', 'pause', 'ended', 'durationchange', 'ratechange', 'seeked', 'loadedmetadata']) this.addEventListener?.(type, report);
       // Audio created with new Audio() may never enter the DOM; document listeners
       // do not receive its timeupdate events, so save its progress here as well.
@@ -303,13 +346,31 @@
     if (accessBlocked()) return;
     if ((isZing || isSpotify) && attempt === 0) requestQueue();
     readQueue();
-    const item = queueNodes.get(url);
+    const item = pageNodes.get(url) || queueNodes.get(url);
     if (item?.node) {
       const row = item.node.closest('[data-testid="tracklist-row"], [role="row"], .media-item, .list-song-item, .queue__item, .trackItem, .sound');
       const playButton = row?.querySelector('button.action-play, [data-testid="play-button"], button[aria-label^="Play"], .playButton, .icon.ic-play, .play');
       (playButton || item.node).click();
-      setTimeout(() => exec('play'), 1000);
+      setTimeout(() => { if (snapshot().trackUrl === url) exec('play'); }, 1000);
     } else if ((isZing || isSpotify) && attempt < 8) setTimeout(() => select(url, attempt + 1), 250);
+    else if (repeatMode !== null) { repeatError = true; report(); }
+  };
+  const setRepeat = (mode, restoreMode = false) => {
+    if (!['off', 'all', 'one'].includes(mode)) return false;
+    const media = activeMedia();
+    if (restoreMode && !media && !accessBlocked()) { repeatMode = mode; report(); return true; }
+    repeatError = accessBlocked() || !media || !Number.isFinite(media.duration) || !!document.querySelector('.ad-showing');
+    if (!repeatError && mode === 'all') {
+      requestQueue();
+      const state = snapshot();
+      repeatError = !state.queue.some((item) => item.url === state.trackUrl || item.title === state.title);
+    }
+    if (!repeatError) {
+      repeatMode = mode;
+      media.loop = mode === 'one';
+    }
+    report();
+    return !repeatError;
   };
   const navigate = (url) => {
     try {
@@ -326,25 +387,30 @@
       if (!restore || ++restore.attempts > 28) return;
       if (accessBlocked()) { restore = null; return; }
       const media = activeMedia();
-      const matching = metadata?.title?.trim() === restore.title?.trim();
+      const actualUrl = snapshot().trackUrl;
+      const expectedUrl = urlOf(restore.trackUrl);
+      const matching = metadata?.title?.trim() === restore.title?.trim() && (!expectedUrl || actualUrl === expectedUrl);
       if (media && matching && media.readyState >= 1) {
         if (Number.isFinite(media.duration)) media.currentTime = Math.min(restore.positionMs / 1000, Math.max(0, media.duration - 1));
         if (media.paused) exec('play'); restore = null; report(); return;
       }
       const queue = readQueue();
-      const item = queue.find((item) => item.url === restore.trackUrl || item.title === restore.title);
+      const fallback = !expectedUrl && queue.find((item) => item.title === restore.title);
+      const selectionUrl = expectedUrl || fallback?.url;
+      const item = pageNodes.get(selectionUrl) || queueNodes.get(selectionUrl);
+      if (restore.attempts === 1 && item && !item.node) requestQueue();
       // One activation per restore. Poll readiness, never repeatedly click Play.
       if (!restore.activated) {
         if (matching) restore.activated = exec('play');
-        else if (item) { select(item.url); restore.activated = true; }
+        else if (item?.node) { select(selectionUrl); restore.activated = true; }
         else if (urlOf(restore.trackUrl) === location.href) {
-          const button = isSoundCloud ? document.querySelector('.soundTitle__playButtonHero .playButton') : isSpotify ? document.querySelector('main [data-testid="play-button"]') : null;
+          const button = isZing ? document.querySelector('.song-header button.btn-play-all') : isSoundCloud ? document.querySelector('.soundTitle__playButtonHero .playButton') : isSpotify ? document.querySelector('main [data-testid="play-button"]') : null;
           if (button) { button.click(); restore.activated = true; }
         }
       }
-      if (!restore.activated && restore.attempts === 8 && restore.trackUrl && restore.trackUrl !== location.href) {
+      if (!restore.activated && !restore.navigated && restore.attempts === 8 && restore.trackUrl && restore.trackUrl !== location.href) {
         const url = urlOf(restore.trackUrl);
-        if (url) { sessionStorage.setItem('pcisland.resume', JSON.stringify(restore)); navigate(url); return; }
+        if (url) { restore.navigated = true; sessionStorage.setItem('pcisland.resume', JSON.stringify(restore)); navigate(url); return; }
       }
       restoreTimer = setTimeout(attempt, 1000);
     };
@@ -352,8 +418,14 @@
     attempt();
   };
 
+  const cancelResume = () => {
+    restore = null;
+    if (restoreTimer) clearTimeout(restoreTimer);
+    window.sessionStorage?.removeItem('pcisland.resume');
+  };
+
   Object.defineProperty(window, '__pcisland', {
-    value: Object.freeze({ exec, select, resume, requestQueue, navigate }),
+    value: Object.freeze({ exec, select, resume, cancelResume, requestQueue, navigate, setRepeat }),
     enumerable: false,
     configurable: false,
     writable: false,

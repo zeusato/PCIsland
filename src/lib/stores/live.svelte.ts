@@ -7,6 +7,7 @@ import {
   lyricsCommands,
   playerCommands,
   settingsCommands,
+  shelfCommands,
   timerCommands,
 } from '$lib/ipc/commands';
 import {
@@ -51,6 +52,7 @@ let started = false;
 export async function startLiveStores(): Promise<void> {
   if (started || !inTauri) return;
   started = true;
+  let shelfRevision = 0;
   await Promise.all([
     onIslandState((s) => {
       if (newer(live.island, s)) live.island = s;
@@ -63,6 +65,7 @@ export async function startLiveStores(): Promise<void> {
       live.reminders = s;
     }),
     onShelfState((s) => {
+      shelfRevision++;
       live.shelf = s;
     }),
     onPlayerState((s) => {
@@ -72,18 +75,21 @@ export async function startLiveStores(): Promise<void> {
       live.lyrics = l;
     }),
   ]);
-  const [island, settings, timer, player, lyrics] = await Promise.all([
+  const shelfAtRequest = shelfRevision;
+  const [island, settings, timer, player, lyrics, shelf] = await Promise.all([
     activityCommands.getState(),
     settingsCommands.get(),
     timerCommands.getState(),
     playerCommands.getState(),
     lyricsCommands.current(),
+    shelfCommands.list(),
   ]);
   if (newer(live.island, island)) live.island = island;
   applySettings(settings);
   if (newer(live.timer, timer)) live.timer = timer;
   if (newer(live.player, player)) live.player = player;
   live.lyrics = lyrics;
+  if (shelfRevision === shelfAtRequest) live.shelf = shelf;
 }
 
 /** Updates one settings section; the backend validates and broadcasts the result. */

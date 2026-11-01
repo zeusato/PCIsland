@@ -26,13 +26,13 @@ const PEEK_HEIGHT: Record<string, number> = {
   launcher: 220,
 };
 
-export function geometryFor(mode: Presentation, content: Content, source = '', contentHeight = 0): Geometry {
+export function geometryFor(mode: Presentation, content: Content, source = '', contentHeight = 0, showSwitcher = true): Geometry {
   if (content === 'drop') return { w: 400, h: 220, r: 28 };
   switch (mode) {
     case 'minimal':
       return { w: 96, h: 4, r: 2 };
     case 'peek':
-      return { w: 400, h: Math.min(MAX_PEEK_H, Math.max(PEEK_HEIGHT[content === 'launcher' ? 'launcher' : source] ?? 160, contentHeight) + SWITCHER_H), r: 28 };
+      return { w: 400, h: Math.min(MAX_PEEK_H, Math.max(PEEK_HEIGHT[content === 'launcher' ? 'launcher' : source] ?? 160, contentHeight) + (showSwitcher ? SWITCHER_H : 0)), r: 28 };
     case 'alert':
       return content === 'alert-large' ? { w: 400, h: 150, r: 28 } : { w: 260, h: 40, r: 20 };
     case 'compact':

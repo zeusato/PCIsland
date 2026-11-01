@@ -7,6 +7,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:app": "powershell -NoProfile -File scripts/build-release.ps1",
+    "build:exe": "powershell -NoProfile -File scripts/build-release.ps1 -NoBundle",
+    "clean:build": "powershell -NoProfile -File scripts/clean-build.ps1",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && eslint . && node scripts/i18n-check.mjs",
     "test": "vitest run",
@@ -20,7 +23,8 @@
     "@crabnebula/tauri-plugin-drag": "2.1.0",
     "@lucide/svelte": "^1.66.0",
     "@tauri-apps/api": "^2.12.4",
-    "@tauri-apps/plugin-dialog": "2.8.4"
+    "@tauri-apps/plugin-dialog": "2.8.4",
+    "hls.js": "1.5.20"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

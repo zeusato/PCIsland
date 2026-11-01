@@ -18,7 +18,12 @@
         if (!href) continue;
         const url = new URL(href, location.href);
         const title = (node.closest('.media-item')?.querySelector('figure[title]')?.getAttribute('title') || node.innerText || node.textContent || '').trim();
-        if (url.origin === location.origin && title && !url.pathname.includes('/sets/')) items.set(url.href, { url: url.href, title: title.slice(0, 512) });
+        // Verified against the public search DOM on 2026-11-01. Keep artist
+        // credits separate from uploaders; neither search page exposes an uploader.
+        const row = node.closest(location.hostname === 'zingmp3.vn' ? '.media-item' : '[role="row"]');
+        const credits = row?.querySelectorAll(location.hostname === 'zingmp3.vn' ? '.card-info .subtitle a' : 'a[href*="/artist/"]') ?? [];
+        const artist = [...new Set([...credits].map((a) => (a.innerText || a.textContent || '').trim()).filter(Boolean))].join(', ').slice(0, 256) || null;
+        if (url.origin === location.origin && title && !url.pathname.includes('/sets/')) items.set(url.href, { url: url.href, title: title.slice(0, 512), artist, uploader: null });
         if (items.size >= 30) break;
       }
       const result = [...items.values()];

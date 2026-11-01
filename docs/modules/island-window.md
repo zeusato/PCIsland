@@ -23,7 +23,7 @@ Sở hữu cửa sổ island: tạo, đặt vị trí, giữ luôn nổi trên c
 1. **Lướt chuột qua:** chuột đi ngang island để tới tab trình duyệt. Island giữ compact vì chuột chưa dừng đủ `hover_delay_ms` (250 ms). Click đi xuyên xuống tab bên dưới.
 2. **Hover để xem:** chuột dừng trên pill ≥ 250 ms thì morph sang peek. Chuột rời vùng peek ≥ `collapse_delay_ms` (400 ms) thì thu về compact, trừ khi đang mở một form soạn thảo.
 3. **Click:** click pill thì mở peek và ghim lại, peek không tự thu khi rời chuột. Click ra ngoài, nhấn `Esc` hoặc gọi lại phím tắt thì thu về.
-4. **Mở cửa sổ đầy đủ:** double-click pill hoặc bấm nút ⤢ trong peek mở `main` ở đúng trang của activity đang hiện.
+4. **Mở cửa sổ đầy đủ:** chỉ qua nút mở app rõ ràng (Mở PCisland); nhấp đúp trên pill không mở main.
 5. **Xem phim toàn màn hình:** còn tác vụ thì mặc định giữ minimal; chỉ ẩn hẳn khi cho phép `hide_while_active` hoặc không còn tác vụ. Có Critical (nhắc việc) thì xử lý theo cài đặt `allow_alert_over_fullscreen`.
 6. **Cửa sổ phóng to và island rảnh:** island thu thành vạch mảnh. Hover vào vạch thì bung lại compact.
 7. **Nhập chữ (ghi chú mới/sửa, thêm ô tick, nhắc việc):** island xin focus; chừng nào editor còn mở thì rời chuột không thu gọn, kể cả ô trống, đã blur hoặc tạm disabled khi lưu. Kiểm tra editor tại thời điểm hết delay để bảo vệ cả form vừa mở khi timer rời chuột đã chạy. Khi lưu/hủy đóng editor, quy tắc hover bình thường áp dụng lại. Input/textarea/contenteditable được nhận diện chung, không cần từng module đăng ký riêng; checkbox, range, nút và trường readonly/hidden không giữ mở.
@@ -38,7 +38,6 @@ Module này không khai báo activity. Nó render những gì hub gửi qua `isl
 |---|---|---|
 | compact | `pointerDwell(≥ hover_delay_ms)` | peek |
 | compact | `click` | peek (pinned) |
-| compact | `doubleClick` | gửi `island_open_main`; giữ compact |
 | peek | `pointerLeave(≥ collapse_delay_ms)`, không pinned và không mở editor | compact |
 | peek (pinned) | `clickOutside` / `escape` / `hotkeyToggle` | compact |
 | compact, peek | `alertShown` | alert (nhớ trạng thái trước đó) |
@@ -50,12 +49,17 @@ Module này không khai báo activity. Nó render những gì hub gửi qua `isl
 Alert lớn (Critical) chặn việc thu về compact cho tới khi người dùng xác nhận.
 
 **Peek khi rảnh: launcher.**
-- Không có activity nào thì peek là **launcher**: hàng ngày giờ + pin, bên dưới là lưới nút tạo nhanh (Hẹn giờ, Bấm giờ, Pomodoro, Nhắc việc, Ghi chú, Nhạc, Mở PCisland).
+- Khi không hiện nút chuyển tác vụ, không chừa hàng điều hướng 28 px: nội dung bắt đầu cách mép trên 16 px. Chiều cao và hit region chỉ cộng hàng điều hướng khi nút thực sự hiện.
+- Lưới launcher có chữ ký “by Zeusato” ở góc dưới phải, chữ nghiêng weight 400 màu neon cam cố định; opacity 0.8–1 để dễ đọc. Ánh sáng thay đổi nhẹ hai nhịp trong 6 giây rồi đứng yên; tắt hiệu ứng khi bật giảm chuyển động trong app hoặc hệ thống. Không hiện chữ ký trong panel con.
+- Thứ tự lưới: **Nhạc → Ghi chú → Nhắc việc → Pomodoro → Hẹn giờ → Bấm giờ → Kệ file → Mở PCisland**. Kệ file kèm số mục đang giữ và mở lại các thumbnail để kéo ra.
+- Không có activity nào thì peek là **launcher**: hàng ngày giờ + pin, bên dưới là lưới nút theo thứ tự trên.
 - Nút do từng module đăng ký vào **quick action registry** của frontend (`src/lib/registry/quickActions.ts`), kèm thứ tự và điều kiện hiện. Module bị tắt thì nút ẩn.
 - Bấm một nút sẽ mở panel do module cung cấp (`features/<module>/views/QuickPanel.svelte`) ngay trong peek. Ví dụ: chip preset của hẹn giờ.
 - Khi đang có activity, peek của activity có nút lưới nhỏ ở góc để chuyển sang launcher.
 - Launcher đo chiều cao nội dung bằng ResizeObserver; khi chọn trang nhạc hiện Chạy tiếp/Mở trang gốc thì tự nới island xuống, không ép chooser vào vùng cuộn nhỏ. Danh sách phát cũng đo chiều cao, tối đa 340 px cho các dòng bài rồi mới cuộn. Chiều cao peek tối đa 600 px, trở lại chiều cao cũ khi đóng panel/queue.
 - Chạy tiếp/tìm→phát chuyển thẳng sang player đã chọn, tách khỏi thao tác Quay lại của launcher. Trong lúc metadata chưa đến, hiện trạng thái tải và nút Tính năng; không rơi về lưới tính năng khi hub còn idle hoặc timer đang primary.
+- Player được giữ mounted khi mở tính năng khác, có nút **Về trình phát nhạc** khi có phiên nhạc. Giữ query/kết quả tìm và queue đang xem; dừng tick tiến trình/focus/đo chiều cao khi panel bị ẩn. Điều hướng không gửi lệnh pause/stop hoặc đóng web player.
+- Kéo từ ngoài vào vùng đỉnh 400×64 sẽ mở kệ ưu tiên trước nhạc/alert/minimal. Poller phát `island://drag-hover` khi giữ trái, di chuyển ≥8 px, và cú kéo phải bắt đầu **ngoài** dải 400×64 (kéo tab trình duyệt, thanh tiêu đề cửa sổ phóng to, bôi đen chữ sát mép trên không mở kệ); chỉ native drop có đường dẫn mới thêm file. Khi đã mở, vùng giữ là 400×220, có nhân DPI. Preview không đổi mode/pin, kéo ra trả lại nội dung trước; drop giữ kệ để xem/kéo file ra. Hidden/khóa máy vẫn tuân thủ visibility policy.
 
 ## 5. Thiết kế kỹ thuật
 
@@ -119,7 +123,7 @@ y = monitor.work_area.top   // equals monitor.top unless the taskbar is docked a
 
 Ở minimal, vạch 96×4 hiển thị tiến trình của media/countdown/Pomodoro chính nếu có thời lượng. Media compact cũng có thanh tiến trình giữa ảnh bìa và sóng nhạc. Stream không biết thời lượng không hiển thị phần trăm giả.
 
-Peek có hàng điều hướng cao 28 px với nút **Tính năng** khi có activity: mở launcher/panel ngay trên island, giữ tác vụ và nhạc chạy; **Quay lại tác vụ** trở về activity chính. Chiều cao peek tăng thêm 28 px, vẫn nằm trong cửa sổ 480×264. Launcher không còn chỉ dành cho trạng thái rảnh.
+Peek có hàng điều hướng cao 28 px với nút **Tính năng** khi có activity hoặc player đang được chọn: mở launcher/panel ngay trên island, giữ tác vụ và nhạc chạy; **Quay lại tác vụ** trở về activity chính. Chỉ cộng 28 px khi nút hiện, canvas nới theo nội dung. Launcher không còn chỉ dành cho trạng thái rảnh.
 
 Các loại cửa sổ không bao giờ tính là fullscreen/phóng to: desktop (`Progman`, `WorkerW`), taskbar (`Shell_TrayWnd`), chính các cửa sổ của PCisland.
 
@@ -222,9 +226,12 @@ Không có. Đã chốt: Q1 (đôi mắt khi rảnh), Q2 (luôn hiện, ở màn
 
 | Ngày | Thay đổi |
 |---|---|
+| 2026-11-01 | Bỏ hàng điều hướng trống khi rảnh, kéo nội dung lên 28 px; thêm chữ ký neon cam “by Zeusato” ở đáy phải lưới launcher, hiệu ứng hai nhịp và hỗ trợ giảm chuyển động. |
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Tùy chọn màn hình "theo chuột" (dừng 1 s mới chuyển); phát sự kiện ánh nhìn cho đôi mắt; phát `IslandHidden`/`SessionLocked` lên EventBus; giảm tiến trình renderer |
 | 2026-11-01 | Thêm hide_while_active mặc định false (ADR-014), progress minimal/compact và launcher từ mọi activity; trở lại minimal sau hover/alert. |
 | 2026-11-01 | Launcher cao 220 + hàng điều hướng 28 để xem/tick ghi chú; nút Pomodoro phản ánh trạng thái, toast nằm ngoài nội dung activity để giữ khi activity đổi. |
 | 2026-11-01 | Giữ peek khi rời chuột trong mọi form soạn thảo; test tích hợp ghi chú mới/sửa/thêm ô tick và nhắc việc, gồm ô trống, blur, timeout đang chờ và thu gọn lại sau hủy. |
 | 2026-11-01 | Giữ panel launcher khi activity đổi; drag mở kệ 3 slot; form giờ nhắc checklist giữ mở; toast Pomodoro chuyển sang Windows. |
+| 2026-11-01 | Kéo bắt đầu trong dải mép trên không mở kệ. Mở player từ launcher chỉ có hiệu lực cho một lần peek; thu gọn xong hover lại theo activity. |
+| 2026-11-01 | Launcher có mục Video (`video.open`); phím tắt `videoOpen` mở thẳng panel dán link |

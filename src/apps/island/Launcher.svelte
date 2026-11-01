@@ -5,6 +5,7 @@
   import { t, getLocale } from '$lib/i18n/index.svelte';
   import { quickActions, type QuickAction } from '$lib/registry/quickActions.svelte';
   import { islandInteraction } from '$lib/components/islandInteraction';
+  import { live } from '$lib/stores/live.svelte';
   const { fit } = islandInteraction();
 
   let { initial = null, onclose, onopen }: { initial?: string | null; onclose?: () => void; onopen?: () => void } = $props();
@@ -65,6 +66,7 @@
         </button>
       {/each}
     </div>
+    <span class="signature" class:still={live.settings?.island.reduceMotion === 'on'}>{t('island.launcher.signature')}</span>
   {/if}
 </div>
 
@@ -84,6 +86,29 @@
     display: flex;
     align-items: baseline;
     gap: var(--sp-4);
+  }
+  .signature {
+    align-self: flex-end;
+    padding-right: var(--sp-2);
+    color: var(--c-signature);
+    font-family: var(--font-display);
+    font-size: var(--fs-small);
+    font-weight: var(--fw-regular);
+    font-style: italic;
+    letter-spacing: var(--signature-tracking);
+    line-height: var(--sp-6);
+    text-shadow: var(--glow-signature);
+    opacity: 1;
+    pointer-events: none;
+    animation: signature-glow 3s ease-in-out 2;
+  }
+  @keyframes signature-glow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+  .signature.still { animation: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .signature { animation: none; }
   }
   .title {
     font-size: var(--fs-title-s);

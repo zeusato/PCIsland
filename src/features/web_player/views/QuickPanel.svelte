@@ -2,25 +2,38 @@
   import SiteChooser from './SiteChooser.svelte';
   import Queue from '../../media/views/Queue.svelte';
   import { t } from '$lib/i18n/index.svelte';
-  import { pickAudioFiles } from '$lib/ipc/dialog';
-  import { mediaCommands, playerCommands } from '$lib/ipc/commands';
+  import { pickFolder } from '$lib/ipc/dialog';
+  import { mediaCommands } from '$lib/ipc/commands';
+  import { playFolder } from '../../local_player/folder';
   import { islandInteraction } from '$lib/components/islandInteraction';
   const { showPlayer } = islandInteraction();
   let { close }: { close: () => void } = $props();
   let local = $state(false);
   let error = $state(false);
+  let busy = $state(false);
+  let empty = $state(false);
   function resumePlayer() {
     void mediaCommands.selectSource('web').catch(() => {});
     showPlayer('web');
   }
-  async function files() {
-    try { const paths = await pickAudioFiles(); if (paths.length) await playerCommands.playFiles(paths); }
+  async function folder() {
+    if (busy) return;
+    busy = true; error = false; empty = false;
+    try {
+      const path = await pickFolder();
+      if (!path) return;
+      if (!await playFolder(path)) { empty = true; return; }
+      await mediaCommands.selectSource('local');
+      showPlayer('local');
+    }
     catch { error = true; }
+    finally { busy = false; }
   }
 </script>
 <div class="tabs"><button class:active={!local} onclick={() => local = false}>{t('main.nav.online')}</button><button class:active={local} onclick={() => local = true}>{t('music.library')}</button></div>
 {#if local}
-  <button onclick={files}>{t('music.openFiles')}</button>
+  <button onclick={folder} disabled={busy}>{t(busy ? 'music.scanning' : 'music.chooseFolder')}</button>
+  {#if empty}<p role="status">{t('music.folderEmpty')}</p>{/if}
   <div class="queue"><Queue source="local" {close} /></div>
 {:else}<SiteChooser island onchoose={close} onplay={resumePlayer} />{/if}
 {#if error}<p role="alert">{t('errors.unknown')}</p>{/if}

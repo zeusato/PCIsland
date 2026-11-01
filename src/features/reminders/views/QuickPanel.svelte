@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { holdFocus } from '$lib/ipc/focus';
   // Quick reminder with Vietnamese natural-language preview (docs/modules/reminders.md §3, F25).
-  import { islandCommands, reminderCommands } from '$lib/ipc/commands';
+  import { reminderCommands } from '$lib/ipc/commands';
   import type { ParsedPreview } from '$lib/ipc/bindings/ParsedPreview';
   import { formatWhen } from '$lib/format';
   import { t } from '$lib/i18n/index.svelte';
@@ -12,10 +13,9 @@
   let error = $state('');
 
   $effect(() => {
-    islandCommands.requestFocus().then(() => input?.focus());
-    return () => {
-      islandCommands.releaseFocus();
-    };
+    const focus = holdFocus();
+    void focus.ready.then(() => input?.focus());
+    return focus.release;
   });
 
   $effect(() => {
@@ -33,15 +33,24 @@
     return () => { cancelled = true; clearTimeout(id); };
   });
 
+  let saving = false;
   async function save() {
-    if (!text.trim()) return;
-    const parsed = await reminderCommands.parse(text);
-    if (parsed.dueAt === null) {
-      error = t('reminders.needTime');
-      return;
+    if (saving || !text.trim()) return;
+    saving = true;
+    error = '';
+    try {
+      const parsed = await reminderCommands.parse(text);
+      if (parsed.dueAt === null) {
+        error = t('reminders.needTime');
+        return;
+      }
+      await reminderCommands.create({ title: parsed.title || t('reminders.defaultTitle'), note: null, dueAt: parsed.dueAt, repeat: parsed.repeat, leadMin: 0 });
+      close();
+    } catch {
+      error = t('errors.unknown');
+    } finally {
+      saving = false;
     }
-    await reminderCommands.create({ title: parsed.title || t('reminders.defaultTitle'), note: null, dueAt: parsed.dueAt, repeat: parsed.repeat, leadMin: 0 });
-    close();
   }
 </script>
 

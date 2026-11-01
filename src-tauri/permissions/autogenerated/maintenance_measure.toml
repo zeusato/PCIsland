@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-maintenance-measure"
+description = "Enables the maintenance_measure command without any pre-configured scope."
+commands.allow = ["maintenance_measure"]
+
+[[permission]]
+identifier = "deny-maintenance-measure"
+description = "Denies the maintenance_measure command without any pre-configured scope."
+commands.deny = ["maintenance_measure"]

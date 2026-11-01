@@ -37,6 +37,8 @@ pub struct WebPlayerHandle {
     media: MediaHandle,
     /// Last time (epoch ms) the page reported playing; drives auto-unload.
     last_playing: Arc<std::sync::atomic::AtomicU64>,
+    /// When the window last opened, showed or hid; auto-unload never counts from earlier.
+    lifecycle_at: Arc<std::sync::atomic::AtomicU64>,
     artwork_cache: Arc<crate::core::artwork::ArtworkCache>,
     pending_artwork: Arc<Mutex<artwork::PendingArtwork>>,
 }
@@ -71,6 +73,20 @@ impl WebPlayerHandle {
         }
     }
 
+    /// A resume or search-play is still waiting for its track to start.
+    fn busy(&self) -> bool {
+        self.pending_restore
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .is_some()
+            || self
+                .restoring_title
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .is_some()
+            || self.search.busy()
+    }
+
     pub fn snapshot(&self) -> WebPlayerSnapshot {
         self.state
             .lock()
@@ -81,7 +97,12 @@ impl WebPlayerHandle {
     fn update(&self, app: &AppHandle, f: impl FnOnce(&mut WebPlayerSnapshot)) {
         let snap = {
             let mut s = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+            let before = s.lifecycle;
             f(&mut s);
+            if s.lifecycle != before {
+                self.lifecycle_at
+                    .store(now_ms(), std::sync::atomic::Ordering::Relaxed);
+            }
             s.rev += 1;
             s.clone()
         };
@@ -114,10 +135,13 @@ pub fn setup(
             url: None,
             history,
             queue: Vec::new(),
+            repeat: None,
+            repeat_error: false,
             rev: 0,
         })),
         media: media.clone(),
         last_playing: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+        lifecycle_at: Arc::new(std::sync::atomic::AtomicU64::new(now_ms())),
         artwork_cache,
         pending_artwork: Arc::default(),
     };
@@ -204,6 +228,7 @@ fn open_target(
     } else {
         let data_dir = web_data_dir();
         let restore = handle.pending_restore.clone();
+        let repeat_state = handle.state.clone();
         let win = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::External(parsed.clone()))
             .title(format!("PCisland · {}", site.map_or("Web", |s| s.name)))
             .inner_size(1100.0, 760.0)
@@ -212,6 +237,16 @@ fn open_target(
             .initialization_script(BRIDGE_JS)
             .on_page_load(move |webview, payload| {
                 if payload.event() == tauri::webview::PageLoadEvent::Finished {
+                    let mode = repeat_state
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .repeat;
+                    if let Some(mode) = mode {
+                        let _ = webview.eval(format!(
+                            "window.__pcisland?.setRepeat({}, true);",
+                            serde_json::to_string(&mode).unwrap_or_default()
+                        ));
+                    }
                     if let Some(saved) = restore
                         .lock()
                         .unwrap_or_else(PoisonError::into_inner)
@@ -301,7 +336,9 @@ pub fn resume(
             .get_webview_window(LABEL)
             .ok_or_else(|| crate::ipc::IpcError::new("web_player.closed", "closed"))?;
         win.eval("window.__pcisland?.exec('play')")?;
-        set_visible(app, handle, false)?;
+        if snapshot.lifecycle != Lifecycle::Visible {
+            set_visible(app, handle, false)?;
+        }
     } else {
         *handle
             .restoring_title
@@ -439,6 +476,15 @@ pub fn report(
             .track_url
             .as_deref()
             .and_then(|url| session::site_url(url, site.id));
+        *handle
+            .search
+            .playing_url
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = if msg.status == BridgeStatus::Playing {
+            track_url.clone()
+        } else {
+            None
+        };
         let position = msg
             .position_ms
             .filter(|v| v.is_finite())
@@ -458,7 +504,9 @@ pub fn report(
             }
             expected.is_some()
         };
+        // Ads are not "the track the user listened to last" (resume rule, web-player §3).
         let save = !restoring
+            && !msg.is_ad
             && msg.status != BridgeStatus::None
             && !title.is_empty()
             && prior
@@ -473,11 +521,20 @@ pub fn report(
                         || s.position_ms.abs_diff(position) >= 5000
                         || (msg.status == BridgeStatus::Paused && s.position_ms != position)
                 });
-        if save || prior.queue != queue || prior.url.as_deref() != Some(&page) {
+        if save
+            || prior.queue != queue
+            || prior.url.as_deref() != Some(&page)
+            || (msg.repeat.is_some() && prior.repeat != msg.repeat)
+            || prior.repeat_error != msg.repeat_error
+        {
             handle.update(app, |state| {
                 state.site_id = Some(site.id.into());
                 state.url = Some(page.clone());
                 state.queue = queue.clone();
+                if msg.repeat.is_some() {
+                    state.repeat = msg.repeat;
+                }
+                state.repeat_error = msg.repeat_error;
                 if save {
                     state.history.retain(|s| s.site_id != site.id);
                     state.history.push(dto::WebSession {
@@ -562,15 +619,41 @@ fn spawn_auto_unload(
             tokio::time::sleep(std::time::Duration::from_secs(60)).await;
             let minutes = u64::from(settings.borrow().web_player.unload_after_paused_min);
             let hidden = handle.snapshot().lifecycle == Lifecycle::Hidden;
-            let last = handle
+            let last_playing = handle
                 .last_playing
                 .load(std::sync::atomic::Ordering::Relaxed);
-            if minutes > 0 && hidden && now_ms().saturating_sub(last) > minutes * 60_000 {
+            let lifecycle_at = handle
+                .lifecycle_at
+                .load(std::sync::atomic::Ordering::Relaxed);
+            if should_unload(
+                minutes,
+                hidden,
+                handle.busy(),
+                last_playing,
+                lifecycle_at,
+                now_ms(),
+            ) {
                 tracing::info!(module = "web_player", "unloading idle web player");
                 let _ = close(&app, &handle);
             }
         }
     });
+}
+
+/// Idle = no playback AND no open/show/hide for the whole period. A player that was just
+/// hidden, or is still restoring/searching, is never unloaded.
+fn should_unload(
+    minutes: u64,
+    hidden: bool,
+    busy: bool,
+    last_playing: u64,
+    lifecycle_at: u64,
+    now: u64,
+) -> bool {
+    minutes > 0
+        && hidden
+        && !busy
+        && now.saturating_sub(last_playing.max(lifecycle_at)) > minutes * 60_000
 }
 
 /// Back / forward / reload / home inside the player page.
@@ -624,4 +707,37 @@ pub fn clear_data(app: &AppHandle, handle: &WebPlayerHandle) -> Result<(), crate
         "web_player.clear_failed",
         "profile is still in use",
     ))
+}
+
+#[cfg(test)]
+mod unload_tests {
+    use super::should_unload;
+
+    const MIN: u64 = 60_000;
+
+    #[test]
+    fn a_freshly_hidden_player_is_kept_even_if_it_never_played() {
+        // Opened, signed in, hidden one minute ago, never played (last_playing = 0).
+        assert!(!should_unload(30, true, false, 0, 100 * MIN, 101 * MIN));
+    }
+
+    #[test]
+    fn unloads_only_after_the_whole_period_hidden_and_paused() {
+        assert!(should_unload(30, true, false, 10 * MIN, 20 * MIN, 51 * MIN));
+        assert!(!should_unload(
+            30,
+            true,
+            false,
+            40 * MIN,
+            20 * MIN,
+            51 * MIN
+        ));
+    }
+
+    #[test]
+    fn never_unloads_while_visible_restoring_or_disabled() {
+        assert!(!should_unload(30, false, false, 0, 0, 999 * MIN));
+        assert!(!should_unload(30, true, true, 0, 0, 999 * MIN));
+        assert!(!should_unload(0, true, false, 0, 0, 999 * MIN));
+    }
 }

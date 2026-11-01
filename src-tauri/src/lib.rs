@@ -56,6 +56,8 @@ pub fn run() {
 
     let artwork = Arc::new(ArtworkCache::default());
     let artwork_for_protocol = artwork.clone();
+    let video_proxy = Arc::new(modules::video::proxy::Proxy::default());
+    let video_proxy_for_protocol = video_proxy.clone();
     let open_route = core::paths::arg_value(&args, "--open").map(str::to_owned);
 
     tauri::Builder::default()
@@ -77,6 +79,13 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .register_uri_scheme_protocol("artwork", move |_ctx, request| {
             artwork_for_protocol.respond(&request)
+        })
+        // Media requests of the video window (docs/modules/video-player.md §5.4).
+        .register_asynchronous_uri_scheme_protocol("vstream", move |_ctx, request, responder| {
+            let proxy = video_proxy_for_protocol.clone();
+            tauri::async_runtime::spawn(async move {
+                responder.respond(proxy.handle(request).await);
+            });
         })
         .setup(move |app| {
             let handle = app.handle();
@@ -158,6 +167,15 @@ pub fn run() {
                 player.clone(),
             );
             let visualizer = modules::visualizer::setup(bus.clone(), settings.subscribe());
+            let video = modules::video::setup(
+                handle,
+                db.clone(),
+                media.clone(),
+                video_proxy.clone(),
+                artwork.clone(),
+                settings.subscribe(),
+                paths.local_dir.clone(),
+            );
             let island = island::setup(handle, hub.clone(), &settings, bus.clone())?;
 
             media.attach_smtc(island.hwnd());
@@ -201,6 +219,7 @@ pub fn run() {
             app.manage(sup);
             app.manage(bus);
             app.manage(paths.clone());
+            app.manage(app::maintenance::MaintenanceState::default());
             app.manage(db);
             app.manage(settings);
             app.manage(hub);
@@ -215,11 +234,19 @@ pub fn run() {
             app.manage(shelf);
             app.manage(lyrics);
             app.manage(visualizer);
+            app.manage(video);
             app.manage(island);
             tracing::info!("PCisland started");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            app::maintenance::maintenance_resources,
+            app::maintenance::maintenance_logs,
+            app::maintenance::maintenance_clean,
+            app::maintenance::maintenance_processes,
+            app::maintenance::maintenance_reclaim,
+            app::maintenance::maintenance_measure,
+            app::maintenance::maintenance_open,
             app::commands::app_get_info,
             app::commands::app_quit,
             app::commands::app_show_toast,
@@ -308,6 +335,7 @@ pub fn run() {
             web_player::commands::web_player_resume,
             web_player::commands::web_player_select_queue,
             web_player::commands::web_player_request_queue,
+            web_player::commands::web_player_set_repeat,
             web_player::commands::web_player_search,
             web_player::commands::web_player_search_report,
             web_player::commands::web_player_play_result,
@@ -317,6 +345,21 @@ pub fn run() {
             web_player::commands::web_player_report,
             web_player::commands::web_player_navigate,
             web_player::commands::web_player_clear_data,
+            modules::video::commands::video_classify,
+            modules::video::commands::video_clipboard,
+            modules::video::commands::video_open,
+            modules::video::commands::video_open_stream,
+            modules::video::commands::video_get_state,
+            modules::video::commands::video_tools_status,
+            modules::video::commands::video_tools_install,
+            modules::video::commands::video_control,
+            modules::video::commands::video_window,
+            modules::video::commands::video_open_in_browser,
+            modules::video::commands::video_current,
+            modules::video::commands::video_report,
+            modules::video::commands::video_refresh,
+            modules::video::commands::video_set_quality,
+            modules::video::commands::video_sniff_report,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PCisland");

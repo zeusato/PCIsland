@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-video-refresh"
+description = "Enables the video_refresh command without any pre-configured scope."
+commands.allow = ["video_refresh"]
+
+[[permission]]
+identifier = "deny-video-refresh"
+description = "Denies the video_refresh command without any pre-configured scope."
+commands.deny = ["video_refresh"]

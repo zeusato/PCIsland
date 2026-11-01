@@ -19,14 +19,17 @@ Cho người dùng mở trang nhạc online (Zing MP3, SoundCloud, YouTube…), 
 
 ## 3. Hành vi & luồng người dùng
 
+**Repeat trên island / trang Nhạc (2026-11-01):** nút lặp mở lựa chọn 1 bài / cả danh sách / không lặp. Command `web_player_set_repeat(mode: off|all|one)` chỉ cấp cho cửa sổ local; bridge xác nhận qua `WebPlayerSnapshot.repeat` và `repeatError`. Lặp 1 áp dụng lên media element; lặp danh sách bắt sự kiện ended trước site để chuyển bài và quay về đầu, không lặp dừng ở cuối danh sách. Chỉ áp dụng khi có media hữu hạn và, với danh sách, nhận diện được bài hiện tại trong queue. Thiếu queue, bị chặn hoặc lỗi chọn bài thì báo lỗi; không hiển thị thành công giả. Giữ lựa chọn qua điều hướng trong cùng phiên. Đã test bridge offline; cần kiểm chứng trên website thật, không tự truy cập lại SoundCloud đang bị chặn.
+
 1. **Chọn trang:** island › Nhạc › Online hoặc main › Nhạc › Online. Trang chưa có lịch sử mở thẳng trang gốc; trang có lịch sử hiện tên bài cuối cùng và hai nút Chạy tiếp / Mở trang gốc.
 2. **Thiết lập:** cửa sổ web player mở ra với toolbar mỏng `← → ⟳ ⌂ | [ổ khóa] music.youtube.com | Đổi trang ▾ | Thu gọn | ⋯`. Người dùng đăng nhập, chọn playlist, bấm phát.
 3. **Thu gọn:** cửa sổ ẩn (không hủy), nhạc tiếp tục. Island hiện ảnh bìa + sóng nhạc; peek có ⏮ ⏯ ⏭, thanh tiến độ và nút "Mở trình phát".
 4. **Mở lại:** bấm ảnh bìa hoặc "Mở trình phát" → cửa sổ hiện lại đúng chỗ cũ.
 5. **Tắt hẳn:** menu ⋯ › "Tắt trình phát" → hủy webview, trả RAM. Lần sau mở lại trang cuối, cookie vẫn còn (không phải đăng nhập lại).
-6. **Rảnh lâu:** tạm dừng quá `unload_after_paused_min` (30 phút) thì tự hủy. Island hiện Ambient "Tiếp tục nghe Zing MP3" trong 10 phút để mở lại nhanh.
-7. **Đăng xuất & xóa dữ liệu:** menu ⋯ → xác nhận → xóa cookie và cache của hồ sơ web player.
-8. **Trang không đăng nhập được (Google) hoặc không phát được (DRM):** hiện thẻ hướng dẫn "Trang này cần mở bằng trình duyệt/app. PCisland vẫn điều khiển được qua Media Session" kèm nút "Mở trong trình duyệt".
+6. **Rảnh lâu:** đang ẩn **và** không phát suốt `unload_after_paused_min` (30 phút) thì tự hủy. Thời gian tính từ mốc muộn nhất giữa lần phát cuối và lần mở/hiện/ẩn cuối; đang khôi phục phiên, phát kết quả tìm kiếm hoặc đang tìm thì không hủy. Island hiện Ambient "Tiếp tục nghe Zing MP3" trong 10 phút để mở lại nhanh.
+7. **Quy tắc chọn bài (chốt với chủ dự án 2026-11-01):** chọn lại cùng một trang và bấm "Tiếp tục" → phát đúng bài nghe lần cuối của trang đó, trừ khi người dùng tự chọn bài khác (hàng đợi, trang chủ, tìm kiếm). Phát từ kết quả tìm kiếm → phải phát đúng URL bài đã chọn, chỉ báo thành công khi bridge báo đúng URL đó đang Playing. Quảng cáo không bao giờ được lưu làm "bài nghe lần cuối". "Tiếp tục" giữ nguyên cửa sổ đang mở, không tự ẩn.
+8. **Đăng xuất & xóa dữ liệu:** menu ⋯ → xác nhận → xóa cookie và cache của hồ sơ web player.
+9. **Trang không đăng nhập được (Google) hoặc không phát được (DRM):** hiện thẻ hướng dẫn "Trang này cần mở bằng trình duyệt/app. PCisland vẫn điều khiển được qua Media Session" kèm nút "Mở trong trình duyệt".
 
 ## 4. Activity
 
@@ -207,7 +210,9 @@ Closed ──open(site)──▶ Visible ──thu gọn──▶ Hidden ──t
 
 ## 13. Lịch sử thay đổi
 
-Island: chọn site có lịch sử tự mở rộng panel để thấy đủ các nút. Chạy tiếp thành công hoặc chọn kết quả tìm kiếm đóng toàn bộ launcher, chọn nguồn web và chuyển về player; metadata chậm vẫn giữ màn hình player đang tải. Lỗi IPC giữ panel để thử lại. Queue mở rộng island theo nội dung, danh sách dài mới cuộn. Đã kiểm tra bằng fixture offline, không gọi website sau sự cố SoundCloud.
+Island: chọn site có lịch sử tự mở rộng panel để thấy đủ các nút. Chọn kết quả tìm kiếm hiển thị trạng thái đang mở, chỉ chuyển về player sau khi bridge báo đúng URL bài đã chọn ở trạng thái Playing. Hết 24 giây chưa xác nhận thì giữ kết quả, báo lỗi và cho mở trang nguồn để kiểm tra. Queue mở rộng island theo nội dung, danh sách dài mới cuộn.
+
+Zing có thể chuyển URL bài hát sang album trong khi player và queue vẫn giữ bài cũ. Bridge giữ ánh xạ hàng trên trang (`pageNodes`) riêng với queue, dùng metadata playlist để nhận diện đúng URL rồi bấm nút phát trên hàng đó. Không thêm cả album vào queue cũ khi đọc trang. Restore kiểm tra URL thay vì chỉ tên bài, chỉ kích hoạt một lần và giới hạn một lần điều hướng dự phòng; timeout hủy restore. Regression test bao gồm hai bản cùng tên nhưng URL khác, album mới và queue cũ.
 
 | Ngày | Thay đổi |
 |---|---|
@@ -216,3 +221,7 @@ Island: chọn site có lịch sử tự mở rộng panel để thấy đủ c�
 | 2026-11-01 | Sửa: popup đăng nhập bị chặn (SoundCloud "enable popup windows", Zing màn hình trắng). Thêm `sites::popup_policy` theo §5; `web_player_open` chạy async |
 | 2026-11-01 | Ảnh online tải bất đồng bộ qua ArtworkCache; giới hạn 2 MB/5 s, bảo toàn signed URL, gộp tải và bỏ kết quả cũ. |
 | 2026-11-01 | Lưu phiên từng site, Chạy tiếp/Mở trang gốc, khôi phục vị trí và queue trên island; giữ cookie/cache qua lần chạy. |
+| 2026-11-01 | Tìm ngay trong player; kết quả không co dòng, tối thiểu 40 px, tên dài xuống dòng, list cuộn tối đa 340 px. QA offline 30 kết quả. |
+| 2026-11-01 | Trace DOM công khai Zing/Spotify; search có ca sĩ và uploader tùy nguồn, không suy diễn người đăng. Xem [bằng chứng](../reports/search-credits-2026-11-01.md). |
+| 2026-11-01 | Sửa chọn bài tìm kiếm ngoài queue cũ; xác nhận đúng URL đang phát trước khi đóng kết quả, báo lỗi thay vì hiện player cũ như thành công. |
+| 2026-11-01 | Sửa tự hủy sai: player ẩn mà chưa phát bị hủy sau < 1 phút, có thể cắt ngang khôi phục/phát kết quả tìm kiếm. Không lưu quảng cáo làm bài cuối. "Tiếp tục" không ẩn cửa sổ đang xem. Bridge parse queue Zing một lần mỗi báo. Queue web tô bài hiện tại. |

@@ -11,12 +11,18 @@ import { registerWebPlayer } from '../../features/web_player';
 import { registerTimer } from '../../features/timer';
 import { registerReminders } from '../../features/reminders';
 import { registerNotes } from '../../features/notes';
+import { registerShelf } from '../../features/shelf';
+import { registerMaintenance } from '../../features/maintenance';
+import { registerVideo } from '../../features/video';
 import IslandRoot from './IslandRoot.svelte';
 
 registerTimer();
 registerReminders();
 registerNotes();
+registerShelf();
+registerMaintenance();
 registerWebPlayer();
+registerVideo();
 registerQuickAction({
   id: 'app.open_main',
   labelKey: 'island.launcher.openMain',

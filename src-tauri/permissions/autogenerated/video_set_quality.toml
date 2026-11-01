@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-video-set-quality"
+description = "Enables the video_set_quality command without any pre-configured scope."
+commands.allow = ["video_set_quality"]
+
+[[permission]]
+identifier = "deny-video-set-quality"
+description = "Denies the video_set_quality command without any pre-configured scope."
+commands.deny = ["video_set_quality"]

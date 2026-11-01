@@ -128,6 +128,7 @@ PCisland đưa trải nghiệm Dynamic Island lên Windows. Một vùng nhỏ �
 
 Ý tưởng chưa có ID. Muốn đưa vào kế hoạch thì cấp ID mới (F46, F47…), gán phase và module, rồi cập nhật lộ trình.
 
+- **F46 · Trình phát video nổi:** dán link YouTube/Facebook/trang có video → app tự lấy stream và phát trong 1 cửa sổ nhỏ không quảng cáo; ghim trên cùng, co kéo, về mặc định rộng 320, island điều khiển được, phím tắt Ctrl+Alt+V. [video-player](modules/video-player.md), ADR-018. Chưa xếp phase.
 - Pin tai nghe Bluetooth khi kết nối
 - Chỉ báo Caps Lock / Num Lock
 - Chỉ báo đang quay màn hình
@@ -135,3 +136,4 @@ PCisland đưa trải nghiệm Dynamic Island lên Windows. Một vùng nhỏ �
 - Xuất thống kê Pomodoro
 - Widget chứng khoán / tỷ giá
 - Nhập nhắc việc bằng giọng nói
+- Tiện ích dọn dẹp được chủ dự án yêu cầu triển khai 2026-11-01: [RAM toàn PC và dọn rác Windows/app/browser một chạm](modules/maintenance.md), ADR-019. Đã có source/test, chưa đóng gói; không phải toàn bộ F34 theo dõi CPU/mạng.

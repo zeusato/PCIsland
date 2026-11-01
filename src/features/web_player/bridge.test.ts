@@ -2,6 +2,66 @@ import { runInNewContext } from 'node:vm';
 import { expect, it, vi } from 'vitest';
 import script from '../../../src-tauri/src/modules/web_player/bridge.js?raw';
 
+function repeatFixture() {
+  const callbacks: Array<() => void> = [];
+  const events = new Map<string, (event: object) => void>();
+  const invoke = vi.fn(async () => {});
+  const body = { innerText: 'Music' };
+  const browser: Record<string, unknown> = { __TAURI_INTERNALS__: { invoke }, addEventListener(type: string, cb: (event: object) => void) { events.set(type, cb); } };
+  browser.top = browser;
+  class Media {
+    currentSrc = 'stream'; currentTime = 180; duration = 180; paused = true; ended = true; playbackRate = 1; loop = false;
+    play() { this.paused = false; this.ended = false; return Promise.resolve(); }
+    pause() { this.paused = true; }
+    addEventListener() {}
+  }
+  const audio = new Media();
+  const clicks = [vi.fn(), vi.fn()];
+  const rows = ['First', 'Last'].map((title, i) => ({ getAttribute: (key: string) => key === 'href' ? `/watch?v=${i}` : title, querySelector: () => null, closest: () => null, click: clicks[i] }));
+  runInNewContext(script, {
+    window: browser, navigator: {}, HTMLMediaElement: Media,
+    document: { body, title: 'Last', querySelectorAll: (selector: string) => selector === 'audio, video' ? [audio] : rows, querySelector: () => null, addEventListener() {} },
+    location: { href: 'https://www.youtube.com/watch?v=1' }, URL,
+    setTimeout: (cb: () => void) => { callbacks.push(cb); return callbacks.length; },
+  });
+  const bridge = browser.__pcisland as { setRepeat: (mode: string) => boolean };
+  const ended = () => { const stopImmediatePropagation = vi.fn(); events.get('ended')?.({ target: audio, stopImmediatePropagation }); return stopImmediatePropagation; };
+  return { bridge, audio, clicks, ended, rows, body, invoke, flush: () => { for (let i = 0; i < 20 && callbacks.length; i++) callbacks.shift()?.(); } };
+}
+
+it('applies repeat-one to the real media element and disables it when switched off', () => {
+  const f = repeatFixture();
+  expect(f.bridge.setRepeat('one')).toBe(true);
+  expect(f.audio.loop).toBe(true);
+  expect(f.ended()).toHaveBeenCalledOnce();
+  expect(f.audio.currentTime).toBe(0);
+  expect(f.audio.paused).toBe(false);
+  expect(f.bridge.setRepeat('off')).toBe(true);
+  expect(f.audio.loop).toBe(false);
+});
+
+it('wraps the online playlist in list mode and stops on its last track in off mode', () => {
+  const f = repeatFixture();
+  expect(f.bridge.setRepeat('all')).toBe(true);
+  expect(f.ended()).toHaveBeenCalledOnce();
+  expect(f.clicks[0]).toHaveBeenCalledOnce();
+  f.bridge.setRepeat('off');
+  expect(f.ended()).toHaveBeenCalledOnce();
+  expect(f.audio.paused).toBe(true);
+  expect(f.clicks[0]).toHaveBeenCalledOnce();
+});
+
+it('does not report list repeat as applied when no queue is available or access is blocked', () => {
+  const f = repeatFixture();
+  f.rows.length = 0;
+  expect(f.bridge.setRepeat('all')).toBe(false);
+  f.flush();
+  expect(f.invoke).toHaveBeenLastCalledWith('web_player_report', { msg: expect.objectContaining({ repeat: null, repeatError: true }) });
+  f.body.innerText = 'You have been blocked';
+  expect(f.bridge.setRepeat('one')).toBe(false);
+  expect(f.audio.loop).toBe(false);
+});
+
 it('keeps signed artwork URLs intact while still limiting metadata text', () => {
   const callbacks: Array<() => void> = [];
   const invoke = vi.fn(async () => {});
@@ -48,7 +108,7 @@ it('reports playlist entries, selects a row, and resumes the saved track positio
   const row = { getAttribute: (key: string) => key === 'href' ? '/bai-hat/test/123.html' : 'Saved track', querySelector: () => null, closest: () => null, click };
   runInNewContext(script, {
     window: browser, navigator: { mediaSession: session }, HTMLMediaElement: Media,
-    document: { querySelectorAll: (selector: string) => selector === 'audio, video' ? [media] : [row], querySelector: () => null, addEventListener() {}, title: 'Playlist' },
+    document: { querySelectorAll: (selector: string) => selector === 'audio, video' ? [media] : [row], querySelector: (selector: string) => selector.includes('playbackSoundBadge') ? row : null, addEventListener() {}, title: 'Playlist' },
     location: { href: 'https://zingmp3.vn/album/list/abc.html' }, URL,
     setTimeout: (callback: () => void) => { callbacks.push(callback); return callbacks.length; }, clearTimeout() {},
   });

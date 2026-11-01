@@ -10,17 +10,29 @@
 
 ## 2. Snapshot
 
+**Bổ sung module Dọn dẹp (2026-11-01):** đã có source RAM toàn PC, dọn rác một chạm Windows/app/browser theo allowlist và log cũ; có trên launcher island/Cài đặt. [Phạm vi, API và giới hạn](modules/maintenance.md), ADR-019. Chưa đóng gói exe mới; không xóa rác thật/trim app thật trong phiên phát triển. Agent khác đang verify các module còn lại, không reset/format hàng loạt hoặc xóa cache target dùng chung khi họ còn chạy.
+
+Kiểm tra bổ sung Dọn dẹp: 194 Rust đạt (1 smoke native mặc định ignored đã chạy riêng đạt), 77 frontend đạt, check/i18n 365 khóa, frontend build, fmt và clippy `--lib` đạt. Clippy `--all-targets` còn `items_after_test_module` tại `web_player/mod.rs:660`; không sửa chồng phần agent khác. Preview dùng số liệu giả, server và fixture đã dọn. Bản exe release cũ không đổi.
+
+**Bổ sung Trình phát video nổi F46 (2026-11-01, Claude):** dán link YouTube/Facebook/trang có video → app tự lấy stream (yt-dlp tải khi người dùng đồng ý, proxy `vstream://`) và phát trong 1 cửa sổ nhỏ không quảng cáo; island điều khiển được, phím tắt `Ctrl+Alt+V`, trình phát nhúng làm đường lui. [Đặc tả](modules/video-player.md), ADR-018, [spike S2](reports/video-s2-2026-11-01.md). Kiểm tra: 227 Rust + 81 frontend đạt, clippy/svelte-check/eslint/i18n 418 khóa sạch; YouTube đã chạy thật trên exe 22:28. Exe chạy thử hiện tại **chưa** có bản sửa peek và giao diện cửa sổ video cuối cùng (cần build lại).
+
 | Mục | Giá trị |
 |---|---|
 | Cập nhật lần cuối | 2026-11-01 |
 | Phase | **P1–P3 đã code đủ đặc tả** (trừ P4: F32–F34, F40–F44); chưa qua kiểm thử tay, Gate G0 chưa đóng |
 | Phiên bản | [v0.1.1](https://github.com/zeusato/PCIsland/releases/tag/v0.1.1): phát hành theo yêu cầu chủ dự án, có bộ cài + portable + SHA256 |
 | Code | Nhánh `main` trên https://github.com/zeusato/PCIsland |
-| Kiểm tra | 2026-11-01: lần chạy toàn bộ mới nhất 167 Rust + 51 frontend (17 file, giữ đủ test editor/đổi tính năng trước đó); fmt, clippy `-D warnings`, svelte-check/eslint, i18n 295 khóa, frontend build sạch. QA offline: chooser 248→294 px, queue 422→player 200 px; resume rời launcher dù metadata chậm; scrollbar cam neon. Bằng chứng native website trước sự cố ở [báo cáo](reports/web-player-2026-11-01.md) |
-| Bản build gần nhất | Đã build mã cuối 0.1.1 lúc 10:55 ngày 2026-11-01: exe 18.407.424 byte; NSIS 4.997.290 byte; gồm island mở rộng và scrollbar cam neon. Version 0.1.1 đã xác minh; xem docs/releases/v0.1.1.md. Gói phát hành dùng đúng binary này. Dev server/tab QA đã đóng; giữ nguyên cargo/node build cache, registry và dữ liệu app |
-| Đang chặn | SoundCloud báo “You have been blocked / unusual activity” khi QA. Đã dừng mọi thử nghiệm online, tắt tìm kiếm nền SoundCloud và bỏ click phát lặp. Chưa rõ thời hạn/phạm vi chặn. Không đổi IP/profile hay vượt challenge |
+| Kiểm tra | 2026-11-01: 171 Rust + 72 frontend (24 file); fmt, clippy all-targets -D warnings, svelte-check/eslint, i18n 310 khóa, frontend build đạt. Thêm regression album/trang bài hát riêng ngoài queue cũ, đúng URL bài, chờ xác nhận phát và nút Kệ file. [Báo cáo sửa tìm→phát](reports/search-playback-2026-11-01.md). Chủ dự án yêu cầu dừng, chưa build nhánh trang bài hát riêng |
+| Bản build gần nhất | Exe chạy thử 0.1.1 lúc 17:51 ngày 2026-11-01: `src-tauri/target/release/pcisland.exe`, 18.449.920 byte; SHA256 `61276B9F33CFED5D4013EFEE2AAC434772E62F005F65CD73AFEC8F6EEBA55481`. Có Kệ file và sửa chọn bài trên album. Native tìm→phát Lee Phú Quý đạt. Nhánh Zing trang bài hát riêng chỉ có trong source/test: lần build sau đã hủy theo yêu cầu dừng để tắt máy. Chưa tạo installer/phát hành. Cleanup sau build 17:51 giải phóng thực tế 5,623 GiB, đã xóa cả hai exe cũ |
+| Đang chặn | SoundCloud báo “You have been blocked / unusual activity” khi QA. Dừng thử nghiệm SoundCloud, tắt tìm kiếm nền SoundCloud và bỏ click phát lặp. Chưa rõ thời hạn/phạm vi chặn. Không đổi IP/profile hay vượt challenge |
+
+UI launcher mới (2026-11-01): nội dung rảnh lên 28 px, header ở y=16, tổng chiều cao 226 px với đủ 7 nút; chữ ký “by Zeusato” nét mảnh nghiêng neon cam ở đáy phải. Đã QA localhost, panel Hẹn giờ mở đúng; `pnpm check`, 51 test frontend và `pnpm build` đạt (296 khóa i18n). Đã build exe release bằng `pnpm tauri build --no-bundle` theo yêu cầu chạy thử, đầu ra `src-tauri/target/release/pcisland.exe`; chưa tạo lại installer hay phát hành.
+
+Bổ sung sau phản hồi chạy thử (2026-11-01): chữ ký weight 400, opacity 0.8–1; launcher theo thứ tự Nhạc/Ghi chú/Nhắc việc/Pomodoro/Hẹn giờ/Bấm giờ/Home. Nhạc trên máy chọn thư mục (gồm thư mục con, không lẫn thư mục khác; đã cấp `dialog:allow-open` cho island). Nút repeat ở island và trang Nhạc chọn 1/list/off cho local và web; online chờ bridge xác nhận, báo lỗi khi không đọc được queue. Ghi chú hiển thị đếm ngược/giờ hẹn ngay cuối từng dòng. Đã QA bố cục bằng fixture offline; 61 test frontend + 168 Rust, check/i18n 301 khóa và clippy đạt. Đã build lại exe release 0.1.1 bằng `pnpm tauri build --no-bundle` tại `src-tauri/target/release/pcisland.exe`, có quyền mở hộp thoại. Website thật và hộp thoại native cần chủ dự án kiểm tra trên exe mới. Dev server và fixture QA đã dọn.
 
 **Trạng thái tính năng** (✅ có code + test logic · 🟡 có code, còn thiếu phần trong đặc tả · ⬜ chưa làm):
+
+Quy trình build mới: dùng `pnpm build:exe` / `pnpm build:app` để tự dọn khi thành công, hoặc `pnpm clean:build` sau build thủ công; [chi tiết](build-cleanup.md). Build phiên này đã thành công; wrapper ban đầu lỗi Get-FileHash sau build, đã đổi sang SHA256 .NET và chạy cleanup riêng thành công, không rebuild không cần thiết. Các bản phát hành trong `release/` vẫn là bản cũ, không thay bằng exe thử nghiệm. SHA256 exe mới: `5C44DF75F0F9EA2C0C49F43D5F858A37A691B2F6E088FF03143D9F05E40B602E`.
 
 | ID | Tính năng | Trạng thái | Ghi chú / còn thiếu |
 |---|---|---|---|
@@ -49,6 +61,7 @@
 | F32–F34 | Mic/cam, theo dõi hệ thống | ⬜ | P4 |
 | F33 | Màn hình chờ đôi mắt / đồng hồ | ✅ | — |
 | F45 | Kiểm tra cập nhật | ✅ | Chỉ báo có bản mới và mở trang Release; không tự cập nhật |
+| F46 | Trình phát video nổi | 🟡 | Code đủ B + A; YouTube đã chạy thật. Chưa thử tay Facebook, dò trang, link hết hạn, trình phát nhúng (S1) |
 
 **Nợ kỹ thuật so với system design:**
 1. ~~Module trait + supervisor~~ → đã có `Supervisor` (bắt panic, khởi động lại 1/5/30 s), ADR-011.
@@ -61,6 +74,13 @@
 ## 3. Việc tiếp theo
 
 Theo thứ tự. Đánh dấu `[x]` khi xong và thêm việc mới phát sinh vào đúng chỗ.
+
+- [ ] **Chờ chủ dự án cho tiếp tục:** build sửa Zing trang bài hát riêng (`.song-header button.btn-play-all`), kiểm tra đổi từ Lee Phú Quý sang Chu Thúy Quỳnh rồi dọn cache. Đã check/test, lần build bị hủy theo yêu cầu dừng ngày 2026-11-01.
+
+- [ ] Kiểm tra native kéo file lên island đang phát nhạc ở compact/peek/minimal; kéo ra/hủy/thả file, kiểm tra đa DPI. Có test logic, chưa chạy end-to-end trên exe mới.
+- [ ] Nghiệm thu [Dọn dẹp](modules/maintenance.md) trên exe khi build bản tiếp theo: RAM trước/sau/30 giây, nhạc không gián đoạn, dọn cache profile đã đóng và file tạm cũ; source/test đã có. Không chạy cleanup build dùng chung khi agent verify còn hoạt động.
+- [ ] Khi đóng gói bản tiếp theo, kiểm tra launcher gọn và chữ ký “by Zeusato” trên WebView2 ở các mức DPI; frontend đã QA localhost.
+- [ ] Bản thử mới: chọn/hủy thư mục trên island; repeat 1/list/off với local và từng website có queue (không thử lại SoundCloud đang bị chặn); ghi chú đếm ngược và giờ cố định, gồm phụ thuộc dòng trước.
 
 - [x] **P0.1** git init, scaffold (viết tay, không dùng create-tauri-app), lint, ts-rs, i18n. Lệnh trong `CLAUDE.md` đã chạy thật.
 - [x] **P0.2** CI GitHub Actions viết xong; **chưa chạy** (repo chưa có remote GitHub).
@@ -82,6 +102,7 @@ Theo thứ tự. Đánh dấu `[x]` khi xong và thêm việc mới phát sinh v
 - [ ] Giảm RAM WebView2 hoặc ra ADR nới ngân sách (nợ kỹ thuật 5).
 - [x] Phát hành v0.1.0 trên GitHub Releases theo yêu cầu trực tiếp của chủ dự án (bộ cài + portable + SHA256); release notes nêu rõ phần test tay còn thiếu, Gate G0 chưa đóng.
 - [ ] P4: mic/cam, theo dõi hệ thống (F32, F34), plugin API (F44).
+- [ ] F46 video: build lại exe (có bản sửa peek + giao diện 320×180), thử tay theo [video-player §11](modules/video-player.md#11-kiểm-thử): Facebook, dò trang, link hết hạn, spike S1 trình phát nhúng, phím tắt, DPI 150%, RAM.
 - [x] Yêu cầu 9 mục: autostart có xác minh registry, gộp menu Nhạc, nhãn Nhạc trên máy, phiên nghe, queue, stopwatch panel, Pomodoro start/stop, kệ 3 slot, alarm từng dòng. Các phần chưa QA tay đầy đủ giữ rõ ở module docs.
 - [x] Island Online hiện nguồn/bài đang phát, Mở trang, Đổi trang, Tìm bài; danh sách site chỉ mở theo yêu cầu.
 - [x] Chooser tự nới để thấy nút; Chạy tiếp về player; playlist nới theo nội dung rồi mới cuộn. Scrollbar mặc định cam neon/nền tối dùng chung toàn app. Đã test tích hợp và xem layout fixture offline; resize native có unit test, còn kiểm tra tay đa DPI/màn hình.
@@ -91,6 +112,14 @@ Theo thứ tự. Đánh dấu `[x]` khi xong và thêm việc mới phát sinh v
 - [x] Đóng gói v0.1.1: bộ cài, portable chỉ chứa exe/README/data marker, hai file SHA256; cập nhật README và release notes theo yêu cầu push + release.
 
 ## 4. Câu hỏi mở
+
+Đã chốt phạm vi Dọn dẹp: RAM toàn PC, không riêng PCisland; disk một chạm tự quét/xóa/báo kết quả, không chọn nhóm. Cache mới/đang dùng và dữ liệu đăng nhập/cá nhân được giữ. Đây là yêu cầu triển khai bổ sung được chủ dự án cho phép, không chờ P4.
+
+Yêu cầu giao diện đã chốt 2026-11-01: launcher lúc rảnh sát mép trên hơn; thêm chữ “by Zeusato” mảnh, neon cam, hiệu ứng nhẹ ở góc dưới phải của island.
+
+Phản hồi tiếp theo: chữ ký đậm thêm; thứ tự launcher Nhạc/Ghi chú/Nhắc việc/Pomo/Hẹn giờ/Bấm giờ/Home; nhạc trên máy chọn thư mục; repeat áp dụng cả local và online (đã hỏi và xác nhận); giờ/đếm ngược ở cuối từng dòng ghi chú.
+
+Bổ sung: cần nút mở lại file đã giữ và chọn bài tìm kiếm phải phát đúng bài. Đã thêm Kệ file trước Home; tìm→phát xác nhận đúng URL đang Playing, không chỉ thành công điều hướng. Xem [báo cáo](reports/search-playback-2026-11-01.md).
 
 Quyết định bổ sung của chủ dự án 2026-11-01: khi còn tác vụ mặc định không ẩn hoàn toàn island, có tùy chọn cho phép ẩn (ADR-014); phát hành bản mới nhất lên GitHub sau khi dọn output/cache build. Các giới hạn kiểm thử tay được giữ rõ trong release notes.
 
@@ -104,6 +133,7 @@ Yêu cầu mới đã chốt: alarm phụ thuộc **dòng checklist ngay phía t
 | Q4 | Phím tắt mặc định có trùng với app bạn đang dùng không? | Giữ mặc định ADR-008, đổi sau trong Cài đặt | P1.4 | **Đã chốt** 2026-10-31 |
 | Q5 | Phát hành thế nào; có ký số không? | GitHub Releases, có bộ cài + portable; không mua chứng chỉ, xin SignPath miễn phí nếu đủ điều kiện (ADR-009) | P2.7 | **Đã chốt** 2026-10-31 |
 | Q6 | Trang nhạc nào cần test ở G0? | Zing MP3, SoundCloud, YouTube, Spotify Web, NhacCuaTui | P0.6 | **Đã chốt** 2026-10-31 |
+| Q8 | Tiện ích dọn cache/RAM/Windows triển khai mục nào trước? | Cache PCisland và mở Storage Windows; tránh trim RAM toàn máy | Phase tiếp theo | Đề xuất, chờ chọn |
 | Q7 | Có cần hỗ trợ Windows 10 không? | Không. Chỉ hỗ trợ chính thức Windows 11 | — | **Đã chốt** 2026-10-31 |
 
 ## 5. Môi trường phát triển
@@ -138,8 +168,15 @@ Sổ rủi ro đầy đủ ở [00 §8](00-vision-scope.md#8-sổ-rủi-ro). Nh�
 
 ## 7. Nhật ký phiên
 
+- 2026-11-01 · Codex: triển khai module maintenance tách biệt, tích hợp additive island/Cài đặt/IPC, RAM theo tiến trình và cleanup một chạm; test fixture filesystem và UI, native RAM smoke chỉ đọc, preview localhost. Chưa build exe; giữ cache dùng chung cho agent khác đang verify.
+
 | Ngày | Ai | Đã làm | Tiếp theo |
 |---|---|---|---|
+| 2026-11-01 | Codex | Thêm Kệ file + nạp lúc khởi động; sửa tìm→phát ngoài queue cũ và xác nhận URL. Native album Lee Phú Quý đạt; phát hiện và sửa thêm trang bài hát riêng, tổng 72 frontend + 171 Rust đạt. Hủy build tiếp theo theo yêu cầu tắt máy | Chỉ tiếp tục build/QA khi chủ dự án yêu cầu |
+| 2026-11-01 | Codex | Sửa ưu tiên kéo file/minimal; giữ player + quay lại; chọn ghi chú đã lưu; tìm trong player, sửa co dòng và thêm ca sĩ từ DOM Zing/Spotify; bỏ double-click mở main. 68 frontend + 171 Rust, check/clippy đạt. Thêm build wrapper tự dọn và nghiên cứu quick wins | QA native và quyết định tiện ích mới |
+| 2026-11-01 | Codex | Tăng chữ ký, đổi thứ tự launcher, chọn thư mục nhạc, repeat local/web có xác nhận bridge và thời gian cuối dòng ghi chú. 61 frontend + 168 Rust; check, clippy, QA bố cục offline và build exe release đạt | Chủ dự án thử native/website trên exe mới |
+| 2026-11-01 | Codex | Build exe release có launcher gọn và chữ ký “by Zeusato” theo yêu cầu chạy thử; `pnpm tauri build --no-bundle` hoàn tất | Chủ dự án chạy thử exe mới |
+| 2026-11-01 | Codex | Bỏ khoảng điều hướng rỗng 28 px, đồng bộ chiều cao/hit region với nút chuyển tác vụ; chữ ký neon cam ở launcher, hiệu ứng hữu hạn và giảm chuyển động. QA localhost: 400×226, header y=16; check, 51 test frontend và build đạt | Kiểm tra native trong lần đóng gói tiếp theo |
 | 2026-11-01 | Codex + chủ dự án | Phát hành v0.1.1 theo yêu cầu: push main, tag và release với bộ cài/portable/SHA256. Rà và giữ đủ test cũ, test nhạc mới tách riêng: 51 frontend + 167 Rust | Kiểm tra tay các giới hạn nêu trong release notes |
 | 2026-11-01 | Codex + chủ dự án | Island đo nội dung và nới native canvas (ADR-017); resume về player, playlist mở rộng; scrollbar cam neon theo yêu cầu. 167 Rust + 46 frontend trong lần chạy toàn bộ; QA giao diện bằng fixture offline; exe/NSIS đã build 10:55 | Kiểm tra tay native đa DPI, không truy cập website đang bị chặn |
 | 2026-11-01 | Codex + chủ dự án | Sửa 9 mục tương tác/khởi động/alarm; trace Zing thật, xác minh resume sau restart và chọn queue; thêm tìm kiếm nền/thẻ nguồn. SoundCloud báo anti-bot: dừng QA online, tắt search SoundCloud, bỏ click phát lặp. 166 Rust + 50 frontend test xanh | Build local đã xong; kiểm chứng các mục tay còn thiếu khi phù hợp, không thử vượt chặn |
@@ -155,6 +192,7 @@ Sổ rủi ro đầy đủ ở [00 §8](00-vision-scope.md#8-sổ-rủi-ro). Nh�
 | 2026-11-01 | Codex | Ghi chú ưu tiên xem/tương tác gần nhất, thêm checklist vào ghi chú hiện tại, Tạo mới riêng; Pomodoro có màu/nhãn trạng thái và toast mô tả phạm vi Focus/cấu hình nhạc. 29 test frontend + 156 Rust xanh | Test tay bản notes-pomodoro, không đóng phiên app cũ tự động |
 | 2026-11-01 | Codex | Giữ island mở khi có editor dù chuột rời vùng: kiểm tra chung input/textarea/contenteditable ngay khi hết collapse delay. 4 test tích hợp cho tạo/sửa ghi chú, thêm checklist và nhắc việc; tổng 33 frontend + 156 Rust xanh | Test tay bản editing với bộ gõ tiếng Việt |
 | 2026-11-01 | Codex | Nâng phiên bản đồng bộ lên 0.1.0, cập nhật README/release notes, build installer + portable + SHA256, dọn ~17,3 GB cache/artifact thử và đưa mã nguồn/gói phát hành lên GitHub theo yêu cầu chủ dự án | Hoàn thiện kiểm thử tay và đo RAM cho bản phát hành |
+| 2026-11-01 | Claude | Review nhạc/island theo yêu cầu: sửa web player tự hủy sai, không lưu quảng cáo làm bài cuối, "Tiếp tục" giữ cửa sổ, queue tô bài hiện tại, island kẹt player, kéo nhầm mở kệ, mất focus ghi chú, nhắc việc lưu trùng. Làm F46 video nổi (ADR-018, spike S2, module `video`), sửa peek bị tiêu đề dài kéo rộng | Build lại exe; thử tay F46 |
 
 ## 8. Thuật ngữ
 

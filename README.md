@@ -23,6 +23,8 @@ Yêu cầu Windows 11 x64 và Microsoft Edge WebView2 Runtime. Khi nâng cấp, 
 
 ## Tài liệu
 
+Build và dọn cache trên Windows: `pnpm build:exe` (chạy thử), `pnpm build:app` (kèm bộ cài), hoặc `pnpm clean:build` để dọn riêng. Các lệnh giữ exe/gói phát hành và dữ liệu app. Xem [quy trình dọn build](docs/build-cleanup.md).
+
 | Tài liệu | Nội dung |
 |---|---|
 | [00 · Tầm nhìn & phạm vi](docs/00-vision-scope.md) | Mục tiêu, phi mục tiêu, danh mục tính năng F-xx, rủi ro |

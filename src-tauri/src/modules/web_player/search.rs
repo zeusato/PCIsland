@@ -1,6 +1,6 @@
 //! Isolated, silent search view. Uses the site's own search and authenticated profile.
 use std::sync::{Mutex, PoisonError};
-use tauri::{AppHandle, Url, Webview, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, Url, Webview, WebviewUrl, WebviewWindowBuilder};
 use tokio::sync::oneshot;
 
 use super::{WebPlayerHandle, dto::WebQueueItem, session};
@@ -17,6 +17,17 @@ struct Pending {
 pub struct SearchState {
     pending: Mutex<Option<Pending>>,
     results: Mutex<Option<(String, Vec<WebQueueItem>)>>,
+    pub playing_url: Mutex<Option<String>>,
+}
+
+impl SearchState {
+    /// A search view is open.
+    pub fn busy(&self) -> bool {
+        self.pending
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .is_some()
+    }
 }
 
 fn target(site: &str, query: &str) -> IpcResult<Url> {
@@ -154,24 +165,30 @@ pub fn report(
     Ok(())
 }
 
-pub fn play(app: &AppHandle, handle: &WebPlayerHandle, site_id: &str, url: &str) -> IpcResult<()> {
-    let cached = handle
-        .search
-        .results
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner);
-    let item = cached
-        .as_ref()
-        .filter(|(site, _)| site == site_id)
-        .and_then(|(_, items)| items.iter().find(|item| item.url == url))
-        .cloned()
-        .ok_or_else(|| {
-            IpcError::new(
-                "web_player.search_result",
-                "result no longer available; search again",
-            )
-        })?;
-    drop(cached);
+pub async fn play(
+    app: &AppHandle,
+    handle: &WebPlayerHandle,
+    site_id: &str,
+    url: &str,
+) -> IpcResult<()> {
+    let item = {
+        let cached = handle
+            .search
+            .results
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        cached
+            .as_ref()
+            .filter(|(site, _)| site == site_id)
+            .and_then(|(_, items)| items.iter().find(|item| item.url == url))
+            .cloned()
+            .ok_or_else(|| {
+                IpcError::new(
+                    "web_player.search_result",
+                    "result no longer available; search again",
+                )
+            })?
+    };
     let saved = super::dto::WebSession {
         site_id: site_id.into(),
         page_url: item.url.clone(),
@@ -188,6 +205,11 @@ pub fn play(app: &AppHandle, handle: &WebPlayerHandle, site_id: &str, url: &str)
         .resume_generation
         .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         + 1;
+    *handle
+        .search
+        .playing_url
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner) = None;
     super::open_target(
         app,
         handle,
@@ -196,8 +218,47 @@ pub fn play(app: &AppHandle, handle: &WebPlayerHandle, site_id: &str, url: &str)
         false,
         Some(&saved),
     )?;
-    super::watch_resume(app, handle, generation);
-    Ok(())
+    // Navigation is not playback. Acknowledge only the requested track playing,
+    // never an old song with the same title or a successfully opened album page.
+    for _ in 0..120 {
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        if handle
+            .resume_generation
+            .load(std::sync::atomic::Ordering::Relaxed)
+            != generation
+        {
+            return Err(IpcError::new(
+                "web_player.play_cancelled",
+                "play request superseded",
+            ));
+        }
+        if handle
+            .search
+            .playing_url
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .as_deref()
+            == Some(url)
+        {
+            return Ok(());
+        }
+    }
+    // Keep the search results visible; the user can explicitly open the source.
+    *handle
+        .pending_restore
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner) = None;
+    *handle
+        .restoring_title
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner) = None;
+    if let Some(win) = app.get_webview_window(super::LABEL) {
+        let _ = win.eval("window.__pcisland?.cancelResume()");
+    }
+    Err(IpcError::new(
+        "web_player.play_unconfirmed",
+        "the selected track did not start playing",
+    ))
 }
 
 #[cfg(test)]

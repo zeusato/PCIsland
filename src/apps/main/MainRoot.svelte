@@ -5,6 +5,7 @@
   import House from '@lucide/svelte/icons/house';
   import Minus from '@lucide/svelte/icons/minus';
   import Music from '@lucide/svelte/icons/music';
+  import Clapperboard from '@lucide/svelte/icons/clapperboard';
   import NotebookPen from '@lucide/svelte/icons/notebook-pen';
   import Package from '@lucide/svelte/icons/package';
   import Settings from '@lucide/svelte/icons/settings';
@@ -20,10 +21,12 @@
   import NotesPage from './pages/NotesPage.svelte';
   import ShelfPage from './pages/ShelfPage.svelte';
   import SettingsPage from './pages/SettingsPage.svelte';
+  import VideoPage from './pages/VideoPage.svelte';
 
   const nav = [
     { route: '/home', key: 'main.nav.home', icon: House },
     { route: '/media', key: 'main.nav.media', icon: Music },
+    { route: '/video', key: 'main.nav.video', icon: Clapperboard },
     { route: '/timer', key: 'main.nav.timer', icon: Clock },
     { route: '/reminders', key: 'main.nav.reminders', icon: Bell },
     { route: '/notes', key: 'main.nav.notes', icon: NotebookPen },
@@ -65,6 +68,8 @@
   <main class="content">
     {#if route.startsWith('/media') || route.startsWith('/online')}
       <MusicPage />
+    {:else if route.startsWith('/video')}
+      <VideoPage />
     {:else if route.startsWith('/timer')}
       <TimerPage />
     {:else if route.startsWith('/reminders')}

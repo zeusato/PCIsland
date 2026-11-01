@@ -29,6 +29,7 @@ pub struct Settings {
     pub lyrics: LyricsSettings,
     pub visualizer: VisualizerSettings,
     pub web_player: WebPlayerSettings,
+    pub video: VideoSettings,
     pub notes: NotesSettings,
     pub shelf: ShelfSettings,
     pub ui: UiSettings,
@@ -53,6 +54,7 @@ impl Default for Settings {
             lyrics: LyricsSettings::default(),
             visualizer: VisualizerSettings::default(),
             web_player: WebPlayerSettings::default(),
+            video: VideoSettings::default(),
             notes: NotesSettings::default(),
             shelf: ShelfSettings::default(),
             ui: UiSettings::default(),
@@ -78,6 +80,7 @@ section!(Shortcuts {
     open_main: String = "Ctrl+Alt+I".into(),
     toggle_hidden: String = "Ctrl+Alt+H".into(),
     quick_note: String = "Ctrl+Alt+N".into(),
+    video_open: String = "Ctrl+Alt+V".into(),
 });
 section!(AppSettings {
     language: String = "vi".into(),
@@ -143,6 +146,12 @@ section!(VisualizerSettings {
     mode: String = "real".into(),
     fps: u32 = 30,
 });
+section!(VideoSettings {
+    engine: String = "stream".into(),
+    max_height: u32 = 1080,
+    default_width: u32 = 320,
+    auto_update_tools: bool = true,
+});
 section!(WebPlayerSettings {
     unload_after_paused_min: u32 = 30,
 });
@@ -188,6 +197,12 @@ impl Settings {
         p.long_every = p.long_every.clamp(1, 12);
         self.timer.ring_max_sec = self.timer.ring_max_sec.clamp(5, 600);
         self.ui.glow_intensity = self.ui.glow_intensity.clamp(0.0, 1.0);
+        let v = &mut self.video;
+        if !["stream", "embed"].contains(&v.engine.as_str()) {
+            v.engine = "stream".into();
+        }
+        v.max_height = v.max_height.clamp(144, 2160);
+        v.default_width = v.default_width.clamp(240, 960);
         if !["vi", "en"].contains(&self.app.language.as_str()) {
             self.app.language = "vi".into();
         }

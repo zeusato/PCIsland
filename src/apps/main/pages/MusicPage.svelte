@@ -6,8 +6,7 @@
   import ListPlus from '@lucide/svelte/icons/list-plus';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Shuffle from '@lucide/svelte/icons/shuffle';
-  import Repeat from '@lucide/svelte/icons/repeat';
-  import Repeat1 from '@lucide/svelte/icons/repeat-1';
+  import RepeatControl from '../../../features/media/views/RepeatControl.svelte';
   import FileMusic from '@lucide/svelte/icons/file-music';
     import Card from '$lib/components/Card.svelte';
   import Button from '$lib/components/Button.svelte';
@@ -84,15 +83,10 @@
 {#if np}
   <Card title={t('music.nowPlaying')}>
     <div class="np"><MediaPeek {np} /></div>
+    <RepeatControl source={np.sourceId} />
     {#if player && np.sourceId === 'local'}
       <div class="modes">
         <Button variant={player.shuffle ? 'primary' : 'default'} onclick={() => playerCommands.control(player.shuffle ? 'shuffle_off' : 'shuffle_on')}><Shuffle size={14} />{t('music.shuffle')}</Button>
-        <Button
-          variant={player.repeat === 'off' ? 'default' : 'primary'}
-          onclick={() => playerCommands.control(player.repeat === 'off' ? 'repeat_all' : player.repeat === 'all' ? 'repeat_one' : 'repeat_off')}
-        >
-          {#if player.repeat === 'one'}<Repeat1 size={14} />{:else}<Repeat size={14} />{/if}{t(`music.repeat.${player.repeat}`)}
-        </Button>
         <label class="volume">
           {t('music.volume')}
           <input type="range" min="0" max="1" step="0.01" value={player.volume} oninput={(e) => playerCommands.setVolume(Number((e.currentTarget as HTMLInputElement).value))} />

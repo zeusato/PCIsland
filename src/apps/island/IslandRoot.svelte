@@ -4,11 +4,13 @@
   import { setContext, untrack } from 'svelte';
   import { ISLAND_INTERACTION, type IslandInteraction } from '$lib/components/islandInteraction';
   import MediaPlayer from '../../features/media/views/Player.svelte';
+  import { nowPlaying } from '../../features/media/store.svelte';
+  import { payload } from '$lib/registry/payloads';
   import { Spring } from 'svelte/motion';
   import LayoutGrid from '@lucide/svelte/icons/layout-grid';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import { activityCommands, inTauri, islandCommands, shelfCommands } from '$lib/ipc/commands';
-  import { onDragDrop, onIslandHotkey, onIslandPointer, onIslandVisibility } from '$lib/ipc/events';
+  import { onDragDrop, onIslandDragHover, onIslandHotkey, onIslandPointer, onIslandVisibility } from '$lib/ipc/events';
   import { morphPreset } from '$lib/motion/springs';
   import { contentIn, contentOut } from '$lib/motion/transitions';
   import { viewFor, isLargeAlert } from '$lib/registry/views';
@@ -31,6 +33,7 @@
   const hub = $derived(live.island);
   const primary = $derived(hub?.primary ?? null);
   const secondary = $derived(hub?.secondary ?? null);
+  const playerTrack = $derived(nowPlaying() ?? (primary?.kind === 'media.now_playing' ? payload(primary, 'media.now_playing') : null));
   const alert = $derived(hub?.alert ?? null);
   const idle = $derived(!primary || primary.kind === 'indicators.idle');
   let launcherInitial = $state<string | null>(null);
@@ -51,17 +54,27 @@
       playerSource = source;
       dispatch({ type: 'click' });
     },
+    showFeature(id) {
+      launcherInitial = id;
+      launcherOpen = true;
+      dispatch({ type: 'click' });
+    },
   });
   $effect(() => {
     if (ui.mode === 'compact' || ui.mode === 'minimal' || ui.mode === 'hidden') {
       launcherOpen = false;
       launcherInitial = null;
       shelfOpen = false;
+      // An explicit "show player" lasts one peek; the next hover follows the activity again.
       playerSource = null;
     }
   });
-  let dragging = $state(false);
+  let nativeDragging = $state(false);
+  let dragPreview = $state(false);
+  const dragging = $derived(nativeDragging || dragPreview);
   let shelfOpen = $state(false);
+  const dropActive = $derived(dragging || shelfOpen);
+  let dropError = $state(false);
 
   // Alerts drive the machine.
   let lastAlertId: string | null = null;
@@ -74,7 +87,7 @@
   });
 
   const content: Content = $derived(
-    dragging || shelfOpen
+    dropActive
       ? 'drop'
       : ui.mode === 'alert' && alert
         ? isLargeAlert(alert) ? 'alert-large' : 'alert-small'
@@ -91,8 +104,11 @@
   const shown = $derived(content === 'alert-large' || content === 'alert-small' ? alert : primary);
   const variant = $derived(content === 'alert-large' || content === 'alert-small' ? 'alert' : ui.mode === 'peek' ? 'peek' : 'compact');
   const contentKey = $derived(content === 'launcher' ? 'launcher' : playerSource && content === 'media' ? `player:${playerSource}:${variant}` : `${content}:${variant}:${shown?.id ?? ''}`);
-  const showBubble = $derived(!!secondary && !dragging && (ui.mode === 'compact' || ui.mode === 'peek'));
-  const target = $derived(geometryFor(ui.mode, content, content === 'media' ? 'media' : primary?.source ?? '', measured?.key === contentKey ? measured.height : 0));
+  const showBubble = $derived(!!secondary && !dropActive && (ui.mode === 'compact' || ui.mode === 'peek'));
+  const showSwitcher = $derived(ui.mode === 'peek' && !dropActive && (!idle || !!playerSource || !!nowPlaying()));
+  const showPlayer = $derived(ui.mode === 'peek' && content === 'media');
+  const canReturnToPlayer = $derived(showSwitcher && !showPlayer && !!nowPlaying());
+  const target = $derived(geometryFor(ui.mode, content, content === 'media' ? 'media' : primary?.source ?? '', measured?.key === contentKey ? measured.height : 0, showSwitcher));
   const size = new Spring<Geometry>(geometryFor('compact', 'idle'), morphPreset());
   const live_ = $derived(!idle && (primary?.priority ?? 0) >= 50 && ui.mode !== 'minimal');
   const critical = $derived(content === 'alert-large');
@@ -121,6 +137,7 @@
   const collapseDelay = $derived(live.settings?.island.collapseDelayMs ?? 400);
   function onEnter() {
     clearTimeout(timer);
+    if (dropActive) return;
     dispatch({ type: 'pointerEnter' });
     if (idle && ui.mode === 'compact') flashMood('happy', 600);
     timer = setTimeout(() => dispatch({ type: 'pointerDwell' }), hoverDelay);
@@ -129,7 +146,7 @@
     clearTimeout(timer);
     timer = setTimeout(() => {
       // Check when the delay expires: an editor may have opened after pointerleave.
-      if (!launcherInitial && !hasEditor(islandElement)) dispatch({ type: 'pointerLeaveTimeout' });
+      if (!dropActive && !launcherInitial && !hasEditor(islandElement)) dispatch({ type: 'pointerLeaveTimeout' });
     }, collapseDelay);
   }
   function onClick() {
@@ -151,7 +168,6 @@
     const open = content !== 'launcher';
     shelfOpen = false;
     launcherInitial = null;
-    playerSource = null;
     launcherOpen = open;
     dispatch({ type: 'click' });
   }
@@ -159,6 +175,11 @@
   $effect(() => {
     if (!inTauri) return;
     const subs = [
+      onIslandDragHover((active) => {
+        clearTimeout(timer);
+        dragPreview = active;
+        if (active) dropError = false;
+      }),
       onIslandVisibility((v) => dispatch({ type: 'visibility', mode: v.mode, hasLiveActivity: v.hasLiveActivity })),
       onIslandPointer((p) => {
         if (p.clickOutside) {
@@ -172,19 +193,27 @@
           launcherInitial = 'notes.create';
           if (ui.mode !== 'peek') dispatch({ type: 'hotkeyToggle' });
         }
+        if (action === 'videoOpen') {
+          launcherInitial = 'video.open';
+          if (ui.mode !== 'peek') dispatch({ type: 'hotkeyToggle' });
+        }
       }),
       onDragDrop((e) => {
+        clearTimeout(timer);
         if (e.type === 'leave') {
-          dragging = false;
+          nativeDragging = false;
           return;
         }
         if (e.type === 'drop') {
-          dragging = false;
+          nativeDragging = false;
+          dragPreview = false;
           shelfOpen = true;
-          void shelfCommands.add(e.paths);
-        } else {
-          dragging = true;
+          dropError = false;
           dispatch({ type: 'click' });
+          void shelfCommands.add(e.paths).catch(() => dropError = true);
+        } else {
+          nativeDragging = true;
+          dropError = false;
         }
       }),
     ];
@@ -196,8 +225,6 @@
     };
   });
 
-  const routeFor = (source?: string) =>
-    ({ media: '/media', timer: '/timer', reminders: '/reminders', notes: '/notes', shelf: '/shelf' })[source ?? ''] ?? '/home';
 </script>
 
 <div
@@ -206,8 +233,8 @@
   class:live={live_ && !critical}
   class:critical
   class:focus
-  class:minimal={ui.mode === 'minimal'}
-  class:hidden={ui.mode === 'hidden'}
+  class:minimal={ui.mode === 'minimal' && !dropActive}
+  class:hidden={ui.mode === 'hidden' && !dropActive}
   style:width="{size.current.w}px"
   style:height="{size.current.h}px"
   style:--r="{size.current.r}px"
@@ -216,24 +243,24 @@
   onpointerenter={onEnter}
   onpointerleave={onLeave}
   onclick={onClick}
-  ondblclick={() => inTauri && islandCommands.openMain(routeFor(primary?.source))}
   onkeydown={() => {}}
 >
   {#key contentKey}
-    <div class="content" class:withSwitcher={ui.mode === 'peek' && !dragging} in:contentIn out:contentOut>
-      {#if ui.mode === 'hidden'}
-        <span></span>
-      {:else if content === 'drop'}
+    <div class="content" class:withSwitcher={showSwitcher} in:contentIn out:contentOut>
+      {#if content === 'drop'}
         <div class="drop">
           <ShelfSlots items={live.shelf} receiving={dragging} />
+          {#if dropError}<p role="alert">{t('shelf.addFailed')}</p>{/if}
           {#if !dragging}<button onclick={(event) => { event.stopPropagation(); shelfOpen = false; }}>{t('common.back')}</button>{/if}
         </div>
+      {:else if ui.mode === 'hidden'}
+        <span></span>
       {:else if content === 'launcher'}
         <Launcher initial={launcherInitial} onclose={closeLauncherPanel} onopen={() => { launcherOpen = true; }} />
       {:else if ui.mode === 'minimal'}
         <MinimalProgress activity={primary} />
-      {:else if content === 'media' && playerSource && ui.mode === 'peek'}
-        <MediaPlayer source={playerSource} />
+      {:else if showPlayer}
+        <!-- The player below stays mounted while another feature is open. -->
       {:else if shown}
         {@const View = viewFor(shown)}
         <View activity={shown} {variant} />
@@ -245,7 +272,15 @@
       {/if}
     </div>
   {/key}
-  {#if ui.mode === 'peek' && !dragging && (!idle || playerSource)}
+  {#if playerSource || playerTrack}
+    <div class="content player-content" class:withSwitcher={showSwitcher} hidden={!showPlayer}>
+      <MediaPlayer np={nowPlaying() ? undefined : playerTrack ?? undefined} source={playerSource ?? playerTrack?.sourceId} active={showPlayer} />
+    </div>
+  {/if}
+  {#if canReturnToPlayer}
+    <button class="switcher return-player" onclick={(event) => { event.stopPropagation(); launcherInitial = null; launcherOpen = false; playerSource = nowPlaying()!.sourceId; }}>{t('music.backToPlayer')}</button>
+  {/if}
+  {#if showSwitcher}
     <button class="switcher" onclick={toggleLauncher} ondblclick={(event) => event.stopPropagation()} aria-label={t(content === 'launcher' ? 'island.backToActivity' : 'island.features')}>
       {#if content === 'launcher'}<ChevronLeft size={14} />{:else}<LayoutGrid size={14} />{/if}
       {t(content === 'launcher' ? 'island.backToActivity' : 'island.features')}
@@ -333,6 +368,8 @@
     display: grid;
   }
   .content.withSwitcher { top: var(--island-switcher-h); }
+  .player-content[hidden] { display: none; }
+  .return-player { left: var(--sp-6); right: auto; }
   .switcher {
     position: absolute;
     top: var(--sp-2);

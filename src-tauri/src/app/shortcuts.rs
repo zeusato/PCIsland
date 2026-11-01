@@ -33,11 +33,12 @@ pub fn register(app: &AppHandle, shortcuts: &Shortcuts) {
     let mut errors = Vec::new();
     let gs = app.global_shortcut();
     let _ = gs.unregister_all();
-    let bindings: [(&'static str, &str); 4] = [
+    let bindings: [(&'static str, &str); 5] = [
         ("togglePeek", &shortcuts.toggle_peek),
         ("openMain", &shortcuts.open_main),
         ("toggleHidden", &shortcuts.toggle_hidden),
         ("quickNote", &shortcuts.quick_note),
+        ("videoOpen", &shortcuts.video_open),
     ];
     for (action, accel) in bindings {
         if accel.trim().is_empty() {

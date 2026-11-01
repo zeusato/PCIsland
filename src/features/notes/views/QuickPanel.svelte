@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { holdFocus } from '$lib/ipc/focus';
   import { onMount, tick } from 'svelte';
-  import { inTauri, islandCommands, noteCommands } from '$lib/ipc/commands';
+  import { inTauri, noteCommands } from '$lib/ipc/commands';
   import { onNotesState } from '$lib/ipc/events';
   import type { Note } from '$lib/ipc/bindings/Note';
   import { t } from '$lib/i18n/index.svelte';
@@ -11,6 +12,7 @@
   let { close }: { close: () => void } = $props();
   let notes = $state<Note[]>([]);
   let selected = $state('');
+  let choosing = $state(false);
   const note = $derived(notes.find((item) => item.id === selected));
   let mode = $state<'view' | 'create' | 'edit' | 'check'>('view');
   let text = $state('');
@@ -39,10 +41,11 @@
   $effect(() => {
     if (mode === 'view' || !inTauri) return;
     let active = true;
-    void islandCommands.requestFocus().then(() => {
+    const focus = holdFocus();
+    void focus.ready.then(() => {
       if (active) { if (mode === 'check') checkInput?.focus(); else area?.focus(); }
     });
-    return () => { active = false; void islandCommands.releaseFocus(); };
+    return () => { active = false; focus.release(); };
   });
   let checkInput: ChecklistInput | undefined = $state();
 
@@ -85,10 +88,13 @@
       <button disabled={busy} onclick={() => mode = 'view'}>{t('common.cancel')}</button>
     </div>
   {:else}
-    {#if notes.length}
-      <select aria-label={t('notes.choose')} bind:value={selected} disabled={busy || mode === 'check'}>
-        {#each notes as item (item.id)}<option value={item.id}>{item.text.split('\n').find((line) => line.trim())?.slice(0, 60)}</option>{/each}
-      </select>
+    <button aria-expanded={choosing} disabled={busy || loading || mode === 'check'} onclick={() => choosing = !choosing}>{t('notes.savedList')}</button>
+    {#if choosing}
+      <div class="saved-list" aria-label={t('notes.choose')}>
+        {#each notes as item (item.id)}
+          <button aria-pressed={selected === item.id} onclick={() => { selected = item.id; choosing = false; }}>{item.text.split('\n').find((line) => line.trim())?.slice(0, 60)}</button>
+        {:else}<p>{t('notes.empty')}</p>{/each}
+      </div>
     {/if}
     <div class="note-content">
       {#if note}
@@ -111,12 +117,14 @@
 <style>
   .panel { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: var(--sp-3); font-size: var(--fs-body-island); }
   .note-content { flex: 1; min-height: 0; overflow-y: auto; }
+  .saved-list { display: flex; flex-direction: column; gap: var(--sp-2); max-height: var(--island-window-h); overflow-y: auto; }
+  .saved-list button { flex-shrink: 0; text-align: left; }
+  .saved-list button[aria-pressed='true'] { color: var(--c-accent-bright); border-color: var(--c-accent); }
   p { margin: 0; color: var(--c-text-2); }
   .actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
-  button, select, textarea { border: 1px solid var(--c-border-strong); border-radius: var(--r-control); background: var(--c-surface-2); color: var(--c-text-1); font: inherit; padding: var(--sp-2) var(--sp-4); }
+  button, textarea { border: 1px solid var(--c-border-strong); border-radius: var(--r-control); background: var(--c-surface-2); color: var(--c-text-1); font: inherit; padding: var(--sp-2) var(--sp-4); }
   button { cursor: pointer; }
   button:disabled { opacity: 0.4; cursor: default; }
-  select { width: 100%; min-width: 0; }
   textarea { width: 100%; flex: 1; min-height: 0; resize: none; user-select: text; }
   textarea:focus { outline-color: var(--c-accent); }
 </style>

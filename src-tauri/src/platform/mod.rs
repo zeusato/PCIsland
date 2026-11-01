@@ -3,9 +3,13 @@
 
 pub mod audio_endpoint;
 pub mod autostart;
+pub mod clipboard;
 pub mod foreground;
 pub mod gsmtc;
 pub mod loopback;
+pub mod maintenance;
+pub mod memory;
+pub mod process;
 pub mod shell;
 pub mod smtc;
 pub mod toast;
