@@ -4,7 +4,7 @@ Ngày tạo: 2026-11-02 · Trạng thái: có source và test logic; release `fo
 
 ## 1. Mục đích
 
-Có sẵn nhạc tập trung/thư giãn cho Pomodoro mà bộ cài không phình. Nhạc nằm ở repo phát hành riêng `zeusato/pcisland-sounds`; người dùng tự bấm tải gói mình thích trong Cài đặt.
+Có sẵn nhạc tập trung/thư giãn cho Pomodoro mà bộ cài không phình. Nhạc nằm ở repo phát hành riêng `zeusato/pcisland-sounds`; người dùng tự bấm tải gói mình thích ở trang Pomodoro của cửa sổ chính hoặc panel Pomodoro trên island.
 
 ## 2. Phạm vi
 
@@ -16,11 +16,11 @@ Có sẵn nhạc tập trung/thư giãn cho Pomodoro mà bộ cài không phình
 
 ## 3. Hành vi
 
-1. Cài đặt › Pomodoro › **Nhạc tập trung**: bấm **Xem các gói** mới gọi mạng. Trước đó chỉ hiện gói đã tải (đọc đĩa).
+1. Trang **Pomodoro** (cửa sổ chính) › **Nhạc tập trung**, hoặc panel Pomodoro trên island (bản gọn: không có gợi ý, nút Xóa và license): bấm **Xem các gói** mới gọi mạng. Trước đó chỉ hiện gói đã tải (đọc đĩa).
 2. Mỗi gói hiện tên, vai trò (Tập trung / Nghỉ), số bài, dung lượng; nút **Tải**, **Cập nhật** (release mới đổi hash) hoặc **Xóa**.
 3. Tải: một lượt tại một thời điểm, thanh tiến trình theo byte, nút **Hủy**. Lỗi mạng/hash báo rõ file lỗi; phần đã tải xong của gói vẫn giữ để lần sau chỉ tải phần thiếu.
 4. Gói đã tải có công tắc **Dùng khi Pomodoro**. Có ít nhất một gói được chọn thì playlist tập trung cũ (`pomodoro.focusPlaylistId`) bị bỏ qua.
-5. Lần chạy đầu, hộp chào ở cửa sổ chính liệt kê các gói (tick sẵn) cùng yt-dlp; chỉ tải khi người dùng bấm **Tải đã chọn**, gói tải xong được bật cho Pomodoro. Không lấy được manifest thì báo tải sau trong Cài đặt.
+5. Lần chạy đầu, hộp chào ở cửa sổ chính liệt kê các gói (tick sẵn) cùng yt-dlp; chỉ tải khi người dùng bấm **Tải đã chọn**, gói tải xong được bật cho Pomodoro. Không lấy được manifest thì báo tải sau ở trang Pomodoro.
 6. Pomodoro vào pha làm việc → phát gói `focus`; vào pha nghỉ → phát gói `break` nếu có, nếu không thì theo cài đặt tạm dừng nhạc khi nghỉ. Dừng Pomodoro → tạm dừng nhạc nếu chính module này đã bật.
 
 ## 4. Repo nhạc và manifest
@@ -55,17 +55,17 @@ Kiểm tra khi đọc: `schema = 1`; `release`, `id`, `file` chỉ gồm `[a-z0-
 
 | Command | Ai gọi | Chữ ký |
 |---|---|---|
-| `focus_sounds_status` | main | `() → FocusSoundsStatus` (chỉ đọc đĩa) |
-| `focus_sounds_catalog` | main | `() → FocusCatalog` (tải manifest) |
-| `focus_sounds_download` | main | `(packs: string[], progress: Channel<FocusDownloadProgress>) → FocusSoundsStatus` |
-| `focus_sounds_cancel` | main | `() → ()` |
+| `focus_sounds_status` | main, island | `() → FocusSoundsStatus` (chỉ đọc đĩa) |
+| `focus_sounds_catalog` | main, island | `() → FocusCatalog` (tải manifest) |
+| `focus_sounds_download` | main, island | `(packs: string[], progress: Channel<FocusDownloadProgress>) → FocusSoundsStatus` |
+| `focus_sounds_cancel` | main, island | `() → ()` |
 | `focus_sounds_remove` | main | `(packs: string[]) → FocusSoundsStatus` |
 
 Phát nhạc đi qua EventBus: timer phát `AppEvent::PomodoroPhase(Work | Break | Stopped)`; module này đổi thành `MediaIntent::PlayFiles { paths, shuffle: true }` hoặc `MediaIntent::Pause` cho local_player. Module không gọi thẳng timer hay local_player.
 
 ## 7. Kiểm thử
 
-Unit: kiểm tra manifest (tên file, hash, giới hạn, host), ghép URL, so sánh gói đã tải với catalog, chọn file theo vai trò. Tải dùng hàm thuần nhận stream byte để test hash/size mà không gọi mạng. Frontend: Cài đặt hiện gói, tải có tiến trình, hủy, xóa, công tắc gói.
+Unit: kiểm tra manifest (tên file, hash, giới hạn, host), ghép URL, so sánh gói đã tải với catalog, chọn file theo vai trò. Tải dùng hàm thuần nhận stream byte để test hash/size mà không gọi mạng. Frontend: trang Pomodoro/panel island hiện gói, tải có tiến trình, hủy, xóa, công tắc gói.
 
 Nghiệm thu tay: tạo release `focus-sounds-v1` thật, tải một gói, ngắt mạng giữa chừng rồi tải lại, chạy Pomodoro qua pha làm việc → nghỉ → dừng.
 
@@ -73,6 +73,7 @@ Nghiệm thu tay: tạo release `focus-sounds-v1` thật, tải một gói, ng�
 
 | Ngày | Thay đổi |
 |---|---|
+| 2026-11-02 | Chuyển phần Nhạc tập trung từ Cài đặt sang trang Pomodoro mới; thêm bản gọn trong panel Pomodoro trên island để tải gói không cần mở cửa sổ chính. |
 | 2026-11-02 | Phát hành `focus-sounds-v1` lên `zeusato/pcisland-sounds`: `lofi` (Lo-fi & Jazz, tập trung, 7 bài), `ambient` (tập trung, 9 bài), `rest` (Thư giãn, nghỉ, 4 bài); MP3 192 kbps. Đã kiểm tra URL manifest `latest` và hash một file tải về. |
 | 2026-11-02 | Hộp chào lần đầu hỏi tải yt-dlp + gói nhạc. Repo `zeusato/pcisland-sounds` đã được chủ dự án tạo, chưa có release. 269 Rust + 92 frontend đạt. |
 | 2026-11-02 | Tạo module theo yêu cầu chủ dự án: manifest từ repo nhạc riêng, tải có hash, gói theo vai trò, phát theo pha Pomodoro. |

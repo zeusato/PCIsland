@@ -32,7 +32,7 @@ Dynamic Island cho Windows. Stack: Tauri 2 (Rust) + Svelte 5 (TypeScript), chạ
 - Cập nhật tài liệu module đã động tới: trạng thái, IPC, cài đặt, lịch sử thay đổi.
 - Cập nhật handoff: snapshot, việc tiếp theo, thêm một dòng vào nhật ký phiên.
 - Có quyết định kiến trúc mới thì thêm ADR.
-- Sau mỗi lần build giao cho chủ dự án, dọn cache sinh ra bằng `pnpm clean:build`; ưu tiên `pnpm build:exe` / `pnpm build:app` để tự dọn khi build thành công. Giữ exe mới, gói phát hành và mọi dữ liệu app. Xem [quy trình dọn build](docs/build-cleanup.md).
+- Build bằng `pnpm build:exe` / `pnpm build:app`. Wrapper giữ cache Rust để build sau nhanh, chỉ tự dọn khi `src-tauri/target` vượt trần 20 GiB, để rác không phình theo số lần build. Không dọn hết sau mỗi build trừ khi chủ dự án yêu cầu. Giữ exe mới, gói phát hành và mọi dữ liệu app. Xem [quy trình dọn build](docs/build-cleanup.md).
 
 ## Lệnh
 
@@ -45,7 +45,7 @@ Dynamic Island cho Windows. Stack: Tauri 2 (Rust) + Svelte 5 (TypeScript), chạ
 | Kiểm tra frontend | `pnpm check` (svelte-check + eslint) · `pnpm test` (vitest) |
 | Kiểm tra backend (trong `src-tauri/`) | `cargo fmt --check` · `cargo clippy --all-targets -- -D warnings` · `cargo test` |
 | Sinh type TS từ Rust | `pnpm gen:bindings` |
-| Build exe chạy thử + tự dọn | `pnpm build:exe` |
-| Build bản phát hành + tự dọn | `pnpm build:app` |
+| Build exe chạy thử (dọn khi cache > 20 GiB) | `pnpm build:exe` |
+| Build bản phát hành (dọn khi cache > 20 GiB) | `pnpm build:app` |
 | Xem trước phần sẽ dọn | `pnpm clean:build -- -WhatIf` |
 | Dọn cache build | `pnpm clean:build` |

@@ -26,16 +26,22 @@
   import Welcome from './Welcome.svelte';
   import { live } from '$lib/stores/live.svelte';
   import Mic from '@lucide/svelte/icons/mic';
+  import Brain from '@lucide/svelte/icons/brain';
+  import BrushCleaning from '@lucide/svelte/icons/brush-cleaning';
+  import PomodoroPage from './pages/PomodoroPage.svelte';
+  import MaintenancePage from './pages/MaintenancePage.svelte';
 
   const nav = [
     { route: '/home', key: 'main.nav.home', icon: House },
     { route: '/media', key: 'main.nav.media', icon: Music },
     { route: '/video', key: 'main.nav.video', icon: Clapperboard },
     { route: '/timer', key: 'main.nav.timer', icon: Clock },
+    { route: '/pomodoro', key: 'main.nav.pomodoro', icon: Brain },
     { route: '/reminders', key: 'main.nav.reminders', icon: Bell },
     { route: '/notes', key: 'main.nav.notes', icon: NotebookPen },
     { route: '/shelf', key: 'main.nav.shelf', icon: Package },
     { route: '/meeting', key: 'main.nav.meeting', icon: Mic },
+    { route: '/maintenance', key: 'main.nav.maintenance', icon: BrushCleaning },
     { route: '/settings', key: 'main.nav.settings', icon: Settings },
   ];
 
@@ -77,6 +83,10 @@
       <VideoPage />
     {:else if route.startsWith('/timer')}
       <TimerPage />
+    {:else if route.startsWith('/pomodoro')}
+      <PomodoroPage />
+    {:else if route.startsWith('/maintenance')}
+      <MaintenancePage />
     {:else if route.startsWith('/reminders')}
       <RemindersPage />
     {:else if route.startsWith('/notes')}

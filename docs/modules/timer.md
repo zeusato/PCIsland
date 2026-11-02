@@ -41,7 +41,9 @@ Mọi thứ liên quan tới đếm thời gian: hẹn giờ đếm ngược (nh
 | `pomodoro.phase_end` | Live (đang chờ) | Thời gian | Bắt đầu pha kế hoặc Dừng | Thông báo là toast Windows | `start_next`, `stop` |
 | Bubble | — | Vòng tiến độ 24 px | — | — | Bấm để ghim |
 
-**Hành động nhanh** (đăng ký vào launcher của island): ⏱ Hẹn giờ · ⏲ Bấm giờ · 🍅 Pomodoro (icon lucide tương ứng; emoji ở đây chỉ để minh họa).
+**Hành động nhanh** (đăng ký vào launcher của island): ⏱ Hẹn giờ · ⏲ Bấm giờ · 🍅 Pomodoro (icon lucide tương ứng; emoji ở đây chỉ để minh họa). Nút Pomodoro mở panel: thời gian còn lại, pha, Bắt đầu/Bắt đầu pha tiếp/Bỏ qua/Dừng và bản gọn của [Nhạc tập trung](focus-sounds.md). Nút vẫn đổi màu theo trạng thái.
+
+**Cửa sổ chính:** trang `#/timer` gồm Hẹn giờ và Bấm giờ; Pomodoro có trang riêng `#/pomodoro` (phiên hiện tại + thống kê hôm nay + Focus thủ công, thiết lập Pomodoro, Nhạc tập trung). Thiết lập Pomodoro không còn nằm trong Cài đặt.
 
 ## 5. Thiết kế kỹ thuật
 
@@ -169,6 +171,7 @@ Không có. Nút trạng thái dùng cam khi tập trung, xanh khi nghỉ, vàng
 |---|---|
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Pomodoro dừng nhạc khi nghỉ và tự phát playlist tập trung (qua `MediaIntent`); bộ đếm đúng sau sleep/resume |
+| 2026-11-02 | Theo yêu cầu chủ dự án: nút Pomodoro trên launcher mở panel (điều khiển + tải/bật gói nhạc tập trung) thay cho bấm là chạy; trang `#/pomodoro` riêng trong cửa sổ chính, gom phiên, thống kê, thiết lập (chuyển khỏi Cài đặt) và nhạc tập trung. |
 | 2026-11-01 | Nút Pomodoro có màu/nhãn theo trạng thái trên launcher/main; thao tác lại không reset phiên; toast bắt đầu nêu đúng phạm vi Focus và tùy chọn nhạc. |
 | 2026-11-01 | Bấm giờ mở panel trước; Pomodoro start/stop, toast Windows 3 giây kể cả chuyển pha (ADR-015). |
 | 2026-11-02 | Phát `AppEvent::PomodoroPhase(Work/Break/Stopped)` khi pha thật sự chạy (bắt đầu, tự chuyển, Tiếp/Bỏ qua, dừng) cho module [focus-sounds](focus-sounds.md). Có gói nhạc được chọn thì không phát playlist tập trung cũ. |

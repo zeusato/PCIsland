@@ -2,35 +2,30 @@
   // Settings (docs/modules/full-window.md §5). Every change goes through settings_update,
   // which validates, persists and broadcasts to both windows.
   import Card from '$lib/components/Card.svelte';
-  import MaintenancePanel from '../../../features/maintenance/views/Panel.svelte';
   import Button from '$lib/components/Button.svelte';
   import SettingRow from '$lib/components/form/SettingRow.svelte';
   import Toggle from '$lib/components/form/Toggle.svelte';
   import Select from '$lib/components/form/Select.svelte';
   import NumberInput from '$lib/components/form/NumberInput.svelte';
-  import { appCommands, inTauri, playerCommands } from '$lib/ipc/commands';
+  import { appCommands, inTauri } from '$lib/ipc/commands';
   import type { ModuleState } from '$lib/ipc/bindings/ModuleState';
   import type { ShortcutError } from '$lib/ipc/bindings/ShortcutError';
   import type { SoundId } from '$lib/ipc/bindings/SoundId';
   import { onShortcutErrors } from '$lib/ipc/events';
-  import type { Playlist } from '$lib/ipc/bindings/Playlist';
   import type { UpdateInfo } from '$lib/ipc/bindings/UpdateInfo';
   import type { AppInfo } from '$lib/ipc/bindings/AppInfo';
   import { live, updateSettings } from '$lib/stores/live.svelte';
   import { t } from '$lib/i18n/index.svelte';
   import { LAUNCHER_CATALOG } from '$lib/registry/launcherCatalog';
-  import SoundsPanel from '../../../features/focus_sounds/views/SoundsPanel.svelte';
 
   const s = $derived(live.settings);
   let info = $state<AppInfo | null>(null);
   let modules = $state<Record<string, ModuleState>>({});
-  let playlists = $state<Playlist[]>([]);
   let update = $state<{ checking: boolean; result: UpdateInfo | null | undefined }>({ checking: false, result: undefined });
   $effect(() => {
     if (!inTauri) return;
     appCommands.info().then((i) => (info = i));
     appCommands.modules().then((m) => (modules = m));
-    playerCommands.playlists().then((p) => (playlists = p));
     appCommands.shortcutErrors().then((e) => (shortcutErrors = e));
     const sub = onShortcutErrors((e) => (shortcutErrors = e));
     return () => void sub.then((u) => u());
@@ -172,39 +167,6 @@
     {/each}
   </Card>
 
-  <Card title="Pomodoro">
-    <SettingRow label={t('settings.pomodoro.work')}>
-      <NumberInput label={t('settings.pomodoro.work')} value={s.pomodoro.workMin} min={1} max={180} suffix={t('timer.minutes')} onchange={set('pomodoro', 'workMin')} />
-    </SettingRow>
-    <SettingRow label={t('settings.pomodoro.short')}>
-      <NumberInput label={t('settings.pomodoro.short')} value={s.pomodoro.shortBreakMin} min={1} max={60} suffix={t('timer.minutes')} onchange={set('pomodoro', 'shortBreakMin')} />
-    </SettingRow>
-    <SettingRow label={t('settings.pomodoro.long')}>
-      <NumberInput label={t('settings.pomodoro.long')} value={s.pomodoro.longBreakMin} min={1} max={120} suffix={t('timer.minutes')} onchange={set('pomodoro', 'longBreakMin')} />
-    </SettingRow>
-    <SettingRow label={t('settings.pomodoro.autoBreaks')}>
-      <Toggle label={t('settings.pomodoro.autoBreaks')} checked={s.pomodoro.autoStartBreaks} onchange={set('pomodoro', 'autoStartBreaks')} />
-    </SettingRow>
-    <SettingRow label={t('settings.pomodoro.focus')} hint={t('settings.pomodoro.focusHint')}>
-      <Toggle label={t('settings.pomodoro.focus')} checked={s.pomodoro.focusWithPomodoro} onchange={set('pomodoro', 'focusWithPomodoro')} />
-    </SettingRow>
-    <SettingRow label={t('settings.pomodoro.pauseMedia')}>
-      <Toggle label={t('settings.pomodoro.pauseMedia')} checked={s.pomodoro.pauseMediaOnBreak} onchange={set('pomodoro', 'pauseMediaOnBreak')} />
-    </SettingRow>
-    <SettingRow label={t('settings.pomodoro.playlist')} hint={t('settings.pomodoro.playlistHint')}>
-      <Select
-        label={t('settings.pomodoro.playlist')}
-        value={s.pomodoro.focusPlaylistId}
-        options={[{ value: '', label: t('settings.none') }, ...playlists.map((p) => ({ value: p.id, label: p.name }))]}
-        onchange={set('pomodoro', 'focusPlaylistId')}
-      />
-    </SettingRow>
-  </Card>
-
-  <Card title={t('focusSounds.title')}>
-    <SoundsPanel />
-  </Card>
-
   <Card title={t('settings.media')}>
     <SettingRow label={t('settings.externalMedia')}>
       <Toggle label={t('settings.externalMedia')} checked={s.media.externalEnabled} onchange={set('media', 'externalEnabled')} />
@@ -270,7 +232,6 @@
       <Button variant="danger" onclick={() => appCommands.quit()}>{t('settings.quit')}</Button>
     </SettingRow>
   </Card>
-  <Card title={t('maintenance.title')}><MaintenancePanel /></Card>
 {/if}
 
 <style>

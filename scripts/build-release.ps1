@@ -1,5 +1,10 @@
 [CmdletBinding()]
-param([switch] $NoBundle)
+param(
+    [switch] $NoBundle,
+    # Keep the Rust cache for fast rebuilds; clean only when it outgrows this cap (docs/build-cleanup.md).
+    [double] $MaxCacheGiB = 20,
+    [switch] $Clean
+)
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -24,7 +29,14 @@ try {
     $sha = [Security.Cryptography.SHA256]::Create()
     try { Write-Host ('SHA256: ' + [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '')) }
     finally { $stream.Dispose(); $sha.Dispose() }
-    & (Join-Path $PSScriptRoot 'clean-build.ps1')
+    $target = Join-Path $repoRoot 'src-tauri\target'
+    $cacheGiB = ((Get-ChildItem -LiteralPath $target -Recurse -File -Force -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum) / 1GB
+    Write-Host ('Rust target size: {0:N2} GiB (cap {1} GiB).' -f $cacheGiB, $MaxCacheGiB)
+    if ($Clean -or $cacheGiB -gt $MaxCacheGiB) {
+        & (Join-Path $PSScriptRoot 'clean-build.ps1')
+    } else {
+        Write-Host 'Cache kept for faster rebuilds.'
+    }
 } finally {
     Pop-Location
 }

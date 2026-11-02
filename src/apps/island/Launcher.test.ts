@@ -6,20 +6,28 @@ import { registerTimer } from '../../features/timer';
 import Launcher from './Launcher.svelte';
 import { LAUNCHER_CATALOG } from '$lib/registry/launcherCatalog';
 
-it('shows Pomodoro state on the launcher button and feedback after starting', async () => {
+it('opens the Pomodoro panel, starts from it, and shows state on the launcher button', async () => {
   registerTimer();
   const command = vi.spyOn(timerCommands, 'pomodoro').mockResolvedValue();
   const toast = vi.spyOn(appCommands, 'toast').mockResolvedValue();
   const target = document.createElement('div');
-  const component = mount(Launcher, { target });
+  const panel = mount(Launcher, { target });
   flushSync();
-  const button = [...target.querySelectorAll('button')].find((b) => b.textContent?.includes('Pomodoro'))!;
-  expect(button.getAttribute('aria-pressed')).toBe('false');
-  button.click();
+  const tile = [...target.querySelectorAll('button')].find((b) => b.textContent?.includes('Pomodoro'))!;
+  tile.click();
+  flushSync();
+  expect(target.textContent).toContain('Nhạc tập trung');
+  [...target.querySelectorAll('button')].find((b) => b.textContent?.includes('Bắt đầu Pomodoro'))!.click();
   await Promise.resolve();
   flushSync();
   expect(command).toHaveBeenCalledWith('start');
   await vi.waitFor(() => expect(toast).toHaveBeenCalledWith('Pomodoro', expect.stringContaining('Không thay đổi thông báo Windows')));
+  await unmount(panel);
+
+  const component = mount(Launcher, { target });
+  flushSync();
+  const button = [...target.querySelectorAll('button')].find((b) => b.textContent?.includes('Pomodoro'))!;
+  expect(button.getAttribute('aria-pressed')).toBe('false');
   live.timer = { timers: [], stopwatch: { accumulatedMs: 0, startedAt: null, laps: [] }, focusManual: false, focusActive: true, rev: 1,
     pomodoro: { phase: 'work', completedWork: 0, phaseMs: 1500000, phaseStartedAt: 0, run: { kind: 'running', endsAt: 1500000 } } };
   flushSync();

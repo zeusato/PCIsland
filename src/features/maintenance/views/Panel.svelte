@@ -6,12 +6,14 @@
   import ProcessList from './ProcessList.svelte';
   import AppList from './AppList.svelte';
   import ConfirmRow from './ConfirmRow.svelte';
+  // Wide: the full-window page lays sections out in two columns.
+  let { wide = false }: { wide?: boolean } = $props();
   const controller = useMaintenance();
   const s = controller.state;
   onMount(controller.start);
 </script>
 
-<div class="maintenance">
+<div class="maintenance" class:wide>
   <section aria-label={t('maintenance.cleanup')}>
     <h3>{t('maintenance.cleanup')}</h3>
     <p>{t('maintenance.cleanupHint')}</p>
@@ -110,6 +112,7 @@
 
 <style>
   .maintenance { display: grid; gap: var(--sp-6); font-size: var(--fs-small); }
+  .wide { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; font-size: var(--fs-body); }
   section { display: grid; gap: var(--sp-4); padding: var(--sp-5); background: var(--c-surface-2); border-radius: var(--r-card); min-width: 0; }
   h3, h4, p { margin: 0; } h3 { font-size: var(--fs-body); } h4 { font-size: var(--fs-small); }
   .groups { display: grid; gap: var(--sp-3); margin: 0; padding: 0; list-style: none; }

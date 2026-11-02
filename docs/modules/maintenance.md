@@ -4,7 +4,7 @@ Ngày cập nhật: 2026-11-02. Triển khai theo yêu cầu trực tiếp của
 
 ## Hành vi
 
-Mở **Dọn dẹp** trên launcher island hoặc trong Cài đặt. Dọn disk, Thùng rác, Windows Update, đóng app và thu hồi RAM là các thao tác riêng, chỉ chạy khi người dùng bấm. Thao tác không hoàn tác được hoặc gây gián đoạn (Thùng rác, Windows Update, đóng app, buộc đóng) luôn có bước xác nhận ngay trong panel.
+Mở **Dọn dẹp** trên launcher island hoặc trang **Dọn dẹp** riêng của cửa sổ chính (`#/maintenance`, hai cột, cùng controller nên tiến trình đang chạy hiện ở cả hai nơi). Dọn disk, Thùng rác, Windows Update, đóng app và thu hồi RAM là các thao tác riêng, chỉ chạy khi người dùng bấm. Thao tác không hoàn tác được hoặc gây gián đoạn (Thùng rác, Windows Update, đóng app, buộc đóng) luôn có bước xác nhận ngay trong panel.
 
 **Dọn rác ngay** là một thao tác: tự quét, xóa các mục đủ điều kiện, hiển thị tiến trình và báo kết quả. Không cần chọn từng nhóm. Khi quét chưa biết tổng số file, thanh tiến trình ở chế độ vô định; khi xóa dùng số file đã xử lý/tổng ứng viên. Từ giai đoạn xóa, panel hiện từng nhóm với dung lượng tìm thấy khi quét; khi xong hiện byte thực xóa / tìm thấy của từng nhóm và số thư mục rỗng đã xóa. Báo thành công, không có rác đủ điều kiện, hoặc hoàn tất có mục được giữ lại; không báo đã dọn hết nếu gặp lỗi/thiếu quyền/app đang chạy.
 
@@ -103,3 +103,4 @@ Nguồn API/chính sách: [EmptyWorkingSet](https://learn.microsoft.com/en-us/wi
 - 2026-11-01: thêm Dọn dẹp island/Cài đặt, RAM toàn PC và dọn rác một chạm theo yêu cầu chủ dự án. Giữ phần sửa code dùng chung ở mức đăng ký module, IPC, i18n và view tích hợp vì agent khác đang verify các module còn lại.
 - 2026-11-02: mở rộng theo yêu cầu chủ dự án (ADR-022): temp mọi loại file quá 1 ngày và xóa thư mục rỗng, thêm crash dump/WER/shader/thumbnail/INetCache/npm/pip/Yarn/Teams/Spotify, cache trình duyệt/app 1 ngày, kết quả theo nhóm; Thùng rác có xác nhận; cache Windows Update qua helper UAC; đóng app ngốn RAM hai bước (WM_CLOSE rồi buộc đóng có xác nhận). Trim working set chuyển thành mục nâng cao.
 - 2026-11-02: tiến trình/kết quả dọn, Thùng rác, Windows Update và đóng app được giữ khi rời panel (controller dùng chung theo cửa sổ).
+- 2026-11-02: theo yêu cầu chủ dự án, Dọn dẹp có trang riêng `#/maintenance` trong sidebar cửa sổ chính (bố cục hai cột), bỏ thẻ Dọn dẹp ở cuối Cài đặt.

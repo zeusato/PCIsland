@@ -8,6 +8,8 @@
   import type { PackName } from '$lib/ipc/bindings/PackName';
   import { cancelDownload, downloadPacks, focusSounds, loadCatalog, loadStatus, mib, removePack, usePack } from '../store.svelte';
 
+  // Compact: island Pomodoro panel, no hint/delete/license (managed from main).
+  let { compact = false }: { compact?: boolean } = $props();
   onMount(() => { void loadStatus(); });
   const name = (n: PackName) => (getLocale() === 'en' ? n.en : n.vi);
   const selected = $derived(live.settings?.pomodoro.focusSoundPacks ?? []);
@@ -15,13 +17,13 @@
   const p = $derived(focusSounds.progress);
 </script>
 
-<div class="sounds">
-  <p class="muted">{t('focusSounds.hint')}</p>
+<div class="sounds" class:compact>
+  {#if !compact}<p class="muted">{t('focusSounds.hint')}</p>{/if}
   {#each installed as pack (pack.id)}
     <div class="row">
       <span class="name">{name(pack.name)}<small>{t(pack.role === 'focus' ? 'focusSounds.roleFocus' : 'focusSounds.roleBreak')} · {t('focusSounds.tracks', { count: pack.tracks })} · {mib(pack.bytes)}{pack.complete ? '' : ` · ${t('focusSounds.incomplete')}`}</small></span>
       <Toggle label={t('focusSounds.use')} checked={selected.includes(pack.id)} onchange={(on) => usePack(pack.id, on)} />
-      <Button variant="ghost" disabled={focusSounds.busy} onclick={() => removePack(pack.id)}>{t('common.delete')}</Button>
+      {#if !compact}<Button variant="ghost" disabled={focusSounds.busy} onclick={() => removePack(pack.id)}>{t('common.delete')}</Button>{/if}
     </div>
   {/each}
 
@@ -34,7 +36,7 @@
     {:else}
       <p class="muted">{t('focusSounds.allInstalled')}</p>
     {/each}
-    {#if focusSounds.catalog.license}<p class="muted">{focusSounds.catalog.license}</p>{/if}
+    {#if focusSounds.catalog.license && !compact}<p class="muted">{focusSounds.catalog.license}</p>{/if}
   {:else}
     <Button disabled={focusSounds.loadingCatalog} onclick={loadCatalog}>{t(focusSounds.loadingCatalog ? 'common.loading' : 'focusSounds.browse')}</Button>
   {/if}
@@ -52,6 +54,8 @@
 
 <style>
   .sounds { display: flex; flex-direction: column; gap: var(--sp-4); }
+  .compact { gap: var(--sp-3); font-size: var(--fs-small); }
+  .compact .progress { flex-wrap: wrap; }
   .row { display: flex; align-items: center; gap: var(--sp-4); }
   .name { flex: 1; min-width: 0; }
   small { display: block; color: var(--c-text-3); font-size: var(--fs-caption); }

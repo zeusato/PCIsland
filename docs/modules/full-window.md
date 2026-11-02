@@ -42,10 +42,13 @@ Không áp dụng. Trang chủ hiển thị lại các activity đang có dướ
 | `#/home` | Trang chủ: thẻ activity đang chạy, nhắc việc hôm nay, nhạc đang phát, shortcut tạo nhanh | P1 |
 | `#/media` | Nhạc: Đang phát · Nhạc trên máy · Playlist · Radio · Online | P2 |
 | `#/online` | Route tương thích cũ về trang Nhạc, không có mục sidebar riêng | P2 |
-| `#/timer` | Hẹn giờ · Bấm giờ · Pomodoro (thống kê) | P1/P2 |
+| `#/timer` | Hẹn giờ · Bấm giờ | P1/P2 |
+| `#/pomodoro` | Pomodoro: phiên hiện tại + thống kê hôm nay + Focus thủ công · Thiết lập Pomodoro · Nhạc tập trung ([focus-sounds](focus-sounds.md)) | P2 |
 | `#/reminders` | Nhắc việc: Hôm nay · Sắp tới · Đã lỡ · Hoàn thành | P2 |
 | `#/notes` | Ghi chú | P3 |
 | `#/shelf` | Kệ file | P3 |
+| `#/meeting` | Cuộc họp ([meeting](meeting.md)) | P3 |
+| `#/maintenance` | Dọn dẹp ([maintenance](maintenance.md)), hai cột | P3 |
 | `#/settings/<section>` | Cài đặt: Chung · Island · Giao diện · Phím tắt · Âm thanh · từng module · Dữ liệu & chẩn đoán · Giới thiệu | P1–P3 |
 
 **Trang Cài đặt:**
@@ -126,3 +129,4 @@ Cửa sổ này dùng command của các module khác. Command riêng:
 | 2026-10-31 | Nhớ vị trí, kích thước, trạng thái phóng to của cửa sổ; bỏ qua vị trí nằm trên màn hình đã rút |
 | 2026-11-01 | Gộp Online vào Nhạc; nhãn Nhạc trên máy rõ nguồn file; chọn trang có lịch sử hiện hai hành động. |
 | 2026-11-01 | Thêm trang Video (`#/video`): dán link, trạng thái và cập nhật công cụ yt-dlp; cài đặt video trong trang Cài đặt |
+| 2026-11-02 | Thêm trang Pomodoro (`#/pomodoro`) và Dọn dẹp (`#/maintenance`) vào sidebar; thiết lập Pomodoro, Nhạc tập trung và Dọn dẹp chuyển khỏi Cài đặt. Hộp chào lần đầu trỏ tới trang Video/Pomodoro thay vì Cài đặt. |

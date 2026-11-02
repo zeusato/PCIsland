@@ -1,5 +1,14 @@
 # Lịch sử phát hành
 
+## 0.1.4 · 2026-11-02
+
+- Trang **Pomodoro** riêng trong cửa sổ chính: phiên hiện tại, thống kê, thiết lập và nhạc tập trung.
+- Trang **Dọn dẹp** riêng trong cửa sổ chính, bố cục hai cột, chung tiến trình với island.
+- Nút Pomodoro trên island mở panel: điều khiển phiên và tải/bật gói nhạc tập trung ngay trên island.
+- Cài đặt gọn hơn: thiết lập Pomodoro, nhạc tập trung và dọn dẹp chuyển sang trang riêng; hộp chào lần đầu trỏ đúng trang.
+
+[Chi tiết, tải và giới hạn](docs/releases/v0.1.4.md).
+
 ## 0.1.3 · 2026-11-02
 
 - Nhạc tập trung cho Pomodoro: tải theo yêu cầu từ repo `zeusato/pcisland-sounds` (3 gói, 20 bài), kiểm SHA-256, phát xáo theo pha làm việc/nghỉ.
