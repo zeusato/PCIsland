@@ -501,6 +501,7 @@
   "video.tools.version": "Đã cài phiên bản {version}",
   "video.tools.missing": "Chưa cài. Sẽ hỏi trước khi tải lần đầu.",
   "settings.shortcut.videoOpen": "Mở ô dán link video",
+  "settings.shortcut.meetingMark": "Đánh dấu đoạn cuộc họp",
   "settings.video.engine": "Cách phát video",
   "settings.video.engineHint": "\"Luồng trực tiếp\" không có quảng cáo/giao diện trang; \"Trình phát nhúng\" dùng trình phát chính thức của trang",
   "settings.video.engines.stream": "Luồng trực tiếp",

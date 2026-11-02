@@ -28,7 +28,7 @@ Kiểm tra bổ sung Dọn dẹp: 194 Rust đạt (1 smoke native mặc định 
 |---|---|
 | Cập nhật lần cuối | 2026-11-02 |
 | Phase | **P1–P3 đã code đủ đặc tả** (trừ P4: F32–F34, F40–F44); chưa qua kiểm thử tay, Gate G0 chưa đóng |
-| Phiên bản | [v0.1.3](https://github.com/zeusato/PCIsland/releases/tag/v0.1.3) đã phát hành; v0.1.4 đã build và đóng gói ở `release/0.1.4`, chờ chủ dự án thử rồi push + release: NSIS + portable + hai SHA256, theo yêu cầu chủ dự án. Nhạc tập trung: [focus-sounds-v1](https://github.com/zeusato/pcisland-sounds/releases/tag/focus-sounds-v1) |
+| Phiên bản | [v0.1.4](https://github.com/zeusato/PCIsland/releases/tag/v0.1.4): NSIS + portable + hai SHA256, theo yêu cầu chủ dự án. Nhạc tập trung: [focus-sounds-v1](https://github.com/zeusato/pcisland-sounds/releases/tag/focus-sounds-v1) |
 | Code | Nhánh `main` trên https://github.com/zeusato/PCIsland |
 | Kiểm tra | (2026-11-02) 251 Rust đạt/4 ignored; 87 frontend/27 file; i18n 542 khóa; trước đó 238 Rust/81 frontend; fmt, clippy all-targets -D warnings, Svelte/eslint, i18n 497 khóa, frontend và Tauri NSIS build đạt. Giới hạn native/meeting ghi trong release notes |
 | Bản build gần nhất | `src-tauri/target/release/pcisland.exe`: 22.190.592 byte, ProductVersion 0.1.4, SHA256 `8D281E5433EB8E2B62C722590ACC93DC7B1147F1078C47B9B9A7BAD1E1A84516`. NSIS 5.990.122 byte; portable 7.906.394 byte. Build này còn dọn hết cache (9,4 GiB); từ nay wrapper giữ cache, dọn khi target > 20 GiB |
@@ -187,7 +187,7 @@ Sổ rủi ro đầy đủ ở [00 §8](00-vision-scope.md#8-sổ-rủi-ro). Nh�
 
 ## 7. Nhật ký phiên
 
-- 2026-11-02 · Claude: sau v0.1.3, thêm trang Pomodoro và Dọn dẹp trong cửa sổ chính, nút Pomodoro trên island mở panel có tải gói nhạc; build + đóng gói v0.1.4 (269 Rust + 92 frontend + check đạt). Đổi quy tắc dọn build theo chủ dự án: giữ cache, dọn khi target > 20 GiB. Chưa push/release v0.1.4.
+- 2026-11-02 · Claude: sau v0.1.3, thêm trang Pomodoro và Dọn dẹp trong cửa sổ chính, nút Pomodoro trên island mở panel có tải gói nhạc; build + đóng gói v0.1.4 (269 Rust + 92 frontend + check đạt). Đổi quy tắc dọn build theo chủ dự án: giữ cache, dọn khi target > 20 GiB. Đã push + release v0.1.4. Sau release: thêm nhãn i18n còn thiếu cho phím tắt `meetingMark` (Cài đặt hiện key thô), chưa commit.
 
 - 2026-11-02 · Claude: phát hành nhạc `focus-sounds-v1` (3 gói, 20 bài) lên `zeusato/pcisland-sounds`, rồi đóng gói v0.1.3 theo yêu cầu build + release. 269 Rust + vitest + check đạt; exe/NSIS/portable đúng version, hash ở snapshot; đã đối chiếu URL manifest trong app với release nhạc.
 

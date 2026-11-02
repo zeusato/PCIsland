@@ -503,6 +503,7 @@ const T = {
   "video.tools.version": ["Đã cài phiên bản {version}","Installed version {version}"],
   "video.tools.missing": ["Chưa cài. Sẽ hỏi trước khi tải lần đầu.","Not installed. You will be asked before the first download."],
   "settings.shortcut.videoOpen": ["Mở ô dán link video","Open the video link box"],
+  "settings.shortcut.meetingMark": ["Đánh dấu đoạn cuộc họp","Mark a meeting moment"],
   "settings.video.engine": ["Cách phát video","Video playback"],
   "settings.video.engineHint": ["\"Luồng trực tiếp\" không có quảng cáo/giao diện trang; \"Trình phát nhúng\" dùng trình phát chính thức của trang","\"Direct stream\" has no ads or site UI; \"Embedded\" uses the site's official player"],
   "settings.video.engines.stream": ["Luồng trực tiếp","Direct stream"],
