@@ -41,6 +41,7 @@ pub mod events {
     pub const LYRICS_CURRENT: &str = "lyrics://current";
     pub const ISLAND_VISIBILITY: &str = "island://visibility";
     pub const ISLAND_POINTER: &str = "island://pointer";
+    pub const ISLAND_FILES_DROPPED: &str = "island://files-dropped";
     pub const MEDIA_NOW_PLAYING: &str = "media://now-playing";
     pub const WEB_PLAYER_STATE: &str = "web_player://state";
 }

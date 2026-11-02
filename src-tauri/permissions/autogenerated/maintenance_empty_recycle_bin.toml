@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-maintenance-empty-recycle-bin"
+description = "Enables the maintenance_empty_recycle_bin command without any pre-configured scope."
+commands.allow = ["maintenance_empty_recycle_bin"]
+
+[[permission]]
+identifier = "deny-maintenance-empty-recycle-bin"
+description = "Denies the maintenance_empty_recycle_bin command without any pre-configured scope."
+commands.deny = ["maintenance_empty_recycle_bin"]

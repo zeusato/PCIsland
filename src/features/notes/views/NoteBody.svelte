@@ -3,6 +3,7 @@
   import { t, getLocale } from '$lib/i18n/index.svelte';
   import { ceilSeconds, formatDuration } from '$lib/format';
   import Bell from '@lucide/svelte/icons/bell';
+  import Check from '@lucide/svelte/icons/check';
   import { inTauri, noteCommands } from '$lib/ipc/commands';
   import { onNotesState } from '$lib/ipc/events';
   import type { NoteTask } from '$lib/ipc/bindings/NoteTask';
@@ -65,7 +66,7 @@
       {@const saved = tasks.find((entry) => entry.lineIndex === i)}
       <div class="task-row">
       <button class="task" class:done={task.checked} role="checkbox" aria-checked={task.checked} aria-label={task.text || t('notes.checkbox')} disabled={busy || disabled} onclick={(event) => { event.stopPropagation(); void toggle(i); }}>
-        <span class="box" aria-hidden="true">{task.checked ? '✓' : ''}</span><span>{task.text}</span>
+        <span class="box" aria-hidden="true">{#if task.checked}<Check strokeWidth={3} />{/if}</span><span>{task.text}</span>
       </button>
       {#if saved?.alarm && !task.checked}<span class="alarm-time tabular" title={saved.dueAt !== null ? new Date(saved.dueAt).toLocaleString() : t('notes.alarmWaiting')}>{alarmLabel(saved)}</span>{/if}
       {#if saved}<button class="alarm" class:armed={!!saved.alarm} aria-label={t('notes.alarm')} title={t('notes.alarm')} disabled={busy || disabled || (task.checked && !saved.alarm)} onclick={(event) => { event.stopPropagation(); editingAlarm = editingAlarm === saved.id ? null : saved.id; }}><Bell size={14} /></button>{/if}
@@ -88,6 +89,8 @@
   .alarm { display: grid; place-items: center; border: 0; background: none; color: var(--c-text-3); padding: var(--sp-2); }
   .alarm.armed { color: var(--c-accent); }
   .alarm-time { flex: none; max-width: 45%; padding-top: var(--sp-1); color: var(--c-accent-bright); font-size: var(--fs-caption); text-align: right; }
-  .box { flex: none; display: grid; place-items: center; width: var(--sp-6); height: var(--sp-6); border: 1px solid var(--c-border-strong); border-radius: var(--sp-2); color: var(--c-accent); font-size: var(--fs-caption); }
+  /* Scales with the note font (desktop note zoom) and stays centred on the first text line. */
+  .box { --box: max(var(--sp-6), 1.1em); flex: none; display: grid; place-items: center; width: var(--box); height: var(--box); margin-top: max(0px, calc((1lh - var(--box)) / 2)); border: 1px solid var(--c-border-strong); border-radius: var(--sp-2); color: var(--c-accent); }
+  .box :global(svg) { width: 75%; height: 75%; }
   .done { color: var(--c-text-3); text-decoration: line-through; }
 </style>

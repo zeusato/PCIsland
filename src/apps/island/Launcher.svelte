@@ -37,6 +37,9 @@
   );
   const time = $derived(now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }));
 
+  // Hidden tiles only leave the grid; hotkeys can still open their panels.
+  const visible = $derived(quickActions().filter((a) => !live.settings?.island.hiddenActions?.includes(a.id)));
+
   function choose(action: QuickAction) {
     if (action.panel) { panel = { action, component: action.panel }; onopen?.(); }
     else action.run?.();
@@ -58,11 +61,11 @@
     <panel.component close={closePanel} />
   {:else}
     <div class="grid">
-      {#each quickActions() as action (action.id)}
-        <button class="action" data-state={action.state?.() ?? undefined} aria-pressed={action.state ? !!action.state() : undefined} disabled={action.busy?.() ?? false} onclick={(e) => { e.stopPropagation(); choose(action); }} ondblclick={(event) => event.stopPropagation()}>
+      {#each visible as action (action.id)}
+        <!-- Status stays available on hover; tiles keep one label line and one size. -->
+        <button class="action" title={action.status ? `${t(action.labelKey)} · ${action.status()}` : t(action.labelKey)} data-state={action.state?.() ?? undefined} aria-pressed={action.state ? !!action.state() : undefined} disabled={action.busy?.() ?? false} onclick={(e) => { e.stopPropagation(); choose(action); }} ondblclick={(event) => event.stopPropagation()}>
           <action.icon size={18} />
-          <span>{t(action.labelKey)}</span>
-          {#if action.status}<span class="status">{action.status()}</span>{/if}
+          <span class="label">{t(action.labelKey)}</span>
         </button>
       {/each}
     </div>
@@ -131,14 +134,17 @@
   }
   .grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
     gap: var(--sp-4);
   }
   .action {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: var(--sp-2);
+    min-width: 0;
     padding: var(--sp-4) var(--sp-2);
     border: 0;
     border-radius: var(--r-control);
@@ -154,6 +160,6 @@
   .action[data-state='active'] { color: var(--c-accent-bright); background: var(--c-accent-soft); box-shadow: inset 0 0 0 1px var(--c-accent); }
   .action[data-state='break'] { color: var(--c-success); box-shadow: inset 0 0 0 1px var(--c-success); }
   .action[data-state='paused'] { color: var(--c-warning); box-shadow: inset 0 0 0 1px var(--c-warning); }
-  .status { font-size: var(--fs-caption); }
+  .label { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .action:disabled { opacity: 0.5; cursor: default; }
 </style>

@@ -164,7 +164,20 @@ pub fn setup(
         .always_on_top(true)
         .focused(false)
         .visible(false)
+        // wry's drop target is unreachable on this transparent window; Chromium takes the
+        // drop and the page forwards the files (platform/webview_drop.rs).
+        .disable_drag_drop_handler()
         .build()?;
+    let drop_app = app.clone();
+    window.with_webview(move |webview| {
+        let installed =
+            crate::platform::webview_drop::install(&webview.controller(), move |paths| {
+                let _ = drop_app.emit_to(LABEL, events::ISLAND_FILES_DROPPED, paths);
+            });
+        if let Err(error) = installed {
+            tracing::warn!(%error, "island file drop unavailable");
+        }
+    })?;
     let hwnd = RawHwnd::from_hwnd(window.hwnd()?);
     win::make_tool_window(hwnd);
     window.set_ignore_cursor_events(true)?;

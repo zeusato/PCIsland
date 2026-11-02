@@ -1,4 +1,5 @@
-//! Read-only resource counters and handle-based removal of app-owned log files.
+//! Resource counters, handle-based file/empty-directory removal, Recycle Bin and
+//! the fixed elevated helper launch used by maintenance.
 use std::{
     fs::{File, OpenOptions},
     io,
@@ -160,6 +161,127 @@ impl LogDirectory {
             return Err(io::Error::other("linked or non-file log refused"));
         }
         Ok(file)
+    }
+    /// Opens a direct child directory exclusively with DELETE access. The caller
+    /// passes it to [`delete_log`]; Windows refuses the disposition while the
+    /// directory still has entries, so a non-empty directory is never removed.
+    pub fn directory(&self, path: &Path) -> io::Result<File> {
+        if path.parent() != Some(self.path()) {
+            return Err(io::Error::other("directory outside guarded parent"));
+        }
+        // DELETE | FILE_READ_ATTRIBUTES; no sharing; BACKUP_SEMANTICS | OPEN_REPARSE_POINT.
+        let file = OpenOptions::new()
+            .access_mode(0x1_0080)
+            .share_mode(0)
+            .custom_flags(0x0220_0000)
+            .open(path)?;
+        let meta = file.metadata()?;
+        if !meta.is_dir() || meta.file_attributes() & 0x400 != 0 {
+            return Err(io::Error::other("linked or non-directory entry refused"));
+        }
+        Ok(file)
+    }
+}
+
+/// `%ProgramData%` from the shell known-folder database, not the environment.
+pub fn program_data_directory() -> Result<PathBuf, String> {
+    use windows::Win32::{
+        System::Com::CoTaskMemFree,
+        UI::Shell::{FOLDERID_ProgramData, KF_FLAG_DEFAULT, SHGetKnownFolderPath},
+    };
+    // SAFETY: the returned shell allocation is copied and then freed exactly once.
+    unsafe {
+        let raw = SHGetKnownFolderPath(&FOLDERID_ProgramData, KF_FLAG_DEFAULT, None)
+            .map_err(|e| e.to_string())?;
+        let path = raw.to_string();
+        CoTaskMemFree(Some(raw.0.cast()));
+        path.map(PathBuf::from).map_err(|e| e.to_string())
+    }
+}
+
+/// Size and item count of the Recycle Bin on every drive.
+pub fn recycle_bin() -> Result<(u64, u64), String> {
+    use windows::Win32::UI::Shell::{SHQUERYRBINFO, SHQueryRecycleBinW};
+    let mut info = SHQUERYRBINFO {
+        cbSize: size_of::<SHQUERYRBINFO>() as u32,
+        i64Size: 0,
+        i64NumItems: 0,
+    };
+    // SAFETY: a null root means all drives; the struct carries its own size.
+    unsafe { SHQueryRecycleBinW(windows::core::PCWSTR::null(), &raw mut info) }
+        .map_err(|e| e.to_string())?;
+    Ok((info.i64Size.max(0) as u64, info.i64NumItems.max(0) as u64))
+}
+
+/// Permanently empties every drive's Recycle Bin. The UI confirms first; the shell
+/// confirmation, progress and sound are suppressed so the call never blocks on UI.
+pub fn empty_recycle_bin() -> Result<(), String> {
+    use windows::Win32::UI::Shell::{
+        SHERB_NOCONFIRMATION, SHERB_NOPROGRESSUI, SHERB_NOSOUND, SHEmptyRecycleBinW,
+    };
+    // SAFETY: no window handle and a null root (all drives); flags are documented values.
+    unsafe {
+        SHEmptyRecycleBinW(
+            None,
+            windows::core::PCWSTR::null(),
+            SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI | SHERB_NOSOUND,
+        )
+    }
+    .map_err(|e| e.to_string())
+}
+
+/// Starts this executable elevated with one fixed argument and waits for its exit
+/// code. `Ok(None)` means the user declined the UAC prompt.
+pub fn run_elevated_self(argument: &'static str, timeout_ms: u32) -> Result<Option<u32>, String> {
+    use windows::Win32::{
+        Foundation::{CloseHandle, ERROR_CANCELLED, WAIT_OBJECT_0},
+        System::Threading::{GetExitCodeProcess, WaitForSingleObject},
+        UI::{
+            Shell::{
+                SEE_MASK_FLAG_NO_UI, SEE_MASK_NOASYNC, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW,
+                ShellExecuteExW,
+            },
+            WindowsAndMessaging::SW_HIDE,
+        },
+    };
+    let exe = HSTRING::from(
+        std::env::current_exe()
+            .map_err(|e| e.to_string())?
+            .as_os_str(),
+    );
+    let parameters = HSTRING::from(argument);
+    let mut info = SHELLEXECUTEINFOW {
+        cbSize: size_of::<SHELLEXECUTEINFOW>() as u32,
+        fMask: SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI,
+        lpVerb: windows::core::w!("runas"),
+        lpFile: windows::core::PCWSTR(exe.as_ptr()),
+        lpParameters: windows::core::PCWSTR(parameters.as_ptr()),
+        nShow: SW_HIDE.0,
+        ..Default::default()
+    };
+    // SAFETY: the strings outlive the call; the returned process handle is owned
+    // here and closed on every path after waiting.
+    unsafe {
+        if let Err(error) = ShellExecuteExW(&raw mut info) {
+            if error.code() == windows::core::HRESULT::from_win32(ERROR_CANCELLED.0) {
+                return Ok(None);
+            }
+            return Err(error.to_string());
+        }
+        if info.hProcess.is_invalid() {
+            return Err("elevated helper handle unavailable".into());
+        }
+        let process = info.hProcess;
+        let result = if WaitForSingleObject(process, timeout_ms) == WAIT_OBJECT_0 {
+            let mut code = 0;
+            GetExitCodeProcess(process, &raw mut code)
+                .map(|_| Some(code))
+                .map_err(|e| e.to_string())
+        } else {
+            Err("elevated helper did not finish in time".into())
+        };
+        let _ = CloseHandle(process);
+        result
     }
 }
 

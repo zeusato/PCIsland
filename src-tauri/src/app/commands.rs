@@ -44,6 +44,28 @@ pub fn app_show_toast(app: AppHandle, title: String, body: String) {
     );
 }
 
+/// Copies the link of the playing track for sharing (docs/modules/media-hub.md).
+/// Only plain http(s) links without credentials are accepted.
+#[tauri::command]
+pub fn app_copy_link(window: tauri::WebviewWindow, url: String) -> IpcResult<()> {
+    let error = |m: String| IpcError::new("app.copy_link", m);
+    let parsed = shareable_link(&url).ok_or_else(|| error("not a shareable link".into()))?;
+    let owner = crate::platform::window::RawHwnd::from_hwnd(
+        window.hwnd().map_err(|e| error(e.to_string()))?,
+    );
+    crate::platform::clipboard::write_text(parsed.as_str(), owner).map_err(|e| error(e.to_string()))
+}
+
+fn shareable_link(url: &str) -> Option<tauri::Url> {
+    let parsed = tauri::Url::parse(url.trim()).ok()?;
+    (url.len() <= 2048
+        && matches!(parsed.scheme(), "https" | "http")
+        && parsed.host_str().is_some()
+        && parsed.username().is_empty()
+        && parsed.password().is_none())
+    .then_some(parsed)
+}
+
 #[tauri::command]
 pub fn app_open_data_folder(paths: State<'_, Paths>) -> IpcResult<()> {
     std::process::Command::new("explorer")
@@ -146,4 +168,16 @@ pub fn app_modules(
     sup: State<'_, crate::core::supervisor::Supervisor>,
 ) -> std::collections::BTreeMap<String, crate::core::supervisor::ModuleState> {
     sup.states()
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn only_plain_web_links_are_shareable() {
+        assert!(super::shareable_link("https://open.spotify.com/track/abc").is_some());
+        assert!(super::shareable_link("https://user:pw@example.com/").is_none());
+        assert!(super::shareable_link("vstream://local/1").is_none());
+        assert!(super::shareable_link("file:///C:/music.mp3").is_none());
+        assert!(super::shareable_link(&format!("https://a.com/{}", "x".repeat(2100))).is_none());
+    }
 }

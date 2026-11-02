@@ -27,7 +27,8 @@ const PEEK_HEIGHT: Record<string, number> = {
 };
 
 export function geometryFor(mode: Presentation, content: Content, source = '', contentHeight = 0, showSwitcher = true): Geometry {
-  if (content === 'drop') return { w: 400, h: 220, r: 28 };
+  // The shelf grows with its list and action bars like other panels (island-window §5).
+  if (content === 'drop') return { w: 400, h: Math.min(MAX_PEEK_H, Math.max(220, contentHeight)), r: 28 };
   switch (mode) {
     case 'minimal':
       return { w: 96, h: 4, r: 2 };

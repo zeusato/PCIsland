@@ -147,13 +147,22 @@ pub fn setup(
     let mut intents = bus.subscribe();
     tauri::async_runtime::spawn(async move {
         while let Ok(event) = intents.recv().await {
-            if let AppEvent::MediaIntent(MediaIntent::PlayLocalPlaylist(id)) = event {
-                match library::playlist_tracks(&for_intents.db, &id) {
-                    Ok(ids) if !ids.is_empty() => for_intents.send(Cmd::PlayTracks(ids, 0)),
-                    _ => {
-                        tracing::warn!(module = "local_player", playlist = %id, "focus playlist missing or empty")
+            match event {
+                AppEvent::MediaIntent(MediaIntent::PlayLocalPlaylist(id)) => {
+                    match library::playlist_tracks(&for_intents.db, &id) {
+                        Ok(ids) if !ids.is_empty() => for_intents.send(Cmd::PlayTracks(ids, 0)),
+                        _ => {
+                            tracing::warn!(module = "local_player", playlist = %id, "focus playlist missing or empty")
+                        }
                     }
                 }
+                // Downloaded focus music loops for the whole phase (focus-sounds §3).
+                AppEvent::MediaIntent(MediaIntent::PlayFiles { paths, shuffle }) => {
+                    for_intents.send(Cmd::Shuffle(shuffle));
+                    for_intents.send(Cmd::Repeat(RepeatMode::All));
+                    for_intents.send(Cmd::PlayFiles(paths));
+                }
+                _ => {}
             }
         }
     });

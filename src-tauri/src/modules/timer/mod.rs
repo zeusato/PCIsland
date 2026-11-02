@@ -14,7 +14,7 @@ use ts_rs::TS;
 
 use crate::core::activity::{Activity, ActivityAction, ActivityHub};
 use crate::core::audio::{AudioEngine, SoundId};
-use crate::core::events::{AppEvent, EventBus, MediaIntent};
+use crate::core::events::{AppEvent, EventBus, MediaIntent, PomodoroPhase};
 use crate::core::id::new_id;
 use crate::core::priority;
 use crate::core::settings::Settings;
@@ -238,6 +238,9 @@ async fn service(app: AppHandle, rx: Shared<Cmd>, ctx: Ctx, mut s: TimerSnapshot
                 if end.next != Phase::Work && ctx.settings.borrow().pomodoro.pause_media_on_break {
                     ctx.bus.send(AppEvent::MediaIntent(MediaIntent::Pause));
                 }
+                if end.auto_started {
+                    ctx.bus.send(AppEvent::PomodoroPhase(phase_event(end.next)));
+                }
                 dirty = true;
             }
         }
@@ -309,8 +312,13 @@ async fn service(app: AppHandle, rx: Shared<Cmd>, ctx: Ctx, mut s: TimerSnapshot
             Cmd::StopwatchLap => s.stopwatch.lap(now),
             Cmd::PomodoroStart => {
                 s.pomodoro = Some(Pomodoro::start(&ctx.pomodoro_config(), now));
-                let playlist = ctx.settings.borrow().pomodoro.focus_playlist_id.clone();
-                if !playlist.is_empty() {
+                ctx.bus.send(AppEvent::PomodoroPhase(PomodoroPhase::Work));
+                // Downloaded focus sound packs replace the playlist (focus-sounds §3).
+                let (playlist, packs) = {
+                    let p = &ctx.settings.borrow().pomodoro;
+                    (p.focus_playlist_id.clone(), !p.focus_sound_packs.is_empty())
+                };
+                if !playlist.is_empty() && !packs {
                     ctx.bus
                         .send(AppEvent::MediaIntent(MediaIntent::PlayLocalPlaylist(
                             playlist,
@@ -319,16 +327,31 @@ async fn service(app: AppHandle, rx: Shared<Cmd>, ctx: Ctx, mut s: TimerSnapshot
             }
             Cmd::PomodoroPause => s.pomodoro.iter_mut().for_each(|p| p.pause(now)),
             Cmd::PomodoroResume => s.pomodoro.iter_mut().for_each(|p| p.resume(now)),
-            Cmd::PomodoroNext => s.pomodoro.iter_mut().for_each(|p| p.start_waiting(now)),
+            Cmd::PomodoroNext => {
+                if let Some(p) = s
+                    .pomodoro
+                    .as_mut()
+                    .filter(|p| p.run == PomodoroRun::Waiting)
+                {
+                    p.start_waiting(now);
+                    ctx.bus.send(AppEvent::PomodoroPhase(phase_event(p.phase)));
+                }
+            }
             Cmd::PomodoroSkip => {
                 let cfg = ctx.pomodoro_config();
                 if let Some(p) = s.pomodoro.as_mut() {
                     let end = p.advance(&cfg, now, false);
                     record_phase(&ctx.db, &end);
                     p.start_waiting(now);
+                    ctx.bus.send(AppEvent::PomodoroPhase(phase_event(p.phase)));
                 }
             }
-            Cmd::PomodoroStop => s.pomodoro = None,
+            Cmd::PomodoroStop => {
+                if s.pomodoro.take().is_some() {
+                    ctx.bus
+                        .send(AppEvent::PomodoroPhase(PomodoroPhase::Stopped));
+                }
+            }
             Cmd::Focus(on) => s.focus_manual = on,
             Cmd::Snapshot(reply) => {
                 let _ = reply.send(s.clone());
@@ -341,6 +364,14 @@ async fn service(app: AppHandle, rx: Shared<Cmd>, ctx: Ctx, mut s: TimerSnapshot
 fn with_timer(s: &mut TimerSnapshot, id: &str, f: impl FnOnce(&mut Countdown)) {
     if let Some(t) = s.timers.iter_mut().find(|t| t.id == id) {
         f(t);
+    }
+}
+
+fn phase_event(phase: Phase) -> PomodoroPhase {
+    if phase == Phase::Work {
+        PomodoroPhase::Work
+    } else {
+        PomodoroPhase::Break
     }
 }
 

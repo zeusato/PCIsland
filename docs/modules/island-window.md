@@ -51,9 +51,11 @@ Alert lớn (Critical) chặn việc thu về compact cho tới khi người dù
 **Peek khi rảnh: launcher.**
 - Khi không hiện nút chuyển tác vụ, không chừa hàng điều hướng 28 px: nội dung bắt đầu cách mép trên 16 px. Chiều cao và hit region chỉ cộng hàng điều hướng khi nút thực sự hiện.
 - Lưới launcher có chữ ký “by Zeusato” ở góc dưới phải, chữ nghiêng weight 400 màu neon cam cố định; opacity 0.8–1 để dễ đọc. Ánh sáng thay đổi nhẹ hai nhịp trong 6 giây rồi đứng yên; tắt hiệu ứng khi bật giảm chuyển động trong app hoặc hệ thống. Không hiện chữ ký trong panel con.
-- Thứ tự lưới: **Nhạc → Ghi chú → Nhắc việc → Pomodoro → Hẹn giờ → Bấm giờ → Kệ file → Mở PCisland**. Kệ file kèm số mục đang giữ và mở lại các thumbnail để kéo ra.
+- Thứ tự lưới: **Nhạc → Ghi chú → Nhắc việc → Pomodoro → Hẹn giờ → Bấm giờ → Kệ file → Mở PCisland**. Kệ file (số mục đang giữ ở tooltip) mở lại các thumbnail để kéo ra.
 - Không có activity nào thì peek là **launcher**: hàng ngày giờ + pin, bên dưới là lưới nút theo thứ tự trên.
 - Nút do từng module đăng ký vào **quick action registry** của frontend (`src/lib/registry/quickActions.ts`), kèm thứ tự và điều kiện hiện. Module bị tắt thì nút ẩn.
+- Mọi ô trong lưới cùng kích thước (lưới 4 cột, hàng đều nhau), chỉ có icon + tên một dòng (dài thì cắt “…”). Không hiện dòng trạng thái dưới tên; trạng thái (ví dụ pha Pomodoro, đang ghi họp) chỉ còn trong màu viền và tooltip.
+- Cài đặt › **Nút trên island** bật/tắt từng ô (`island.hiddenActions`). Ô bị tắt chỉ biến khỏi lưới; phím tắt mở panel của nó vẫn chạy. Danh mục cho trang Cài đặt nằm ở `src/lib/registry/launcherCatalog.ts` (cửa sổ chính không nạp đăng ký của island).
 - Bấm một nút sẽ mở panel do module cung cấp (`features/<module>/views/QuickPanel.svelte`) ngay trong peek. Ví dụ: chip preset của hẹn giờ.
 - Khi đang có activity, peek của activity có nút lưới nhỏ ở góc để chuyển sang launcher.
 - Launcher đo chiều cao nội dung bằng ResizeObserver; khi chọn trang nhạc hiện Chạy tiếp/Mở trang gốc thì tự nới island xuống, không ép chooser vào vùng cuộn nhỏ. Danh sách phát cũng đo chiều cao, tối đa 340 px cho các dòng bài rồi mới cuộn. Chiều cao peek tối đa 600 px, trở lại chiều cao cũ khi đóng panel/queue.
@@ -166,6 +168,7 @@ Không có bảng DB.
 | `island.minimal_when_maximized` | `true` | |
 | `island.allow_alert_over_fullscreen` | `"critical"` | `"never"` · `"critical"` · `"all"` |
 | `island.reduce_motion` | `"system"` | `"system"` · `"on"` · `"off"` |
+| `island.hidden_actions` | `[]` | ID ô launcher bị tắt; chỉ nhận `[a-z_.]`, tối đa 32, bỏ trùng |
 
 ## 8. Phụ thuộc
 
@@ -235,3 +238,6 @@ Không có. Đã chốt: Q1 (đôi mắt khi rảnh), Q2 (luôn hiện, ở màn
 | 2026-11-01 | Giữ panel launcher khi activity đổi; drag mở kệ 3 slot; form giờ nhắc checklist giữ mở; toast Pomodoro chuyển sang Windows. |
 | 2026-11-01 | Kéo bắt đầu trong dải mép trên không mở kệ. Mở player từ launcher chỉ có hiệu lực cho một lần peek; thu gọn xong hover lại theo activity. |
 | 2026-11-01 | Launcher có mục Video (`video.open`); phím tắt `videoOpen` mở thẳng panel dán link |
+| 2026-11-02 | Ô launcher đồng cỡ, tên một dòng, trạng thái chuyển sang tooltip; cài đặt bật/tắt từng ô (`hiddenActions`). |
+| 2026-11-02 | Sửa kéo file từ Explorer lên island hiện dấu cấm: drop target của wry nằm ở HWND host trong tiến trình app, còn HWND dưới con trỏ là render widget của tiến trình WebView2 nên OLE không tới được, trong khi wry đã tắt drop gốc của Chromium. Island tắt handler của wry, để Chromium nhận drop; trang gửi `File` qua `chrome.webview.postMessageWithAdditionalObjects`, `platform/webview_drop.rs` đọc đường dẫn thật từ `ICoreWebView2File` (chỉ nhận từ trang của app) rồi phát `island://files-dropped`. Đã thử bằng drag OLE giả lập trên bản debug: effect Copy, file vào kệ. Tauri IPC ghi một dòng console `JSON error` vô hại khi nhận message này. |
+| 2026-11-02 | Panel thả file/Kệ file không còn cố định 220 px: đo nội dung và giãn tới tối đa 600 px như các panel khác, nên luôn thấy danh sách (cuộn trong 340 px) và thanh nút Kéo/Copy/ZIP/Dọn kệ. Đã xem trên bản debug với 6 file. |

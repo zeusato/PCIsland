@@ -1,5 +1,17 @@
 # Lịch sử phát hành
 
+## 0.1.3 · 2026-11-02
+
+- Nhạc tập trung cho Pomodoro: tải theo yêu cầu từ repo `zeusato/pcisland-sounds` (3 gói, 20 bài), kiểm SHA-256, phát xáo theo pha làm việc/nghỉ.
+- Hộp chào lần đầu hỏi tải thư viện YouTube (yt-dlp) và gói nhạc; không tải gì khi chưa đồng ý.
+- Spotify/SoundCloud: danh sách phát, tìm kiếm SoundCloud, repeat theo nút của trang.
+- Nút chia sẻ trong trình phát: chép link bài đang phát vào clipboard.
+- Nút island đều kích thước, tên một dòng; Cài đặt cho ẩn/hiện từng nút.
+- Dọn dẹp: Thùng rác, cache Windows Update (UAC), đóng app nền ngốn RAM; tiến trình giữ khi rời và quay lại island.
+- Sửa: kéo file vào island bị dấu cấm, kệ file khi thả bị cắt mất nút; note desktop không đóng được, ô tick lệch khi đổi cỡ chữ.
+
+[Chi tiết, tải và giới hạn](docs/releases/v0.1.3.md).
+
 ## 0.1.2 · 2026-11-01
 
 - Kệ file không còn trần 3: chọn/kéo/copy nhiều file thực, ZIP nền có hủy, đổi một ảnh PNG/JPEG sang PNG/JPEG/WebP.

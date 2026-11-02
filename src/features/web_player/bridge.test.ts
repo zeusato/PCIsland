@@ -175,6 +175,76 @@ it('activates resume only once and stops immediately on an anti-bot page', () =>
   expect(play).toHaveBeenCalledOnce();
 });
 
+it('reads the Spotify queue from connect-state and names, and repeats through the site button', async () => {
+  const callbacks: Array<() => void> = [];
+  const invoke = vi.fn(async () => {});
+  const sockets: Array<(event: { data: string }) => void> = [];
+  class NativeSocket { constructor(public url: string) {} addEventListener(_type: string, cb: (event: { data: string }) => void) { sockets.push(cb); } }
+  const bodies: Record<string, unknown> = {};
+  const fetch = vi.fn(async (url: string) => ({ ok: true, clone: () => ({ json: async () => bodies[url] }) }));
+  const browser: Record<string, unknown> = { __TAURI_INTERNALS__: { invoke }, addEventListener() {}, fetch, WebSocket: NativeSocket }; browser.top = browser;
+  const labels = ['Enable repeat', 'Enable repeat one', 'Disable repeat'];
+  const repeat = { label: 1, getAttribute: () => labels[repeat.label], click: vi.fn(() => { repeat.label = (repeat.label + 1) % 3; }) };
+  runInNewContext(script, { window: browser, navigator: {}, HTMLMediaElement: class { play() {} },
+    document: { querySelectorAll: () => [], querySelector: (s: string) => s === '[data-testid="control-button-repeat"]' ? repeat : null, addEventListener() {}, title: 'Spotify' },
+    location: { href: 'https://open.spotify.com/', origin: 'https://open.spotify.com' }, URL,
+    setTimeout: (cb: () => void) => { callbacks.push(cb); return callbacks.length; },
+  });
+  const flush = async () => { for (let i = 0; i < 10; i++) { await Promise.resolve(); while (callbacks.length) callbacks.shift()?.(); } };
+  const cluster = (repeating_context: boolean) => ({ player_state: {
+    context_uri: 'spotify:album:A1', options: { repeating_context, repeating_track: false },
+    track: { uri: 'spotify:track:T1', metadata: { title: 'First', artist_name: 'Singer' } },
+    prev_tracks: [], next_tracks: [{ uri: 'spotify:track:T2', metadata: {} }, { uri: 'spotify:ad:X', metadata: {} }],
+  } });
+  bodies['https://gae2-spclient.spotify.com/connect-state/v1/devices/hobs_1'] = cluster(false);
+  bodies['https://api-partner.spotify.com/pathfinder/v2/query'] = { data: { tracks: [{ uri: 'spotify:track:T2', name: 'Second', artists: { items: [{ profile: { name: 'Band' } }] } }] } };
+  await (browser.fetch as typeof fetch)('https://gae2-spclient.spotify.com/connect-state/v1/devices/hobs_1');
+  await (browser.fetch as typeof fetch)('https://api-partner.spotify.com/pathfinder/v2/query');
+  await flush();
+  expect(invoke).toHaveBeenLastCalledWith('web_player_report', { msg: expect.objectContaining({
+    trackUrl: 'https://open.spotify.com/track/T1', pageUrl: 'https://open.spotify.com/album/A1',
+    queue: [{ url: 'https://open.spotify.com/track/T1', title: 'First', artist: 'Singer' }, { url: 'https://open.spotify.com/track/T2', title: 'Second', artist: 'Band' }],
+  }) });
+  const socket = new (browser.WebSocket as typeof NativeSocket)('wss://gae2-dealer.spotify.com/?access_token=x');
+  expect(socket).toBeInstanceOf(NativeSocket);
+  sockets[0]!({ data: JSON.stringify({ payloads: [{ cluster: cluster(true) }] }) });
+  const bridge = browser.__pcisland as { setRepeat: (mode: string) => boolean };
+  expect(bridge.setRepeat('one')).toBe(true);
+  await flush();
+  expect(repeat.click).toHaveBeenCalledOnce();
+  expect(invoke).toHaveBeenLastCalledWith('web_player_report', { msg: expect.objectContaining({ repeat: 'one', repeatError: false }) });
+});
+
+it('reads the open SoundCloud queue and cycles its repeat control to the requested mode', async () => {
+  const callbacks: Array<() => void> = [];
+  const invoke = vi.fn(async () => {});
+  const browser: Record<string, unknown> = { __TAURI_INTERNALS__: { invoke }, addEventListener() {} }; browser.top = browser;
+  const modes = ['', 'm-one', 'm-all'];
+  const repeat = { mode: 0, classList: { contains: (c: string) => modes[repeat.mode] === c }, click: vi.fn(() => { repeat.mode = (repeat.mode + 1) % 3; }) };
+  const play = { click: vi.fn() };
+  const row = (href: string, title: string, active: boolean) => ({
+    classList: { contains: (c: string) => active && c === 'm-active' },
+    closest: () => null,
+    querySelector: (s: string) => s.startsWith('.queueItemView__title') ? { getAttribute: () => href, textContent: title, closest: () => row } : s === '.queueItemView__username' ? { textContent: 'Uploader' } : s.includes('sc-button-play') ? play : null,
+  });
+  const rows = [row('/a/one', 'One', true), row('/a/two', 'Two', false)];
+  runInNewContext(script, { window: browser, navigator: {}, HTMLMediaElement: class { play() {} },
+    document: { querySelectorAll: (s: string) => s === '.queue__itemWrapper .queueItemView' ? rows : [],
+      querySelector: (s: string) => s === '.playControls .repeatControl' ? repeat : s === '.playbackSoundBadge__titleLink, [data-testid="now-playing-widget-v2"] a' ? { getAttribute: () => '/a/one?in=a/sets/list' } : null,
+      addEventListener() {}, title: 'One' },
+    location: { href: 'https://soundcloud.com/discover' }, URL,
+    setTimeout: (cb: () => void) => { callbacks.push(cb); return callbacks.length; },
+  });
+  const bridge = browser.__pcisland as { setRepeat: (mode: string) => boolean };
+  expect(bridge.setRepeat('all')).toBe(true);
+  for (let i = 0; i < 10 && callbacks.length; i++) callbacks.shift()?.();
+  expect(repeat.click).toHaveBeenCalledTimes(2);
+  expect(invoke).toHaveBeenLastCalledWith('web_player_report', { msg: expect.objectContaining({
+    repeat: 'all', trackUrl: 'https://soundcloud.com/a/one', pageUrl: 'https://soundcloud.com/a/sets/list',
+    queue: [{ url: 'https://soundcloud.com/a/one', title: 'One', uploader: 'Uploader' }, { url: 'https://soundcloud.com/a/two', title: 'Two', uploader: 'Uploader' }],
+  }) });
+});
+
 it('reports progress from audio that is never attached to the document', () => {
   const callbacks: Array<() => void> = [];
   const events = new Map<string, () => void>();

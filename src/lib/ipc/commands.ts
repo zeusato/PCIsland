@@ -16,6 +16,26 @@ import type { MemoryProcess } from './bindings/MemoryProcess';
 import type { MemoryTarget } from './bindings/MemoryTarget';
 import type { MemoryReclaim } from './bindings/MemoryReclaim';
 import type { MemoryMeasurement } from './bindings/MemoryMeasurement';
+import type { MemoryApp } from './bindings/MemoryApp';
+import type { AppCloseResult } from './bindings/AppCloseResult';
+import type { RecycleBinInfo } from './bindings/RecycleBinInfo';
+import type { ElevatedCleanup } from './bindings/ElevatedCleanup';
+import type { FocusSoundsStatus } from './bindings/FocusSoundsStatus';
+import type { FocusCatalog } from './bindings/FocusCatalog';
+import type { FocusDownloadProgress } from './bindings/FocusDownloadProgress';
+
+/** Downloadable focus music (docs/modules/focus-sounds.md §6). */
+export const focusSoundsCommands = {
+  status: () => invoke<FocusSoundsStatus>('focus_sounds_status'),
+  catalog: () => invoke<FocusCatalog>('focus_sounds_catalog'),
+  download: (packs: string[], onProgress: (p: FocusDownloadProgress) => void) => {
+    const progress = new Channel<FocusDownloadProgress>();
+    progress.onmessage = onProgress;
+    return invoke<FocusSoundsStatus>('focus_sounds_download', { packs, progress });
+  },
+  cancel: () => invoke<void>('focus_sounds_cancel'),
+  remove: (packs: string[]) => invoke<FocusSoundsStatus>('focus_sounds_remove', { packs }),
+};
 
 export const maintenanceCommands = {
   clean: (onProgress: (p: CleanupProgress) => void) => {
@@ -29,6 +49,12 @@ export const maintenanceCommands = {
   reclaim: (targets: MemoryTarget[]) => invoke<MemoryReclaim>('maintenance_reclaim', { targets }),
   measure: (targets: MemoryTarget[]) => invoke<MemoryMeasurement>('maintenance_measure', { targets }),
   open: (tool: 'storage' | 'task_manager') => invoke<void>('maintenance_open', { tool }),
+  recycleBin: () => invoke<RecycleBinInfo>('maintenance_recycle_bin'),
+  emptyRecycleBin: () => invoke<RecycleBinInfo>('maintenance_empty_recycle_bin'),
+  windowsUpdate: () => invoke<ElevatedCleanup>('maintenance_windows_update'),
+  apps: () => invoke<MemoryApp[]>('maintenance_apps'),
+  closeApp: (targets: MemoryTarget[], allowAudio: boolean) => invoke<AppCloseResult>('maintenance_close_app', { targets, allowAudio }),
+  forceClose: (targets: MemoryTarget[]) => invoke<AppCloseResult>('maintenance_force_close', { targets }),
 };
 import type { SoundId } from './bindings/SoundId';
 import type { TimerSnapshot } from './bindings/TimerSnapshot';
@@ -70,6 +96,7 @@ export const inTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in
 
 export const appCommands = {
   toast: (title: string, body: string) => invoke<void>('app_show_toast', { title, body }),
+  copyLink: (url: string) => invoke<void>('app_copy_link', { url }),
   info: () => invoke<AppInfo>('app_get_info'),
   quit: () => invoke<void>('app_quit'),
   openDataFolder: () => invoke<void>('app_open_data_folder'),

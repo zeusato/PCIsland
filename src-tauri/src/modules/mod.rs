@@ -1,3 +1,4 @@
+pub mod focus_sounds;
 pub mod indicators;
 pub mod island;
 pub mod local_player;

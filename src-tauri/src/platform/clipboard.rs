@@ -83,3 +83,39 @@ pub fn write_files(
         result
     }
 }
+
+/// Replace the clipboard with plain text (a shared track link).
+pub fn write_text(text: &str, owner: super::window::RawHwnd) -> windows::core::Result<()> {
+    use windows::Win32::Foundation::GlobalFree;
+    use windows::Win32::System::DataExchange::{EmptyClipboard, SetClipboardData};
+    use windows::Win32::System::Memory::{GMEM_MOVEABLE, GlobalAlloc};
+    let mut units: Vec<u16> = text.encode_utf16().collect();
+    units.push(0);
+    // SAFETY: the allocation holds exactly the NUL-terminated UTF-16 text written below.
+    // Ownership passes to Windows only on successful SetClipboardData; the clipboard is
+    // closed on every path.
+    unsafe {
+        let memory = GlobalAlloc(GMEM_MOVEABLE, units.len() * 2)?;
+        let ptr = GlobalLock(memory).cast::<u16>();
+        if ptr.is_null() {
+            let _ = GlobalFree(Some(memory));
+            return Err(windows::core::Error::from_thread());
+        }
+        std::ptr::copy_nonoverlapping(units.as_ptr(), ptr, units.len());
+        let _ = GlobalUnlock(memory);
+        let result = (|| {
+            OpenClipboard(Some(owner.hwnd()))?;
+            let result = (|| {
+                EmptyClipboard()?;
+                SetClipboardData(u32::from(CF_UNICODETEXT.0), Some(HANDLE(memory.0)))?;
+                Ok(())
+            })();
+            let _ = CloseClipboard();
+            result
+        })();
+        if result.is_err() {
+            let _ = GlobalFree(Some(memory));
+        }
+        result
+    }
+}

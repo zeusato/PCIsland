@@ -10,7 +10,7 @@
 | [app-lifecycle](app-lifecycle.md) | `app` | F03, F08, F45 | P1–P3 | Đang làm |
 | [activity-hub](activity-hub.md) | `activity` | F06 | P1 | Đang làm |
 | [settings-storage](settings-storage.md) | `settings`, `storage` | Hạ tầng | P1 | Đang làm |
-| [maintenance](maintenance.md) | `maintenance` | RAM toàn PC, dọn rác một chạm | Bổ sung theo yêu cầu | Đóng gói v0.1.2, còn nghiệm thu thực tế |
+| [maintenance](maintenance.md) | `maintenance` | RAM toàn PC, đóng app ngốn RAM, dọn rác một chạm, Thùng rác, Windows Update | Bổ sung theo yêu cầu | v0.1.2 + mở rộng 2026-11-02 (ADR-022), còn nghiệm thu thực tế |
 | [full-window](full-window.md) | `ui-main` | F02, F07, F09 | P1–P3 | Đang làm |
 | [media-hub](media-hub.md) | `media` | F10 | P1 | Đang làm |
 | [local-player](local-player.md) | `local_player` | F11, F13 | P2–P3 | Đang làm |
@@ -22,6 +22,7 @@
 | [quick-notes](quick-notes.md) | `notes` | F26 | P3 | Đang làm |
 | [file-shelf](file-shelf.md) | `shelf` | F27 | P3 | Đang làm |
 | [meeting](meeting.md) | `meeting` | Ghi họp, highlight, transcript | Bổ sung theo yêu cầu | Có source/test, còn nghiệm thu native |
+| [focus-sounds](focus-sounds.md) | `focus_sounds` | Nhạc tập trung tải theo yêu cầu, phát theo pha Pomodoro | Bổ sung theo yêu cầu | Có source/test 2026-11-02 (ADR-023), chờ release nhạc thật |
 | [video-player](video-player.md) | `video` | F46 | Backlog | Đã code, chờ test tay |
 | [future-modules](future-modules.md) | — | F40–F44 | P4 | Phác thảo |
 

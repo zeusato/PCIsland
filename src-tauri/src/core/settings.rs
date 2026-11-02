@@ -87,6 +87,8 @@ section!(AppSettings {
     language: String = "vi".into(),
     autostart: bool = true,
     sound_volume: f32 = 0.6,
+    // False until the first-run welcome (optional downloads) was answered.
+    welcome_done: bool = false,
     sound_timer: String = "bell".into(),
     sound_reminder: String = "chime".into(),
     sound_pomodoro: String = "softTick".into(),
@@ -103,6 +105,8 @@ section!(IslandSettings {
     minimal_when_maximized: bool = true,
     alert_over_fullscreen: String = "critical".into(),
     reduce_motion: String = "system".into(),
+    // Launcher tile IDs the user turned off (docs/modules/island-window.md §4).
+    hidden_actions: Vec<String> = Vec::new(),
 });
 section!(TimerSettings {
     presets_min: Vec<u32> = vec![1, 3, 5, 10, 15, 25, 45, 60],
@@ -118,6 +122,8 @@ section!(PomodoroSettings {
     focus_with_pomodoro: bool = true,
     pause_media_on_break: bool = false,
     focus_playlist_id: String = String::new(),
+    // Downloaded sound packs used by Pomodoro; they take precedence over the playlist.
+    focus_sound_packs: Vec<String> = Vec::new(),
 });
 section!(RemindersSettings {
     show_upcoming_min: u32 = 15,
@@ -179,6 +185,7 @@ impl Settings {
         if !["eyes", "clock", "pill", "hidden"].contains(&i.idle_display.as_str()) {
             i.idle_display = "eyes".into();
         }
+        keep_ids(&mut i.hidden_actions);
         self.app.sound_volume = self.app.sound_volume.clamp(0.0, 1.0);
         let names = crate::core::audio::SOUND_NAMES;
         for (value, default) in [
@@ -192,6 +199,7 @@ impl Settings {
         }
         self.local_player.volume = self.local_player.volume.clamp(0.0, 1.0);
         let p = &mut self.pomodoro;
+        keep_ids(&mut p.focus_sound_packs);
         p.work_min = p.work_min.clamp(1, 180);
         p.short_break_min = p.short_break_min.clamp(1, 60);
         p.long_break_min = p.long_break_min.clamp(1, 120);
@@ -254,6 +262,19 @@ fn read(path: &Path) -> Option<Settings> {
     let mut settings: Settings = serde_json::from_value(doc).ok()?;
     settings.validate();
     Some(settings)
+}
+
+/// ID lists from the UI: `[a-z0-9._-]`, 1–64 characters, unique, at most 32.
+fn keep_ids(list: &mut Vec<String>) {
+    let mut seen = std::collections::HashSet::new();
+    list.retain(|id| {
+        (1..=64).contains(&id.len())
+            && id.bytes().all(|b| {
+                b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'.' | b'-')
+            })
+            && seen.insert(id.clone())
+    });
+    list.truncate(32);
 }
 
 fn backup_path(path: &Path) -> PathBuf {
@@ -364,6 +385,17 @@ mod tests {
         assert_eq!(next.app.sound_timer, "bell");
         assert_eq!(next.app.sound_reminder, "none");
         assert!(crate::core::audio::SoundId::named("none").is_none());
+    }
+
+    #[test]
+    fn hidden_launcher_actions_are_sanitised() {
+        let next = apply_patch(
+            &Settings::default(),
+            "island",
+            &serde_json::json!({ "hiddenActions": ["video.open", "video.open", "Bad Id", "", "meeting.open"] }),
+        )
+        .unwrap();
+        assert_eq!(next.island.hidden_actions, ["video.open", "meeting.open"]);
     }
 
     #[test]

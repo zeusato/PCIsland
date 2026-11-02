@@ -40,7 +40,7 @@
   let launcherOpen = $state(false);
   let playerSource = $state<string | null>(null);
   let measured = $state<{ node: HTMLElement; key: string; height: number } | null>(null);
-  setContext<IslandInteraction>(ISLAND_INTERACTION, {
+  const interaction: IslandInteraction = {
     measure(node) {
       const key = contentKey;
       return {
@@ -59,7 +59,16 @@
       launcherOpen = true;
       dispatch({ type: 'click' });
     },
-  });
+  };
+  setContext<IslandInteraction>(ISLAND_INTERACTION, interaction);
+  // The drop/shelf panel lives here, outside the context consumers: measure it directly.
+  function fitDrop(node: HTMLElement) {
+    if (typeof ResizeObserver === 'undefined') return;
+    const measurement = interaction.measure(node);
+    const observer = new ResizeObserver(() => measurement.update(Math.ceil(node.getBoundingClientRect().height)));
+    observer.observe(node);
+    return { destroy: () => { observer.disconnect(); measurement.destroy(); } };
+  }
   $effect(() => {
     if (ui.mode === 'compact' || ui.mode === 'minimal' || ui.mode === 'hidden') {
       launcherOpen = false;
@@ -248,7 +257,7 @@
   {#key contentKey}
     <div class="content" class:withSwitcher={showSwitcher} in:contentIn out:contentOut>
       {#if content === 'drop'}
-        <div class="drop">
+        <div class="drop" use:fitDrop>
           <ShelfSlots items={live.shelf} receiving={dragging} />
           {#if dropError}<p role="alert">{t('shelf.addFailed')}</p>{/if}
           {#if !dragging}<button onclick={(event) => { event.stopPropagation(); shelfOpen = false; }}>{t('common.back')}</button>{/if}
@@ -398,6 +407,10 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    align-self: start;
+    width: 100%;
+    max-height: var(--island-panel-max-h);
+    overflow-y: auto;
   }
   .bubble {
     position: absolute;

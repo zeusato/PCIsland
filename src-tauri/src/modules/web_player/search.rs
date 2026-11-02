@@ -40,8 +40,9 @@ fn target(site: &str, query: &str) -> IpcResult<Url> {
     }
     let mut url = Url::parse(match site {
         "zing_mp3" => "https://zingmp3.vn/tim-kiem/bai-hat",
-        // Live QA encountered SoundCloud's anti-bot block. Do not automate its
-        // search until an approved integration has been validated.
+        // One page load per user-submitted query, same as typing it on the site.
+        // Re-enabled 2026-11-02 at the owner's request; never retried automatically.
+        "soundcloud" => "https://soundcloud.com/search/sounds",
         "spotify" => "https://open.spotify.com/search/",
         _ => {
             return Err(IpcError::new(
@@ -275,7 +276,16 @@ mod tests {
         assert!(spotify.path().contains("%2F"));
         assert!(spotify.query().is_none() && spotify.fragment().is_none());
         assert!(super::target("youtube", query).is_err());
-        assert!(super::target("soundcloud", query).is_err());
+        let soundcloud = super::target("soundcloud", query).unwrap();
+        assert_eq!(soundcloud.path(), "/search/sounds");
+        assert_eq!(
+            soundcloud
+                .query_pairs()
+                .find(|(key, _)| key == "q")
+                .unwrap()
+                .1,
+            query
+        );
         assert!(super::target("spotify", " ").is_err());
     }
 }

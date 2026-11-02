@@ -10,6 +10,8 @@
 
 ## 2. Snapshot
 
+**Phiên 2026-11-02 (Claude):** máy dev mới cài lại toolchain (rustup stable, VS 2022 Build Tools + Windows 11 SDK + CMake qua winget, `pnpm install`); `.env` chưa có nên build local không nhúng key Groq. CI của commit v0.1.2 đỏ vì CMake 4 từ chối `audiopus_sys` (`cmake_minimum_required` < 3.5) → đặt `CMAKE_POLICY_VERSION_MINIMUM=3.5` trong `src-tauri/.cargo/config.toml`. Sửa note desktop: nút đóng (thiếu `core:window:allow-destroy`) và ô tick lệch khi đổi cỡ chữ. Spotify: queue/bài hiện tại/repeat từ connect-state + dealer WebSocket (trace thật), SoundCloud: queue panel Next up, repeat nút trang, bật lại tìm kiếm (ADR-021). Dọn dẹp mở rộng nguồn rác, thùng rác/Windows Update và đóng app nền ngốn RAM (ADR-022). Kiểm tra: 251 Rust đạt/4 ignored, 87 frontend/27 file, fmt, clippy all-targets, svelte-check/eslint, i18n 542 khóa đạt. `.env` đã có `GROQ_API_KEY`. Đã build exe chạy thử bằng `pnpm build:exe` (10:27, 21.948.416 byte, vẫn ProductVersion 0.1.2, SHA256 `25F17A7696EBEEF848E8E3E80F5B7850C5292A5DE7A0EE232ED52A609DD912A4`), wrapper dọn 9,616 GiB file sinh ra (ổ trống tăng 8,005 GiB); chưa tạo installer/release. Chưa chạy Dọn dẹp/UAC/đóng app thật; chủ dự án tự nghiệm thu Spotify/SoundCloud.
+
 **Bản phát hành v0.1.2:** theo yêu cầu cập nhật docs, push code và release của chủ dự án. Exe và bộ cài ProductVersion 0.1.2; portable/NSIS và hai SHA256 trong `release/0.1.2/`, [trang release](https://github.com/zeusato/PCIsland/releases/tag/v0.1.2). Đã kiểm tra ZIP chỉ có exe, README, marker `data/.portable` và hash exe khớp bản build. Key transcript nhúng native theo yêu cầu; `.env` không nằm trong Git/gói source. Sửa thêm `notes_desktop_open` sang async. Build wrapper đã dọn 8,140 GiB file sinh ra, ổ đĩa tăng thực tế **7,458 GiB**; giữ exe, installer, portable và dữ liệu. Những đoạn bên dưới ghi lại từng phiên trước đó; bảng hiện hành đã cập nhật.
 
 **Mới nhất — File / note desktop / meeting (2026-11-01):** đã triển khai bản thử theo yêu cầu trực tiếp trên nền commit `f4d320a`, giữ module video. Bỏ trần 3 file, chọn/kéo/copy/ZIP nhóm, đổi ảnh; note desktop có cỡ chữ/topmost/CAS; meeting WASAPI + Opus + đánh dấu 15 giây + notes/transcript Groq. Dropdown meeting đã sửa theo phản hồi, có fixture 400 px không tràn. Key native từ `.env` theo quyết định chủ dự án, ADR-020. [Báo cáo và giới hạn](reports/file-note-meeting-implementation-2026-11-01.md), [đặc tả meeting](modules/meeting.md). Đã compile/debug QA, **chưa rebuild release/installer**. User yêu cầu đóng QA và dọn cache; giữ dữ liệu QA/app.
@@ -24,13 +26,13 @@ Kiểm tra bổ sung Dọn dẹp: 194 Rust đạt (1 smoke native mặc định 
 
 | Mục | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 2026-11-01 |
+| Cập nhật lần cuối | 2026-11-02 |
 | Phase | **P1–P3 đã code đủ đặc tả** (trừ P4: F32–F34, F40–F44); chưa qua kiểm thử tay, Gate G0 chưa đóng |
-| Phiên bản | [v0.1.2](https://github.com/zeusato/PCIsland/releases/tag/v0.1.2): NSIS + portable + hai SHA256, theo yêu cầu chủ dự án |
+| Phiên bản | [v0.1.3](https://github.com/zeusato/PCIsland/releases/tag/v0.1.3): NSIS + portable + hai SHA256, theo yêu cầu chủ dự án. Nhạc tập trung: [focus-sounds-v1](https://github.com/zeusato/pcisland-sounds/releases/tag/focus-sounds-v1) |
 | Code | Nhánh `main` trên https://github.com/zeusato/PCIsland |
-| Kiểm tra | 238 Rust đạt/4 ignored; 81 frontend/27 file; fmt, clippy all-targets -D warnings, Svelte/eslint, i18n 497 khóa, frontend và Tauri NSIS build đạt. Giới hạn native/meeting ghi trong release notes |
-| Bản build gần nhất | `src-tauri/target/release/pcisland.exe`: 21.685.760 byte, ProductVersion 0.1.2, SHA256 `BEEC59853554129FF8E8C1E91B91B1CCD5C3BFBE3F6D9FA9F4CD67246665DC30`. NSIS 5.876.045 byte; portable 7.747.167 byte. Cache đã dọn sau build |
-| Đang chặn | SoundCloud báo “You have been blocked / unusual activity” khi QA. Dừng thử nghiệm SoundCloud, tắt tìm kiếm nền SoundCloud và bỏ click phát lặp. Chưa rõ thời hạn/phạm vi chặn. Không đổi IP/profile hay vượt challenge |
+| Kiểm tra | (2026-11-02) 251 Rust đạt/4 ignored; 87 frontend/27 file; i18n 542 khóa; trước đó 238 Rust/81 frontend; fmt, clippy all-targets -D warnings, Svelte/eslint, i18n 497 khóa, frontend và Tauri NSIS build đạt. Giới hạn native/meeting ghi trong release notes |
+| Bản build gần nhất | `src-tauri/target/release/pcisland.exe`: 22.189.056 byte, ProductVersion 0.1.3, SHA256 `ADF7F64C10DBCA1DF83D581D102FEAFF7EB3747FD7D0FA1F78C8BC9AA9EF036A`. NSIS 5.984.139 byte; portable 7.906.991 byte. Cache đã dọn sau build |
+| Đang chặn | Không. SoundCloud đã đăng nhập/phát lại được (2026-11-02), tìm kiếm bật lại theo ADR-021; vẫn không tự thử lặp hoặc vượt challenge |
 
 UI launcher mới (2026-11-01): nội dung rảnh lên 28 px, header ở y=16, tổng chiều cao 226 px với đủ 7 nút; chữ ký “by Zeusato” nét mảnh nghiêng neon cam ở đáy phải. Đã QA localhost, panel Hẹn giờ mở đúng; `pnpm check`, 51 test frontend và `pnpm build` đạt (296 khóa i18n). Đã build exe release bằng `pnpm tauri build --no-bundle` theo yêu cầu chạy thử, đầu ra `src-tauri/target/release/pcisland.exe`; chưa tạo lại installer hay phát hành.
 
@@ -53,7 +55,7 @@ Quy trình build mới: dùng `pnpm build:exe` / `pnpm build:app` để tự d�
 | F09 | i18n vi/en | ✅ | — |
 | F10 | Media app khác (GSMTC) | ✅ | — |
 | F11 | Trình phát file | ✅ | — |
-| F12 | Web player | 🟡 | Zing resume/queue/tìm→phát đã thử native; Spotify mới xác minh search trong app; search SoundCloud bị vô hiệu sau anti-bot block. Thẻ nguồn đang mở trên island (ADR-016) |
+| F12 | Web player | 🟡 | Zing resume/queue/tìm→phát đã thử native. Spotify/SoundCloud có queue, repeat, tìm kiếm theo trace 2026-11-02 (ADR-021), mới có test logic; chủ dự án tự nghiệm thu |
 | F13 | Radio / stream | ✅ | Chỉ stream HTTP trực tiếp; HLS mở bằng trình duyệt |
 | F14 | Lời bài hát | ✅ | — |
 | F15 | Visualizer thật | ✅ | — |
@@ -82,6 +84,11 @@ Quy trình build mới: dùng `pnpm build:exe` / `pnpm build:app` để tự d�
 Ưu tiên mới: nghiệm thu ba module theo [plan cập nhật](plans/file-note-meeting.md), đặc biệt kéo nhiều file thành attachment thật, note desktop nhiều DPI/chuông, quyền mic, meeting 60 phút và crash đúng lúc publish file. Chưa đóng các tiêu chí này bằng unit test. Bản release tiếp theo cần đo kích thước/RAM rồi dọn theo `pnpm clean:build`.
 
 Theo thứ tự. Đánh dấu `[x]` khi xong và thêm việc mới phát sinh vào đúng chỗ.
+
+- [ ] Nghiệm thu trên exe mới (2026-11-02): Spotify queue/chọn bài/repeat 3 chế độ/tìm→phát; SoundCloud queue/repeat/tìm kiếm (selector trang tìm kiếm chưa kiểm trên WebView thật); note desktop đóng được, ô tick ở cỡ 12–40; Dọn dẹp mới (UAC Windows Update, thùng rác, đóng app).
+- [ ] Đẩy commit sửa CMake rồi xem CI xanh lại.
+- [ ] Nhạc tập trung (ADR-023): release `focus-sounds-v1` đã có trên `zeusato/pcisland-sounds` (lofi 7, ambient 9, rest 4; 97 MiB). Còn nghiệm thu tải/hủy/xóa, hộp chào lần đầu và phát theo pha Pomodoro trên exe.
+- [ ] Nghiệm thu đợt 2 (2026-11-02): nút chia sẻ link trên player island (web/video), ô launcher đồng cỡ + Cài đặt › Nút trên island, Dọn dẹp giữ tiến trình khi rời island, kéo file Explorer lên island (đã sửa, thử giả lập đạt trên bản debug).
 
 - [ ] Sửa Zing trang bài hát riêng (`.song-header button.btn-play-all`) được đưa vào bản v0.1.2; còn nghiệm thu đổi từ Lee Phú Quý sang Chu Thúy Quỳnh. Yêu cầu dừng build cũ đã được thay bằng yêu cầu phát hành hiện tại.
 
@@ -145,7 +152,7 @@ Yêu cầu mới đã chốt: alarm phụ thuộc **dòng checklist ngay phía t
 | Q4 | Phím tắt mặc định có trùng với app bạn đang dùng không? | Giữ mặc định ADR-008, đổi sau trong Cài đặt | P1.4 | **Đã chốt** 2026-10-31 |
 | Q5 | Phát hành thế nào; có ký số không? | GitHub Releases, có bộ cài + portable; không mua chứng chỉ, xin SignPath miễn phí nếu đủ điều kiện (ADR-009) | P2.7 | **Đã chốt** 2026-10-31 |
 | Q6 | Trang nhạc nào cần test ở G0? | Zing MP3, SoundCloud, YouTube, Spotify Web, NhacCuaTui | P0.6 | **Đã chốt** 2026-10-31 |
-| Q8 | Tiện ích dọn cache/RAM/Windows triển khai mục nào trước? | Cache PCisland và mở Storage Windows; tránh trim RAM toàn máy | Phase tiếp theo | Đề xuất, chờ chọn |
+| Q8 | Tiện ích dọn cache/RAM/Windows triển khai mục nào trước? | — | — | **Đã chốt** 2026-11-02: thêm nguồn rác lớn, thùng rác + Windows Update, đóng app nền ngốn RAM (ADR-022) |
 | Q7 | Có cần hỗ trợ Windows 10 không? | Không. Chỉ hỗ trợ chính thức Windows 11 | — | **Đã chốt** 2026-10-31 |
 
 ## 5. Môi trường phát triển
@@ -179,6 +186,10 @@ Sổ rủi ro đầy đủ ở [00 §8](00-vision-scope.md#8-sổ-rủi-ro). Nh�
 | R10 Virtual desktop | P0.4 |
 
 ## 7. Nhật ký phiên
+
+- 2026-11-02 · Claude: phát hành nhạc `focus-sounds-v1` (3 gói, 20 bài) lên `zeusato/pcisland-sounds`, rồi đóng gói v0.1.3 theo yêu cầu build + release. 269 Rust + vitest + check đạt; exe/NSIS/portable đúng version, hash ở snapshot; đã đối chiếu URL manifest trong app với release nhạc.
+
+- 2026-11-02 · Claude: cài toolchain, sửa CI CMake, note desktop đóng/ô tick, Spotify + SoundCloud queue/repeat/tìm kiếm theo trace thật (ADR-021), mở rộng Dọn dẹp (ADR-022, subagent). Kết quả kiểm tra ghi ở snapshot.
 
 - 2026-11-01 · Codex: đóng gói v0.1.2 theo yêu cầu push + release; đồng bộ README/CHANGELOG/roadmap/kiến trúc/module/handoff, thêm script package allowlist và tự tìm CMake. 238 Rust + 81 frontend đạt; exe/NSIS/portable đúng version, hash và nội dung ZIP được kiểm tra; dọn cache giải phóng thực tế 7,458 GiB. Link/gói tại snapshot.
 

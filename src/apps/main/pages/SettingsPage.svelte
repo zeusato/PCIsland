@@ -18,6 +18,8 @@
   import type { AppInfo } from '$lib/ipc/bindings/AppInfo';
   import { live, updateSettings } from '$lib/stores/live.svelte';
   import { t } from '$lib/i18n/index.svelte';
+  import { LAUNCHER_CATALOG } from '$lib/registry/launcherCatalog';
+  import SoundsPanel from '../../../features/focus_sounds/views/SoundsPanel.svelte';
 
   const s = $derived(live.settings);
   let info = $state<AppInfo | null>(null);
@@ -54,6 +56,10 @@
     update = { checking: false, result: await appCommands.checkUpdateNow().catch(() => null) };
   }
   const set = (section: string, key: string) => (value: unknown) => updateSettings(section, { [key]: value });
+  function toggleAction(id: string, on: boolean) {
+    const hidden = s?.island.hiddenActions ?? [];
+    updateSettings('island', { hiddenActions: on ? hidden.filter((x) => x !== id) : [...hidden, id] });
+  }
 </script>
 
 <h1>{t('main.nav.settings')}</h1>
@@ -128,6 +134,15 @@
     </SettingRow>
   </Card>
 
+  <Card title={t('settings.launcherActions')}>
+    <p class="muted">{t('settings.launcherActionsHint')}</p>
+    {#each LAUNCHER_CATALOG as action (action.id)}
+      <SettingRow label={t(action.labelKey)}>
+        <Toggle label={t(action.labelKey)} checked={!s.island.hiddenActions.includes(action.id)} onchange={(on: boolean) => toggleAction(action.id, on)} />
+      </SettingRow>
+    {/each}
+  </Card>
+
   <Card title={t('settings.appearance')}>
     <SettingRow label={t('settings.accent')}>
       <Select
@@ -184,6 +199,10 @@
         onchange={set('pomodoro', 'focusPlaylistId')}
       />
     </SettingRow>
+  </Card>
+
+  <Card title={t('focusSounds.title')}>
+    <SoundsPanel />
   </Card>
 
   <Card title={t('settings.media')}>

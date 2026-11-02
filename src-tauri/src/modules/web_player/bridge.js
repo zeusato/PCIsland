@@ -85,6 +85,118 @@
       };
     }
   }
+  // Spotify Web Player 2026-10-30, traced against real Network (2026-11-02):
+  // connect-state PUT/GET responses and dealer WebSocket `cluster` payloads carry
+  // player_state (track URI, prev/next URIs, repeat options); pathfinder
+  // `decorateContextTracks` names the queued URIs. Only metadata is kept; never
+  // tokens, device IDs or audio/licence URLs.
+  const spotify = { trackUri: null, title: null, contextUri: null, prev: [], next: [], repeat: null };
+  const spotifyNames = new Map();
+  const spotifyName = (uri, title, artist) => {
+    if (typeof uri !== 'string' || !uri.startsWith('spotify:track:') || !title) return;
+    spotifyNames.set(uri, { title: clip(title), artist: clip(artist || null) });
+    if (spotifyNames.size > 1000) spotifyNames.delete(spotifyNames.keys().next().value);
+  };
+  const spotifyTrackUrl = (uri) => /^spotify:track:[A-Za-z0-9]+$/.test(uri || '') ? `${location.origin}/track/${uri.slice(14)}` : null;
+  const spotifyContextUrl = (uri) => {
+    const m = /^spotify:(album|playlist|artist|show|episode):([A-Za-z0-9]+)$/.exec(uri || '');
+    if (m) return `${location.origin}/${m[1]}/${m[2]}`;
+    return /^spotify:user:[^:]+:collection$/.test(uri || '') ? `${location.origin}/collection/tracks` : null;
+  };
+  const captureSpotifyCluster = (cluster) => {
+    const state = cluster?.player_state;
+    if (!state?.track?.uri) return;
+    const entry = (t) => (t && typeof t.uri === 'string' && t.uri.startsWith('spotify:track:') ? t.uri : null);
+    for (const t of [state.track, ...(state.prev_tracks || []), ...(state.next_tracks || [])]) spotifyName(t?.uri, t?.metadata?.title, t?.metadata?.artist_name);
+    spotify.trackUri = entry(state.track);
+    spotify.title = clip(state.track.metadata?.title || null);
+    spotify.contextUri = typeof state.context_uri === 'string' ? state.context_uri : null;
+    spotify.prev = (state.prev_tracks || []).map(entry).filter(Boolean).slice(-20);
+    spotify.next = (state.next_tracks || []).map(entry).filter(Boolean).slice(0, 100);
+    const options = state.options || {};
+    spotify.repeat = options.repeating_track ? 'one' : options.repeating_context ? 'all' : 'off';
+    if (repeatMode !== null) repeatMode = spotify.repeat;
+    report();
+  };
+  const captureSpotifyNames = (json) => {
+    const tracks = json?.data?.tracks;
+    if (Array.isArray(tracks)) for (const t of tracks.slice(0, 500)) spotifyName(t?.uri, t?.name, (t?.artists?.items || []).map((a) => a?.profile?.name).filter(Boolean).join(', '));
+  };
+  const spotifyEndpoint = (value) => {
+    try {
+      const u = new URL(value, location.href);
+      if (!/(^|\.)spotify\.com$/.test(u.hostname)) return null;
+      if (/\/connect-state\/v1\/(devices\/[^/]+|cluster)$/.test(u.pathname)) return 'cluster';
+      return u.hostname === 'api-partner.spotify.com' && u.pathname.startsWith('/pathfinder/') ? 'names' : null;
+    } catch { return null; }
+  };
+  if (isSpotify) {
+    if (window.fetch) {
+      const original = window.fetch;
+      window.fetch = function (...args) {
+        const endpoint = spotifyEndpoint(typeof args[0] === 'string' ? args[0] : args[0]?.url);
+        return original.apply(this, args).then((response) => {
+          if (endpoint && response.ok) response.clone().json().then((json) => (endpoint === 'cluster' ? captureSpotifyCluster(json) : captureSpotifyNames(json))).catch(() => {});
+          return response;
+        });
+      };
+    }
+    // Later state changes only arrive through the dealer socket.
+    const NativeSocket = window.WebSocket;
+    if (NativeSocket) {
+      window.WebSocket = class extends NativeSocket {
+        constructor(...args) {
+          super(...args);
+          let dealer = false;
+          try { const host = new URL(args[0]).hostname; dealer = host.endsWith('.spotify.com') && host.includes('dealer'); } catch { /* Not a URL. */ }
+          if (dealer) this.addEventListener('message', (event) => {
+            if (typeof event.data !== 'string' || event.data.length > 5_000_000 || !event.data.includes('player_state')) return;
+            try { for (const payload of JSON.parse(event.data).payloads || []) if (payload?.cluster) captureSpotifyCluster(payload.cluster); } catch { /* Unrelated frame. */ }
+          });
+        }
+      };
+    }
+  }
+  // SoundCloud renders its play queue only while the "Next up" panel is open.
+  const soundCloudQueue = () => {
+    const items = [];
+    for (const row of document.querySelectorAll('.queue__itemWrapper .queueItemView')) {
+      const anchor = row.querySelector('.queueItemView__title a[href]');
+      const url = urlOf(anchor?.getAttribute('href'));
+      const title = clip((anchor?.textContent || '').trim());
+      const uploader = clip((row.querySelector('.queueItemView__username')?.textContent || '').trim() || null);
+      if (url && title) items.push({ url, title, uploader, node: row.querySelector('.queueItemView__playButton .sc-button-play:not(.sc-button-pause)') || anchor, active: row.classList.contains('m-active') });
+      if (items.length >= 100) break;
+    }
+    return items;
+  };
+  // Site-owned repeat buttons. Each click advances off → all → one (Spotify) or
+  // off → one → all (SoundCloud); the bridge clicks until the requested mode shows.
+  const siteRepeat = () => {
+    if (isSpotify) {
+      const button = document.querySelector('[data-testid="control-button-repeat"]');
+      if (!button) return null;
+      const label = button.getAttribute('aria-label') || '';
+      const mode = spotify.repeat ?? (/repeat one/i.test(label) ? 'all' : /disable repeat/i.test(label) ? 'one' : 'off');
+      return { button, mode };
+    }
+    if (isSoundCloud) {
+      const button = document.querySelector('.playControls .repeatControl');
+      if (!button) return null;
+      return { button, mode: button.classList.contains('m-one') ? 'one' : button.classList.contains('m-all') ? 'all' : 'off' };
+    }
+    return null;
+  };
+  const applySiteRepeat = (mode, clicks = 0) => {
+    const control = siteRepeat();
+    if (!control) { repeatError = true; report(); return; }
+    if (control.mode === mode) { repeatMode = mode; repeatError = false; report(); return; }
+    if (clicks >= 3) { repeatError = true; report(); return; }
+    // Spotify's own state arrives asynchronously; read the button again after a click.
+    if (isSpotify) spotify.repeat = null;
+    control.button.click();
+    setTimeout(() => applySiteRepeat(mode, clicks + 1), 500);
+  };
   const readZing = () => {
     if (!isZing) return null;
     let queue = [], current = null;
@@ -108,6 +220,7 @@
       const button = document.querySelector('[data-testid="control-button-queue"]');
       if (button?.getAttribute('aria-pressed') !== 'true') button?.click();
     }
+    if (isSoundCloud && !document.querySelector('.queue.m-visible')) document.querySelector('.playbackSoundBadge__showQueue')?.click();
     report();
     setTimeout(report, 300);
   };
@@ -148,20 +261,32 @@
     }
     for (const [url, item] of queueNodes) knownTracks.set(item.title, url);
     if (knownTracks.size > 500) knownTracks.delete(knownTracks.keys().next().value);
-    // Spotify's queue uses text labels, not track links. Prefer a previously observed
-    // public track URL; otherwise use a local row bookmark, never a fabricated track ID.
-    if (isSpotify) {
-      const queued = new Map();
+    if (isSoundCloud) {
+      const queued = soundCloudQueue();
+      if (queued.length) { queueNodes.clear(); for (const { url, ...item } of queued) queueNodes.set(url, item); }
+    }
+    // Spotify's queue panel rows have text labels only. The real order and track URIs
+    // come from connect-state; DOM rows (queue panel, open tracklist) only supply
+    // something to click, matched by exact track link or by title.
+    if (isSpotify && spotify.trackUri) {
+      const clickable = new Map();
       for (const row of document.querySelectorAll('[role="tabpanel"] [data-encore-id="listRow"]')) {
         const label = row.getAttribute('aria-labelledby');
         const title = clip(label && document.getElementById(label)?.textContent)?.trim();
         const node = row.querySelector('[data-testid="play-button"]');
-        if (title && node) queued.set(knownTracks.get(title) || `${location.origin}/#pcisland-queue=${encodeURIComponent(label)}`, { title, node });
-        if (queued.size >= 100) break;
+        if (title && node && !clickable.has(title)) clickable.set(title, node);
+      }
+      const queued = new Map();
+      for (const uri of [...spotify.prev, spotify.trackUri, ...spotify.next]) {
+        const url = spotifyTrackUrl(uri);
+        const name = spotifyNames.get(uri);
+        if (!url || !name || queued.has(url)) continue;
+        const link = document.querySelector(`main [role="row"] a[href="/track/${uri.slice(14)}"]`);
+        queued.set(url, { title: name.title, artist: name.artist, node: link || clickable.get(name.title) || null });
       }
       if (queued.size) { queueNodes.clear(); for (const entry of queued) queueNodes.set(...entry); }
     }
-    return [...queueNodes].map(([url, item]) => ({ url, title: item.title }));
+    return [...queueNodes].slice(0, 100).map(([url, item]) => ({ url, title: item.title, ...(item.artist && { artist: item.artist }), ...(item.uploader && { uploader: item.uploader }) }));
   };
 
   const invoke = (cmd, args) => window.__TAURI_INTERNALS__?.invoke(cmd, args);
@@ -190,11 +315,14 @@
     const hasSomething = metadata || media;
     const queue = readQueue(zing);
     const currentLink = document.querySelector('.playbackSoundBadge__titleLink, [data-testid="now-playing-widget-v2"] a');
-    const trackUrl = zing?.current?.url || (isSpotify && knownTracks.get(metadata?.title)) || urlOf(currentLink?.getAttribute('href'));
+    const spotifyCurrent = isSpotify && spotify.trackUri && (!metadata?.title || !spotify.title || metadata.title === spotify.title) ? spotifyTrackUrl(spotify.trackUri) : null;
+    let trackUrl = zing?.current?.url || spotifyCurrent || (isSpotify && knownTracks.get(metadata?.title)) || urlOf(currentLink?.getAttribute('href'));
     const soundContext = isSoundCloud && trackUrl ? new URL(trackUrl).searchParams.get('in') : null;
+    // Queue rows link the bare track path; the badge adds `?in=<context>`.
+    if (isSoundCloud && trackUrl) { const u = new URL(trackUrl); trackUrl = u.origin + u.pathname; }
     return {
       kind: 'state',
-      pageUrl: zing?.current?.playlistUrl || (soundContext && urlOf('/' + soundContext)) || (isSpotify && urlOf(currentLink?.getAttribute('href'))) || location.href,
+      pageUrl: zing?.current?.playlistUrl || (soundContext && urlOf('/' + soundContext)) || (spotifyCurrent && spotifyContextUrl(spotify.contextUri)) || (isSpotify && urlOf(currentLink?.getAttribute('href'))) || location.href,
       trackUrl: trackUrl || location.href,
       queue,
       repeat: repeatMode,
@@ -267,8 +395,10 @@
   }
 
   // --- Media elements, including ones never attached to the DOM ---
+  // Spotify and SoundCloud repeat through their own controls (siteRepeat).
+  const siteOwnsRepeat = isSpotify || isSoundCloud;
   const onEnded = (event) => {
-    if (repeatMode === null || handledEnds.has(event) || accessBlocked() || document.querySelector('.ad-showing')) return;
+    if (repeatMode === null || siteOwnsRepeat || handledEnds.has(event) || accessBlocked() || document.querySelector('.ad-showing')) return;
     const media = event.target;
     if (!media || media !== activeMedia()) return;
     const state = snapshot();
@@ -297,7 +427,7 @@
   window.addEventListener('ended', onEnded, true);
   const play = HTMLMediaElement.prototype.play;
   HTMLMediaElement.prototype.play = function (...args) {
-    if (repeatMode !== null && !document.querySelector('.ad-showing')) this.loop = repeatMode === 'one';
+    if (repeatMode !== null && !siteOwnsRepeat && !document.querySelector('.ad-showing')) this.loop = repeatMode === 'one';
     if (!tracked.has(this)) {
       tracked.add(this);
       this.addEventListener?.('ended', onEnded, true);
@@ -348,8 +478,8 @@
     readQueue();
     const item = pageNodes.get(url) || queueNodes.get(url);
     if (item?.node) {
-      const row = item.node.closest('[data-testid="tracklist-row"], [role="row"], .media-item, .list-song-item, .queue__item, .trackItem, .sound');
-      const playButton = row?.querySelector('button.action-play, [data-testid="play-button"], button[aria-label^="Play"], .playButton, .icon.ic-play, .play');
+      const row = item.node.closest('[data-testid="tracklist-row"], [role="row"], .media-item, .list-song-item, .queueItemView, .queue__item, .trackItem, .sound');
+      const playButton = row?.querySelector('button.action-play, [data-testid="play-button"], button[aria-label^="Play"], .queueItemView__playButton .sc-button-play:not(.sc-button-pause), .playButton, .icon.ic-play, .play');
       (playButton || item.node).click();
       setTimeout(() => { if (snapshot().trackUrl === url) exec('play'); }, 1000);
     } else if ((isZing || isSpotify) && attempt < 8) setTimeout(() => select(url, attempt + 1), 250);
@@ -357,6 +487,13 @@
   };
   const setRepeat = (mode, restoreMode = false) => {
     if (!['off', 'all', 'one'].includes(mode)) return false;
+    if (siteOwnsRepeat) {
+      if (accessBlocked()) { repeatError = true; report(); return false; }
+      // A restored preference waits until the player bar exists.
+      if (restoreMode && !siteRepeat()) { repeatMode = mode; setTimeout(() => applySiteRepeat(mode), 3000); report(); return true; }
+      applySiteRepeat(mode);
+      return true;
+    }
     const media = activeMedia();
     if (restoreMode && !media && !accessBlocked()) { repeatMode = mode; report(); return true; }
     repeatError = accessBlocked() || !media || !Number.isFinite(media.duration) || !!document.querySelector('.ad-showing');

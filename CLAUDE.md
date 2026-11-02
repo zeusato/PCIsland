@@ -36,7 +36,7 @@ Dynamic Island cho Windows. Stack: Tauri 2 (Rust) + Svelte 5 (TypeScript), chạ
 
 ## Lệnh
 
-> Đã kiểm tra ngày 2026-10-31. Trên Git Bash cần `export PATH="$HOME/.cargo/bin:$PATH"` nếu terminal mở trước khi cài Rust. `pnpm build` phải chạy trước lệnh cargo đầu tiên (thư mục `dist/` cần cho `generate_context!`).
+> Đã kiểm tra ngày 2026-10-31. Trên Git Bash cần `export PATH="$HOME/.cargo/bin:$PATH"` nếu terminal mở trước khi cài Rust. `pnpm build` phải chạy trước lệnh cargo đầu tiên (thư mục `dist/` cần cho `generate_context!`). Opus (`audiopus_sys`) cần `cmake` trong PATH; bản đi kèm VS Build Tools nằm ở `C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin` (`pnpm build:exe`/`build:app` tự tìm).
 
 | Việc | Lệnh |
 |---|---|

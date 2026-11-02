@@ -23,6 +23,8 @@
   import SettingsPage from './pages/SettingsPage.svelte';
   import VideoPage from './pages/VideoPage.svelte';
   import MeetingPage from './pages/MeetingPage.svelte';
+  import Welcome from './Welcome.svelte';
+  import { live } from '$lib/stores/live.svelte';
   import Mic from '@lucide/svelte/icons/mic';
 
   const nav = [
@@ -90,6 +92,7 @@
     {/if}
   </main>
 </div>
+{#if live.settings && !live.settings.app.welcomeDone}<Welcome />{/if}
 
 <style>
   .shell {

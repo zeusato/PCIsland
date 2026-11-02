@@ -3,6 +3,6 @@
   "identifier": "web-search-remote",
   "description": "Silent music search views may only report bounded search results.",
   "windows": ["web-search-*"],
-  "remote": { "urls": ["https://zingmp3.vn", "https://open.spotify.com"] },
+  "remote": { "urls": ["https://zingmp3.vn", "https://open.spotify.com", "https://soundcloud.com"] },
   "permissions": ["allow-web-player-search-report"]
 }

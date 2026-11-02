@@ -135,3 +135,4 @@ IPC: `notes_desktop_open(id)`, `notes_desktop_state()`, `notes_desktop_options(f
 | 2026-11-01 | Nhắc riêng từng task với ba kiểu giờ, phụ thuộc dòng checklist ngay trên, lưu bền và kiểm thử undo/đổi thứ tự/xóa. |
 | 2026-11-01 | Thêm nút Danh sách ghi chú với list cuộn và chọn trực tiếp; ghi chú ghim cũng có nút mở trình chọn. |
 | 2026-11-01 | Cửa sổ desktop, cỡ chữ/topmost, giữ draft và CAS chống ghi đè; dùng lại alarm/timer backend. |
+| 2026-11-02 | Sửa nút đóng note desktop: `onCloseRequested` của Tauri cần quyền `core:window:allow-destroy`, capability thiếu nên đóng thất bại âm thầm. Ô tick co giãn theo cỡ chữ (tối thiểu 16 px, 1.1em), canh giữa dòng đầu, dấu tick là icon SVG 75% ô thay cho ký tự ✓ cỡ cố định. Chưa thử trên exe. |

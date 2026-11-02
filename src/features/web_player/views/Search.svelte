@@ -27,7 +27,7 @@
 </script>
 <form onsubmit={(event) => { event.preventDefault(); void search(); }}>
   <select aria-label={t('webPlayer.searchSource')} bind:value={site} disabled={busy} onchange={() => { results = []; error = false; }}>
-    <option value="zing_mp3">Zing MP3</option><option value="spotify">Spotify</option>
+    <option value="zing_mp3">Zing MP3</option><option value="spotify">Spotify</option><option value="soundcloud">SoundCloud</option>
   </select>
   <div class="input-row"><input aria-label={t('webPlayer.search')} placeholder={t('webPlayer.search')} bind:value={query} maxlength="160" disabled={busy} /><button disabled={busy || !query.trim()}>{busy ? t('common.loading') : t('webPlayer.searchButton')}</button></div>
 </form>

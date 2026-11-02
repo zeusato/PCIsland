@@ -1,4 +1,5 @@
-//! Explicit, per-process working-set reclaim. Never terminates a process or purges standby.
+//! Explicit, per-process working-set reclaim and user-confirmed app close. Never purges
+//! standby; termination only follows a graceful close the user escalated.
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
@@ -476,6 +477,296 @@ pub fn reclaim(targets: &[MemoryTarget]) -> Result<MemoryReclaim, String> {
     Ok(result)
 }
 
+/// One user application: every same-user process whose tree root has this executable.
+#[derive(Clone, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct MemoryApp {
+    pub name: String,
+    pub processes: Vec<MemoryTarget>,
+    #[ts(type = "number")]
+    pub working_set: u64,
+    #[ts(type = "number")]
+    pub private_bytes: u64,
+    /// Visible top-level windows that a graceful close can address.
+    pub windows: u32,
+    pub audio: bool,
+}
+/// `status`: `closed` (every process exited), `pending` (asked to close, still running),
+/// `no_window` (nothing to ask), `audio` (playing; needs explicit confirmation),
+/// `skipped` (no target passed identity checks).
+#[derive(Default, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct AppCloseResult {
+    pub status: String,
+    pub closed: u32,
+    pub remaining: Vec<MemoryTarget>,
+    pub skipped: u32,
+}
+const MIN_APP_BYTES: u64 = 32 * 1024 * 1024;
+const MAX_APPS: usize = 15;
+const MAX_CLOSE_TARGETS: usize = 256;
+
+fn app_key(pid: u32, all: &HashMap<u32, Sample>) -> Option<String> {
+    all.get(&root(pid, all)).map(|s| s.row.name.to_lowercase())
+}
+/// Pure grouping, tested with fake samples. Excludes system/other-user processes and
+/// the PCisland process tree (including its WebView2 children).
+fn group_apps(
+    all: &HashMap<u32, Sample>,
+    own: u32,
+    windows: &HashMap<u32, u32>,
+    audio: &HashSet<u32>,
+) -> Vec<MemoryApp> {
+    let own_root = root(own, all);
+    let own_name = all.get(&own).map(|s| s.row.name.to_lowercase());
+    let mut apps: HashMap<String, MemoryApp> = HashMap::new();
+    for (pid, sample) in all {
+        if sample.row.reason == "system" || root(*pid, all) == own_root {
+            continue;
+        }
+        let Some(key) = app_key(*pid, all) else {
+            continue;
+        };
+        if Some(&key) == own_name.as_ref() {
+            continue;
+        }
+        let app = apps.entry(key).or_insert_with(|| MemoryApp {
+            name: all[&root(*pid, all)].row.name.clone(),
+            processes: Vec::new(),
+            working_set: 0,
+            private_bytes: 0,
+            windows: 0,
+            audio: false,
+        });
+        app.processes.push(sample.row.target.clone());
+        app.working_set += sample.row.working_set;
+        app.private_bytes += sample.row.private_bytes;
+        app.windows += windows.get(pid).copied().unwrap_or_default();
+        app.audio |= audio.contains(pid);
+    }
+    let mut apps: Vec<_> = apps
+        .into_values()
+        .filter(|a| a.working_set >= MIN_APP_BYTES)
+        .collect();
+    apps.sort_by_key(|a| std::cmp::Reverse(a.working_set));
+    apps.truncate(MAX_APPS);
+    for app in &mut apps {
+        app.processes.sort_by_key(|t| t.pid);
+    }
+    apps
+}
+/// Keeps targets that still match PID + creation time, belong to this user, are not
+/// PCisland's tree and share the first valid target's application.
+fn verify(targets: &[MemoryTarget], all: &HashMap<u32, Sample>, own: u32) -> Vec<MemoryTarget> {
+    let own_root = root(own, all);
+    let mut key = None;
+    let mut seen = HashSet::new();
+    let mut valid = Vec::new();
+    for target in targets.iter().take(MAX_CLOSE_TARGETS) {
+        if !seen.insert(target.pid) {
+            continue;
+        }
+        let Some(sample) = all
+            .get(&target.pid)
+            .filter(|s| s.row.target.started == target.started && s.row.reason != "system")
+        else {
+            continue;
+        };
+        if root(target.pid, all) == own_root {
+            continue;
+        }
+        let app = app_key(target.pid, all);
+        if key.is_none() {
+            key = app.clone();
+        }
+        if app.is_some() && app == key {
+            valid.push(sample.row.target.clone());
+        }
+    }
+    valid
+}
+
+unsafe extern "system" fn count_window(hwnd: HWND, param: LPARAM) -> BOOL {
+    use windows::Win32::UI::WindowsAndMessaging::{GW_OWNER, GetWindow};
+    // SAFETY: EnumWindows calls synchronously with our live Vec pointer.
+    unsafe {
+        let owned = GetWindow(hwnd, GW_OWNER).is_ok_and(|o| !o.is_invalid());
+        if IsWindowVisible(hwnd).as_bool() && !owned {
+            let mut pid = 0;
+            GetWindowThreadProcessId(hwnd, Some(&raw mut pid));
+            (*(param.0 as *mut Vec<(u32, isize)>)).push((pid, hwnd.0 as isize));
+        }
+    }
+    true.into()
+}
+/// Visible, unowned top-level windows as (pid, hwnd).
+fn top_level_windows() -> Result<Vec<(u32, isize)>, String> {
+    let mut list: Vec<(u32, isize)> = Vec::new();
+    // SAFETY: stack vector remains alive for the synchronous enumeration.
+    unsafe { EnumWindows(Some(count_window), LPARAM((&raw mut list) as isize)) }
+        .map_err(|e| e.to_string())?;
+    Ok(list)
+}
+
+/// Read-only list of the heaviest user applications for the "close app" action.
+pub fn apps() -> Result<Vec<MemoryApp>, String> {
+    let all = samples()?;
+    let mut windows = HashMap::new();
+    for (pid, _) in top_level_windows()? {
+        *windows.entry(pid).or_insert(0) += 1;
+    }
+    Ok(group_apps(&all, std::process::id(), &windows, &audio()?))
+}
+
+/// Opens each verified target and rechecks its creation time on that same handle.
+fn open_verified(
+    targets: &[MemoryTarget],
+    access: windows::Win32::System::Threading::PROCESS_ACCESS_RIGHTS,
+) -> Vec<(MemoryTarget, Owned)> {
+    let mut handles = Vec::new();
+    for target in targets {
+        // SAFETY: handle is owned by `Owned`; GetProcessTimes writes into locals.
+        unsafe {
+            let Ok(h) = OpenProcess(access, false, target.pid) else {
+                continue;
+            };
+            let handle = Owned(h);
+            let (mut start, mut exit, mut kernel, mut user) = Default::default();
+            if GetProcessTimes(
+                handle.0,
+                &raw mut start,
+                &raw mut exit,
+                &raw mut kernel,
+                &raw mut user,
+            )
+            .is_ok()
+                && ticks(start).to_string() == target.started
+                && same_user(handle.0).unwrap_or(false)
+            {
+                handles.push((target.clone(), handle));
+            }
+        }
+    }
+    handles
+}
+/// Waits until every handle signals or the deadline passes; returns the survivors.
+fn wait_exit(handles: Vec<(MemoryTarget, Owned)>, timeout: Duration) -> Vec<MemoryTarget> {
+    use windows::Win32::{Foundation::WAIT_TIMEOUT, System::Threading::WaitForSingleObject};
+    let deadline = Instant::now() + timeout;
+    handles
+        .into_iter()
+        .filter(|(_, handle)| {
+            let left = deadline
+                .saturating_duration_since(Instant::now())
+                .as_millis() as u32;
+            // SAFETY: the handle has SYNCHRONIZE access and stays open for the wait.
+            unsafe { WaitForSingleObject(handle.0, left) == WAIT_TIMEOUT }
+        })
+        .map(|(target, _)| target)
+        .collect()
+}
+
+/// Graceful close: WM_CLOSE to the app's visible top-level windows, then wait up to
+/// `timeout`. Never terminates. Apps playing audio need `allow_audio`.
+pub fn close(
+    targets: &[MemoryTarget],
+    allow_audio: bool,
+    timeout: Duration,
+) -> Result<AppCloseResult, String> {
+    use windows::Win32::{
+        Foundation::WPARAM,
+        System::Threading::PROCESS_SYNCHRONIZE,
+        UI::WindowsAndMessaging::{PostMessageW, WM_CLOSE},
+    };
+    let all = samples()?;
+    let valid = verify(targets, &all, std::process::id());
+    let mut result = AppCloseResult {
+        skipped: (targets.len().min(MAX_CLOSE_TARGETS) - valid.len()) as u32,
+        ..Default::default()
+    };
+    if valid.is_empty() {
+        result.status = "skipped".into();
+        return Ok(result);
+    }
+    let pids: HashSet<u32> = valid.iter().map(|t| t.pid).collect();
+    if !allow_audio && audio()?.iter().any(|pid| pids.contains(pid)) {
+        result.status = "audio".into();
+        result.remaining = valid;
+        return Ok(result);
+    }
+    let handles = open_verified(
+        &valid,
+        PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE,
+    );
+    result.skipped += (valid.len() - handles.len()) as u32;
+    let windows: Vec<_> = top_level_windows()?
+        .into_iter()
+        .filter(|(pid, _)| handles.iter().any(|(t, _)| t.pid == *pid))
+        .collect();
+    if windows.is_empty() {
+        result.status = "no_window".into();
+        result.remaining = handles.into_iter().map(|(t, _)| t).collect();
+        return Ok(result);
+    }
+    for (_, hwnd) in windows {
+        // SAFETY: posting is asynchronous; a window destroyed meanwhile just fails.
+        unsafe {
+            let _ = PostMessageW(Some(HWND(hwnd as *mut _)), WM_CLOSE, WPARAM(0), LPARAM(0));
+        }
+    }
+    let total = handles.len() as u32;
+    result.remaining = wait_exit(handles, timeout);
+    result.closed = total - result.remaining.len() as u32;
+    result.status = if result.remaining.is_empty() {
+        "closed"
+    } else {
+        "pending"
+    }
+    .into();
+    Ok(result)
+}
+
+/// Force-terminates targets. The service only passes targets a graceful close already
+/// left running; identity and user are rechecked on the terminate handle itself.
+pub fn terminate(targets: &[MemoryTarget], timeout: Duration) -> Result<AppCloseResult, String> {
+    use windows::Win32::System::Threading::{
+        PROCESS_SYNCHRONIZE, PROCESS_TERMINATE, TerminateProcess,
+    };
+    let all = samples()?;
+    let valid = verify(targets, &all, std::process::id());
+    let handles = open_verified(
+        &valid,
+        PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE | PROCESS_TERMINATE,
+    );
+    let mut result = AppCloseResult {
+        skipped: (targets.len().min(MAX_CLOSE_TARGETS) - handles.len()) as u32,
+        ..Default::default()
+    };
+    let mut terminated = Vec::new();
+    for (target, handle) in handles {
+        // SAFETY: handle was opened for this verified PID + creation time.
+        if unsafe { TerminateProcess(handle.0, 1) }.is_ok() {
+            terminated.push((target, handle));
+        } else {
+            result.skipped += 1;
+        }
+    }
+    let total = terminated.len() as u32;
+    result.remaining = wait_exit(terminated, timeout);
+    result.closed = total - result.remaining.len() as u32;
+    result.status = if result.closed > 0 && result.remaining.is_empty() {
+        "closed"
+    } else if result.closed > 0 || !result.remaining.is_empty() {
+        "pending"
+    } else {
+        "skipped"
+    }
+    .into();
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -561,5 +852,81 @@ mod tests {
         let all = HashMap::from([(1, shell), (5, a), (6, b), (9, sample())]);
         assert_eq!(root(6, &all), 5);
         assert_eq!(root(9, &all), 9);
+    }
+    fn process(pid: u32, parent: u32, name: &str, mib: u64, reason: &str) -> Sample {
+        Sample {
+            row: MemoryProcess {
+                target: MemoryTarget {
+                    pid,
+                    started: format!("t{pid}"),
+                },
+                name: name.into(),
+                working_set: mib * 1024 * 1024,
+                private_bytes: mib,
+                reason: reason.into(),
+            },
+            cpu: 0,
+            io: 0,
+            parent,
+        }
+    }
+    fn fake_tree() -> HashMap<u32, Sample> {
+        HashMap::from([
+            (1, process(1, 0, "explorer.exe", 80, "system")),
+            (2, process(2, 0, "svchost.exe", 500, "system")),
+            // PCisland and its WebView2 child.
+            (10, process(10, 1, "pcisland.exe", 60, "candidate")),
+            (11, process(11, 10, "msedgewebview2.exe", 400, "candidate")),
+            // Browser with renderer children.
+            (20, process(20, 1, "chrome.exe", 200, "candidate")),
+            (21, process(21, 20, "chrome.exe", 300, "candidate")),
+            (22, process(22, 20, "chrome.exe", 100, "active")),
+            // Another app hosting its own WebView2: grouped under its root, not Edge.
+            (30, process(30, 1, "Teams.exe", 50, "candidate")),
+            (31, process(31, 30, "msedgewebview2.exe", 150, "candidate")),
+            (40, process(40, 1, "tiny.exe", 4, "candidate")),
+            (50, process(50, 1, "music.exe", 90, "candidate")),
+        ])
+    }
+    #[test]
+    fn apps_group_by_tree_root_and_exclude_system_and_pcisland() {
+        let all = fake_tree();
+        let windows = HashMap::from([(20, 2), (30, 1)]);
+        let audio = HashSet::from([50]);
+        let apps = group_apps(&all, 10, &windows, &audio);
+        let names: Vec<_> = apps.iter().map(|a| a.name.as_str()).collect();
+        assert_eq!(names, ["chrome.exe", "Teams.exe", "music.exe"]);
+        assert_eq!(apps[0].working_set, 600 * 1024 * 1024);
+        assert_eq!(apps[0].processes.len(), 3);
+        assert_eq!((apps[0].windows, apps[0].audio), (2, false));
+        assert_eq!(
+            apps[1].processes.iter().map(|t| t.pid).collect::<Vec<_>>(),
+            [30, 31]
+        );
+        assert!(apps[2].audio);
+    }
+    #[test]
+    fn close_targets_require_matching_identity_one_app_and_never_pcisland() {
+        let all = fake_tree();
+        let target = |pid: u32, started: &str| MemoryTarget {
+            pid,
+            started: started.into(),
+        };
+        let valid = verify(
+            &[
+                target(20, "t20"),
+                target(21, "t21"),
+                target(21, "t21"),
+                target(22, "reused"),
+                target(30, "t30"),
+                target(2, "t2"),
+                target(99, "t99"),
+            ],
+            &all,
+            10,
+        );
+        assert_eq!(valid.iter().map(|t| t.pid).collect::<Vec<_>>(), [20, 21]);
+        assert!(verify(&[target(10, "t10"), target(11, "t11")], &all, 10).is_empty());
+        assert!(verify(&[target(2, "t2")], &all, 10).is_empty());
     }
 }

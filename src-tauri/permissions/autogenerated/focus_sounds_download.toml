@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-focus-sounds-download"
+description = "Enables the focus_sounds_download command without any pre-configured scope."
+commands.allow = ["focus_sounds_download"]
+
+[[permission]]
+identifier = "deny-focus-sounds-download"
+description = "Denies the focus_sounds_download command without any pre-configured scope."
+commands.deny = ["focus_sounds_download"]

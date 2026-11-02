@@ -23,6 +23,11 @@ use modules::{
 
 pub fn run() {
     let args: Vec<String> = std::env::args().collect();
+    // Elevated maintenance helper (UAC-launched copy of this exe with one fixed argument):
+    // runs before any app, window or single-instance setup and exits with a status code.
+    if args.len() == 2 && args[1] == app::maintenance::ELEVATED_UPDATE_ARG {
+        std::process::exit(app::maintenance::run_elevated_helper());
+    }
     // Native UI smoke tests use their own database and never change startup or
     // global shortcuts. This flag is deliberately unavailable in release builds.
     let qa = cfg!(debug_assertions) && args.iter().any(|a| a == "--qa");
@@ -103,6 +108,7 @@ pub fn run() {
             let handle = app.handle();
             let db = Db::open(&paths.db_file())?;
             let settings = SettingsHandle::start(handle, settings_path.clone(), initial_settings);
+            let welcome_pending = !settings.get().app.welcome_done;
             let sup = core::supervisor::Supervisor::new(handle);
             let bus = core::events::EventBus::new();
             core::events::spawn_resume_detector(bus.clone());
@@ -134,6 +140,8 @@ pub fn run() {
                 bus.clone(),
                 &sup,
             );
+            let focus_sounds =
+                modules::focus_sounds::setup(&paths.data_dir, bus.clone(), settings.subscribe());
             let reminders = reminders::setup(
                 handle,
                 db.clone(),
@@ -245,6 +253,7 @@ pub fn run() {
             app.manage(media);
             app.manage(web);
             app.manage(timers);
+            app.manage(focus_sounds);
             app.manage(reminders);
             app.manage(player);
             app.manage(notes);
@@ -255,7 +264,9 @@ pub fn run() {
             app.manage(video);
             app.manage(meeting);
             app.manage(island);
-            if let Some(route) = open_route.as_deref() {
+            // First run: the main window greets with the optional downloads (focus-sounds §3).
+            let welcome = welcome_pending.then_some("/home");
+            if let Some(route) = open_route.as_deref().or(welcome) {
                 let _ = island::open_main(app.handle(), Some(route));
             }
             tracing::info!("PCisland started");
@@ -269,9 +280,16 @@ pub fn run() {
             app::maintenance::maintenance_reclaim,
             app::maintenance::maintenance_measure,
             app::maintenance::maintenance_open,
+            app::maintenance::maintenance_recycle_bin,
+            app::maintenance::maintenance_empty_recycle_bin,
+            app::maintenance::maintenance_windows_update,
+            app::maintenance::maintenance_apps,
+            app::maintenance::maintenance_close_app,
+            app::maintenance::maintenance_force_close,
             app::commands::app_get_info,
             app::commands::app_quit,
             app::commands::app_show_toast,
+            app::commands::app_copy_link,
             app::commands::app_open_data_folder,
             app::commands::app_play_sound,
             app::commands::app_pause_alerts,
@@ -298,6 +316,11 @@ pub fn run() {
             media::commands::media_previous,
             media::commands::media_select_source,
             timer::commands::timer_get_state,
+            modules::focus_sounds::commands::focus_sounds_status,
+            modules::focus_sounds::commands::focus_sounds_catalog,
+            modules::focus_sounds::commands::focus_sounds_download,
+            modules::focus_sounds::commands::focus_sounds_cancel,
+            modules::focus_sounds::commands::focus_sounds_remove,
             timer::commands::timer_start,
             timer::commands::timer_control,
             timer::commands::stopwatch_control,

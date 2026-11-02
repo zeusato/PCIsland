@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-focus-sounds-remove"
+description = "Enables the focus_sounds_remove command without any pre-configured scope."
+commands.allow = ["focus_sounds_remove"]
+
+[[permission]]
+identifier = "deny-focus-sounds-remove"
+description = "Denies the focus_sounds_remove command without any pre-configured scope."
+commands.deny = ["focus_sounds_remove"]

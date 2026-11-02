@@ -150,3 +150,5 @@ Không có.
 | 2026-10-31 | Thêm `island.monitor`, `indicators.eyesFollowCursor/eyesMoods`, `pomodoro.pauseMediaOnBreak/focusPlaylistId`, `visualizer`, `webPlayer.unloadAfterPausedMin` |
 | 2026-11-01 | Migration 0008 note_tasks lưu lịch nhắc từng dòng; kv web_player.sessions lưu phiên mỗi site; shelf mặc định 3; autostart xác minh registry. |
 | 2026-11-01 | Thêm mục `video` (`engine`, `maxHeight`, `defaultWidth`, `autoUpdateTools`) và phím tắt `app.shortcuts.videoOpen` = `Ctrl+Alt+V` |
+| 2026-11-02 | Thêm `island.hiddenActions` (mảng ID ô launcher bị tắt, validate ký tự/độ dài/trùng) |
+| 2026-11-02 | Thêm `pomodoro.focusSoundPacks` (ID gói nhạc, cùng validate với `island.hiddenActions`) và `app.welcomeDone` (hộp chào lần đầu) |

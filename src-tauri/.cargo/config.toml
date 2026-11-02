@@ -1,3 +1,5 @@
 [env]
 # ts-rs writes generated TypeScript bindings here (docs/06-decision-log.md ADR-006).
 TS_RS_EXPORT_DIR = { value = "../src/lib/ipc/bindings", relative = true }
+# audiopus_sys bundles libopus with cmake_minimum_required < 3.5, which CMake 4 rejects.
+CMAKE_POLICY_VERSION_MINIMUM = "3.5"

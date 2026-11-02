@@ -171,3 +171,4 @@ Không có. Nút trạng thái dùng cam khi tập trung, xanh khi nghỉ, vàng
 | 2026-10-31 | Pomodoro dừng nhạc khi nghỉ và tự phát playlist tập trung (qua `MediaIntent`); bộ đếm đúng sau sleep/resume |
 | 2026-11-01 | Nút Pomodoro có màu/nhãn theo trạng thái trên launcher/main; thao tác lại không reset phiên; toast bắt đầu nêu đúng phạm vi Focus và tùy chọn nhạc. |
 | 2026-11-01 | Bấm giờ mở panel trước; Pomodoro start/stop, toast Windows 3 giây kể cả chuyển pha (ADR-015). |
+| 2026-11-02 | Phát `AppEvent::PomodoroPhase(Work/Break/Stopped)` khi pha thật sự chạy (bắt đầu, tự chuyển, Tiếp/Bỏ qua, dừng) cho module [focus-sounds](focus-sounds.md). Có gói nhạc được chọn thì không phát playlist tập trung cũ. |

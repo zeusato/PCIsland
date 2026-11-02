@@ -274,13 +274,45 @@
 
 ## ADR-019 · Dọn rác một chạm và thu hồi RAM của app nền toàn PC
 
-- **Ngày:** 2026-11-01 · **Trạng thái:** Accepted theo yêu cầu trực tiếp của chủ dự án.
+- **Ngày:** 2026-11-01 · **Trạng thái:** Accepted theo yêu cầu trực tiếp của chủ dự án; chính sách disk và "không kill" được thay bằng ADR-022.
 - **Bối cảnh:** chủ dự án yêu cầu triển khai quick wins, làm rõ RAM phải ở phạm vi PC và dọn rác giống CCleaner: một lần bấm, có tiến trình/kết quả, không chọn từng nhóm.
 - **Quyết định:** thêm service `app/maintenance` với adapter Win32 ở `platform`, chỉ chạy khi bấm. Disk theo allowlist nguồn/file cache và file tạm quá 7 ngày, bỏ app đang chạy/file đang dùng, không theo reparse point, giữ dữ liệu đăng nhập/cá nhân; worker báo tiến trình qua channel. RAM dùng bộ lọc bảo thủ và PID + thời điểm khởi chạy, trim working set các app nền được người dùng chọn, đo trước/sau/30 giây; không kill, không purge standby.
 - **Lý do:** không có phép suy luận chung rằng mọi cache/bộ nhớ chiếm dụng đều vô giá trị. Giới hạn rõ recipe và đo kết quả thực tế để tránh ảnh hưởng dữ liệu/phiên đang dùng.
 - **Hệ quả:** chưa bao phủ mọi app/profile tùy chỉnh; không hứa mức MB hoặc tăng tốc. Không triển khai mới unload/suspend web player vì yêu cầu đã mở rộng sang PC. [Đặc tả, phạm vi và nghiệm thu](modules/maintenance.md).
 
 ```markdown
+## ADR-021 · Spotify/SoundCloud: đọc trạng thái từ response của trang, repeat bằng nút của trang
+
+- **Ngày:** 2026-11-02 · **Trạng thái:** Accepted theo yêu cầu chủ dự án. Thay phần giới hạn SoundCloud trong ADR-016.
+- **Bối cảnh:** chủ dự án đã đăng nhập SoundCloud, phát được, và yêu cầu làm tracklist, tìm kiếm, repeat cho SoundCloud và Spotify; cho phép trace API và tự nghiệm thu để tránh hoạt động giống bot.
+- **Quyết định:**
+  - Spotify: bridge móc `fetch`/`WebSocket` của trang, đọc `player_state` từ connect-state (PUT/GET + payload dealer) và tên bài từ `decorateContextTracks`. Không gọi API riêng, không giữ token/device ID/URL audio.
+  - SoundCloud: đọc queue từ panel “Next up” của trang; bật lại tìm kiếm bằng một lượt tải trang `/search/sounds` cho mỗi lần người dùng bấm tìm.
+  - Repeat của hai trang dùng nút repeat của chính trang, không dùng `media.loop` hay chặn sự kiện `ended`.
+- **Giới hạn:** không tự thử lại, không tìm nền, không vượt chặn; gặp trang chặn thì dừng như ADR-016. Trace Spotify được làm trên profile thật với một lần tải lại và một lần phát/dừng; SoundCloud chỉ đọc DOM và mở panel queue một lần. Trang đổi cấu trúc thì repeat/queue báo lỗi thay vì đoán.
+- **Hệ quả:** phụ thuộc vào cấu trúc nội bộ của Spotify (endpoint/field có thể đổi). Nhãn `aria-label` của Spotify phụ thuộc ngôn ngữ, chỉ dùng làm dự phòng khi chưa có `options` từ cluster.
+
+## ADR-022 · Mở rộng Dọn dẹp: nguồn rác lớn, Thùng rác, Windows Update và đóng app ngốn RAM
+
+- **Ngày:** 2026-11-02 · **Trạng thái:** Accepted theo yêu cầu trực tiếp của chủ dự án. Thay thế phần chính sách disk (tuổi 7 ngày, chỉ đuôi `.tmp/.temp/.log/.etl`, danh sách nguồn) và phần "không kill" của ADR-019; các phần khác của ADR-019 giữ nguyên.
+- **Bối cảnh:** chủ dự án nghiệm thu thấy Dọn dẹp "không có ý nghĩa", dọn quá ít. Chủ dự án chọn: thêm nguồn rác lớn, Thùng rác + Windows Update, và đóng app nền ngốn RAM thay vì chỉ trim working set (trim gần như không giảm cấp phát).
+- **Quyết định:**
+  - Disk một chạm: file tạm (LocalAppData/Temp, Windows/Temp) mọi loại file quá 1 ngày, vẫn giữ tên `~`, autosave/recovery/backup và file đang khóa; xóa thư mục con rỗng trong root temp/cache bằng handle (Windows từ chối nếu còn entry), không bao giờ xóa root, không remove_dir_all. Thêm CrashDumps, WER (LocalAppData và ProgramData khi tài khoản có quyền), cache shader DirectX/NVIDIA/AMD, `thumbcache_*/iconcache_*.db`, INetCache (trừ Content.Outlook), npm/pip/Yarn (quá 7 ngày), Teams mới/cũ, Spotify `Data`/`Storage`. Cache trình duyệt/Electron/Teams/Spotify giảm tuổi xuống 1 ngày nhưng vẫn bỏ cả app khi tiến trình chạy; nguồn dùng chung (shader, thumbnail, INetCache, WER, npm…) không chặn theo tiến trình vì file đang dùng bị khóa và được bỏ qua. Kết quả theo nhóm: ước tính khi quét và byte thực xóa.
+  - Thùng rác: thao tác riêng, xác nhận trong UI, `SHEmptyRecycleBinW`; không nằm trong một chạm.
+  - Windows Update/Delivery Optimization: thao tác riêng, xác nhận, chạy lại chính `pcisland.exe` với đúng một đối số cố định qua `ShellExecuteExW` "runas"; helper chỉ chạy recipe cố định rồi thoát với mã trạng thái + KiB đã xóa. Từ chối UAC báo "chưa dọn".
+  - RAM: danh sách app của cùng người dùng/phiên gom theo gốc cây tiến trình, loại hệ thống và cây PCisland; nút Đóng gửi `WM_CLOSE` tới cửa sổ cấp cao sau xác nhận, chờ 5 giây. Chỉ khi app chưa thoát mới cho "Buộc đóng" với xác nhận thứ hai; backend chỉ terminate đúng PID + thời điểm tạo mà bước một để lại. App đang phát âm thanh cần xác nhận riêng. Trim working set giữ lại như mục nâng cao.
+- **Lý do:** đây là các nguồn Storage Sense/Disk Cleanup cũng coi là tái tạo được; quy tắc an toàn cốt lõi (allowlist cố định, handle, không theo reparse point, không dữ liệu đăng nhập/cá nhân, không đường dẫn hay lệnh từ UI) vẫn giữ. Thao tác không hoàn tác hoặc cần quyền admin tách riêng và luôn hỏi lại.
+- **Phương án đã cân nhắc:** PowerShell/cleanmgr nâng quyền (khó báo kết quả trung thực, phụ thuộc cấu hình sageset); dừng dịch vụ wuauserv/BITS trước khi xóa (rủi ro hỏng cập nhật đang chạy, bỏ); kill thẳng app (mất dữ liệu chưa lưu, bỏ); gom app theo tên exe (gộp WebView2 của nhiều app, bỏ).
+- **Hệ quả:** dọn được nhiều hơn rõ rệt nhưng cache tạo lại khi dùng; Spotify có thể phải tải lại bài offline; dev cache có thể phải tải lại gói. Cần nghiệm thu UAC thật, đóng app có hộp thoại lưu, app ẩn khay. [Đặc tả](modules/maintenance.md).
+
+## ADR-023 · Nhạc tập trung tải theo yêu cầu từ repo phát hành riêng
+
+- **Ngày:** 2026-11-02 · **Trạng thái:** Accepted theo yêu cầu chủ dự án.
+- **Bối cảnh:** Pomodoro cần nhạc tập trung/thư giãn có sẵn, nhưng nhúng vào bộ cài sẽ làm gói nặng thêm hàng chục đến hàng trăm MB.
+- **Quyết định:** nhạc nằm ở release của repo public riêng `zeusato/pcisland-sounds` kèm `manifest.json`. App chỉ tải khi người dùng bấm, ghép URL file từ repo cố định, kiểm tra kích thước + SHA-256, lưu trong `data_dir/focus-sounds`. Timer báo pha qua EventBus; module `focus_sounds` yêu cầu local_player phát file theo vai trò `focus`/`break`. Định dạng MP3 vì rodio không giải mã Opus.
+- **Phương án đã cân nhắc:** nhúng vào bộ cài (nặng); release trong repo dự án (lẫn với `releases/latest` của kiểm tra cập nhật); Git LFS (giới hạn băng thông); app tự sinh tiếng ồn nền (không đáp ứng nhu cầu nhạc).
+- **Hệ quả:** phụ thuộc GitHub Releases. Chủ dự án chịu trách nhiệm quyền phân phối nhạc (Suno gói trả phí hoặc giấy phép tương đương) và ghi trong manifest. Đổi repo cần sửa hằng số trong `modules/focus_sounds`.
+
 ## ADR-NNN · <Tiêu đề>
 
 - **Ngày:** YYYY-MM-DD · **Trạng thái:** Proposed | Accepted | Superseded by ADR-xxx | Rejected

@@ -1,6 +1,5 @@
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { getCurrentWebview } from '@tauri-apps/api/webview';
 import type { VisibilityEvent } from './bindings/VisibilityEvent';
 import type { PointerEvent as IslandPointerEvent } from './bindings/PointerEvent';
 import type { MediaSnapshot } from './bindings/MediaSnapshot';
@@ -42,14 +41,55 @@ export type DragDrop =
   | { type: 'drop'; x: number; y: number; paths: string[] }
   | { type: 'leave' };
 
-/** OS file drag-and-drop onto the current window (positions in physical px). */
+/** Matches platform/webview_drop.rs. */
+const DROP_MESSAGE = 'pcisland:drop-files';
+type WebView2Bridge = { postMessageWithAdditionalObjects?: (message: string, objects: FileList) => void };
+
+/**
+ * OS file drag-and-drop onto the island (docs/modules/island-window.md §5). Chromium takes
+ * the drop; the page forwards the File objects to the host, which answers with real paths
+ * on `island://files-dropped`. Positions are CSS px.
+ */
 export function onDragDrop(handler: (e: DragDrop) => void): Promise<UnlistenFn> {
-  let paths: string[] = [];
-  return getCurrentWebview().onDragDropEvent((event) => {
-    const p = event.payload;
-    if (p.type === 'leave') return handler({ type: 'leave' });
-    if ('paths' in p) paths = p.paths;
-    handler({ type: p.type, x: p.position.x, y: p.position.y, paths });
+  const hasFiles = (e: DragEvent) => !!e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+  let depth = 0;
+  let pending: ReturnType<typeof setTimeout> | undefined;
+  const enter = (e: DragEvent) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    if (depth++ === 0) handler({ type: 'enter', x: e.clientX, y: e.clientY, paths: [] });
+  };
+  const over = (e: DragEvent) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    e.dataTransfer!.dropEffect = 'copy';
+    handler({ type: 'over', x: e.clientX, y: e.clientY, paths: [] });
+  };
+  const leave = (e: DragEvent) => {
+    if (!hasFiles(e) || --depth > 0) return;
+    depth = 0;
+    handler({ type: 'leave' });
+  };
+  const drop = (e: DragEvent) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    depth = 0;
+    const bridge = (window as unknown as { chrome?: { webview?: WebView2Bridge } }).chrome?.webview;
+    if (!bridge?.postMessageWithAdditionalObjects || !e.dataTransfer!.files.length) return handler({ type: 'leave' });
+    bridge.postMessageWithAdditionalObjects(DROP_MESSAGE, e.dataTransfer!.files);
+    // The host answers within milliseconds; never leave the drop zone armed forever.
+    clearTimeout(pending);
+    pending = setTimeout(() => handler({ type: 'leave' }), 3000);
+  };
+  const types = { dragenter: enter, dragover: over, dragleave: leave, drop } as const;
+  for (const [type, fn] of Object.entries(types)) window.addEventListener(type, fn as EventListener, true);
+  return listen<string[]>('island://files-dropped', (event) => {
+    clearTimeout(pending);
+    handler({ type: 'drop', x: 0, y: 0, paths: event.payload });
+  }).then((unlisten) => () => {
+    unlisten();
+    clearTimeout(pending);
+    for (const [type, fn] of Object.entries(types)) window.removeEventListener(type, fn as EventListener, true);
   });
 }
 

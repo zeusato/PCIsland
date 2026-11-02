@@ -5,7 +5,9 @@
   const selectors = {
     'zingmp3.vn': 'main .media-item a.title[href*="/bai-hat/"]',
     'open.spotify.com': 'main a[href*="/track/"]',
+    'soundcloud.com': '.searchList__item a.soundTitle__title[href]',
   };
+  const rowOf = { 'zingmp3.vn': '.media-item', 'open.spotify.com': '[role="row"]', 'soundcloud.com': '.searchList__item' };
   let started = false;
   window.__pcislandSearch = (requestId) => {
     if (started) return;
@@ -20,10 +22,12 @@
         const title = (node.closest('.media-item')?.querySelector('figure[title]')?.getAttribute('title') || node.innerText || node.textContent || '').trim();
         // Verified against the public search DOM on 2026-11-01. Keep artist
         // credits separate from uploaders; neither search page exposes an uploader.
-        const row = node.closest(location.hostname === 'zingmp3.vn' ? '.media-item' : '[role="row"]');
-        const credits = row?.querySelectorAll(location.hostname === 'zingmp3.vn' ? '.card-info .subtitle a' : 'a[href*="/artist/"]') ?? [];
-        const artist = [...new Set([...credits].map((a) => (a.innerText || a.textContent || '').trim()).filter(Boolean))].join(', ').slice(0, 256) || null;
-        if (url.origin === location.origin && title && !url.pathname.includes('/sets/')) items.set(url.href, { url: url.href, title: title.slice(0, 512), artist, uploader: null });
+        const row = node.closest(rowOf[location.hostname] || '[role="row"]');
+        // SoundCloud only names the uploading account, never a separate artist.
+        const soundCloud = location.hostname === 'soundcloud.com';
+        const credits = row?.querySelectorAll(location.hostname === 'zingmp3.vn' ? '.card-info .subtitle a' : soundCloud ? '.soundTitle__username' : 'a[href*="/artist/"]') ?? [];
+        const names = [...new Set([...credits].map((a) => (a.innerText || a.textContent || '').trim()).filter(Boolean))].join(', ').slice(0, 256) || null;
+        if (url.origin === location.origin && title && !url.pathname.includes('/sets/')) items.set(url.href, { url: url.href, title: title.slice(0, 512), artist: soundCloud ? null : names, uploader: soundCloud ? names : null });
         if (items.size >= 30) break;
       }
       const result = [...items.values()];

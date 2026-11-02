@@ -174,3 +174,4 @@ Không có. Q4 đã chốt: giữ phím tắt mặc định, người dùng tự
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Kiểm tra cập nhật từ GitHub Releases (hằng ngày + nút trong Cài đặt); manifest Common-Controls v6 nhúng qua linker (ADR-012); trạng thái module trong Cài đặt |
 | 2026-11-01 | Đăng ký Run có quoting/cờ startup, đọc lại xác minh, báo lỗi/repair trong Settings; IPC toast Windows. |
+| 2026-11-02 | Lần chạy đầu (`app.welcomeDone = false`) tự mở cửa sổ chính với hộp chào: hỏi tải yt-dlp và gói nhạc tập trung, không tải gì khi chưa xác nhận; Để sau/Bắt đầu dùng đặt `welcomeDone = true`. Bản đã cài trước đó cũng thấy hộp này một lần. |

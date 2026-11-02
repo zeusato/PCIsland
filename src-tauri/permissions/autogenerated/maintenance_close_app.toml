@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-maintenance-close-app"
+description = "Enables the maintenance_close_app command without any pre-configured scope."
+commands.allow = ["maintenance_close_app"]
+
+[[permission]]
+identifier = "deny-maintenance-close-app"
+description = "Denies the maintenance_close_app command without any pre-configured scope."
+commands.deny = ["maintenance_close_app"]

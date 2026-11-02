@@ -13,6 +13,19 @@ pub enum MediaIntent {
     Pause,
     /// Play a local playlist from the start (Focus mode start).
     PlayLocalPlaylist(String),
+    /// Play these local files, looping the list (downloaded focus music).
+    PlayFiles {
+        paths: Vec<std::path::PathBuf>,
+        shuffle: bool,
+    },
+}
+
+/// Pomodoro phase that actually started running (docs/modules/focus-sounds.md §6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PomodoroPhase {
+    Work,
+    Break,
+    Stopped,
 }
 
 #[derive(Debug, Clone)]
@@ -29,6 +42,7 @@ pub enum AppEvent {
     )]
     FocusModeChanged(bool),
     MediaIntent(MediaIntent),
+    PomodoroPhase(PomodoroPhase),
     /// Default audio output device changed.
     AudioDeviceChanged,
 }

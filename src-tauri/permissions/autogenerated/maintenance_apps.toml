@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-maintenance-apps"
+description = "Enables the maintenance_apps command without any pre-configured scope."
+commands.allow = ["maintenance_apps"]
+
+[[permission]]
+identifier = "deny-maintenance-apps"
+description = "Denies the maintenance_apps command without any pre-configured scope."
+commands.deny = ["maintenance_apps"]

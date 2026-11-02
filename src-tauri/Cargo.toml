@@ -1,6 +1,6 @@
 [package]
 name = "pcisland"
-version = "0.1.2"
+version = "0.1.3"
 description = "Dynamic Island for Windows"
 edition = "2024"
 rust-version = "1.85"
@@ -63,6 +63,7 @@ windows = { version = "0.62", features = [
   "Win32_Storage_FileSystem",
   "Win32_Security",
   "Win32_System_RemoteDesktop",
+  "Win32_System_Registry",
   "Win32_UI_Accessibility",
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_Shell",
@@ -78,6 +79,8 @@ windows = { version = "0.62", features = [
   "UI_Notifications",
 ] }
 windows-core = "0.62"
+# Same version wry uses; island file drops read ICoreWebView2File paths (platform/webview_drop.rs).
+webview2-com = "0.39.1"
 
 [profile.release]
 opt-level = "s"
