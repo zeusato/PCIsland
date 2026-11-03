@@ -551,7 +551,7 @@
   "meeting.system": "Âm thanh máy tính",
   "meeting.sourceHint": "Chọn thiết bị hoặc dùng mặc định Windows. Âm thanh máy tính gồm cả nhạc/video đang phát.",
   "meeting.consent": "Tự gửi các đoạn đánh dấu tới Groq để tạo bản nháp tiếng Việt. Bản ghi đầy đủ ở trên máy.",
-  "meeting.noKey": "Bản build chưa có key dùng chung; vẫn ghi âm bình thường.",
+  "meeting.noKey": "Để chép lời, đặt biến môi trường người dùng GROQ_API_KEY trong Windows rồi thoát và mở lại PCisland. Bạn vẫn có thể ghi âm.",
   "meeting.shortcutHint": "Dùng phím tắt Đánh dấu cuộc họp trong Cài đặt (mặc định Ctrl+Alt+M).",
   "meeting.openLog": "Mở nhật ký và ghi chú",
   "meeting.history": "Cuộc họp đã lưu",

@@ -5,6 +5,7 @@
 - Trình phát YouTube ưu tiên tiếng Việt nếu có, cho đổi ngôn ngữ trong khi xem và giữ lựa chọn khi đổi chất lượng.
 - Menu chất lượng có cả 1440p và 2160p nếu nguồn cung cấp. Giới hạn trong Cài đặt áp dụng cho chế độ Tự động.
 - PCisland tự tải bản cập nhật, xác minh SHA-256 và cài khi thoát. Có thể chọn **Cài và mở lại** để cập nhật ngay.
+- Chép lời cuộc họp dùng khóa Groq của từng người dùng từ biến môi trường Windows `GROQ_API_KEY`.
 
 [Ghi chú nâng cấp](docs/releases/v0.1.6.md).
 

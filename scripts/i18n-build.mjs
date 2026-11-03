@@ -553,7 +553,7 @@ const T = {
   "meeting.system": ["Âm thanh máy tính","System audio"],
   "meeting.sourceHint": ["Chọn thiết bị hoặc dùng mặc định Windows. Âm thanh máy tính gồm cả nhạc/video đang phát.","Choose devices or use Windows defaults. System audio includes any music/video playing."],
   "meeting.consent": ["Tự gửi các đoạn đánh dấu tới Groq để tạo bản nháp tiếng Việt. Bản ghi đầy đủ ở trên máy.","Send marked clips to Groq for Vietnamese draft transcripts. Full recordings stay local."],
-  "meeting.noKey": ["Bản build chưa có key dùng chung; vẫn ghi âm bình thường.","No shared key in this build; recording still works."],
+  "meeting.noKey": ["Để chép lời, đặt biến môi trường người dùng GROQ_API_KEY trong Windows rồi thoát và mở lại PCisland. Bạn vẫn có thể ghi âm.","To transcribe, set the GROQ_API_KEY user environment variable in Windows, then quit and reopen PCisland. Recording is still available."],
   "meeting.shortcutHint": ["Dùng phím tắt Đánh dấu cuộc họp trong Cài đặt (mặc định Ctrl+Alt+M).","Use the Meeting marker shortcut in Settings (default Ctrl+Alt+M)."],
   "meeting.openLog": ["Mở nhật ký và ghi chú","Open log and notes"],
   "meeting.history": ["Cuộc họp đã lưu","Saved meetings"],

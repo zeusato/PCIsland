@@ -10,6 +10,8 @@
 
 ## 2. Snapshot
 
+**Groq v0.1.6** dùng biến môi trường người dùng Windows `GROQ_API_KEY` khi chạy. Bước build không nhúng khóa. Quyết định này thay cấu hình Groq của các bản trước theo ADR-025.
+
 **2026-11-03 · Video YouTube:** trình phát nổi ưu tiên bản tiếng Việt khi mở video. Nếu có nhiều ngôn ngữ, người xem đổi ở thanh trên và tiếp tục từ vị trí hiện tại. Đã đối chiếu track Việt và Anh trên video YouTube công khai `0e3GPea1Tyg` bằng yt-dlp.
 
 Link `fqRHIWElMBk&t=279s` có tám mức 144p–2160p và hai ngôn ngữ. Menu chọn tay hiển thị cả 1440p và 2160p. Giới hạn 1080p mặc định chỉ áp dụng ở chế độ Tự động.
@@ -201,6 +203,8 @@ Sổ rủi ro đầy đủ ở [00 §8](00-vision-scope.md#8-sổ-rủi-ro). Nh�
 | R10 Virtual desktop | P0.4 |
 
 ## 7. Nhật ký phiên
+
+- 2026-11-03 · Codex: chủ dự án duyệt phát hành v0.1.6 với khóa riêng từng máy. Đổi worker, thông báo thiếu khóa và hướng dẫn nâng cấp. Tag của bản nháp cần trỏ tới commit chứa thay đổi này.
 
 - 2026-11-03 · Codex: chuẩn bị tag v0.1.6, bộ cài, portable và ghi chú nâng cấp theo yêu cầu push và release của chủ dự án. Giữ cấu hình Groq tích hợp trong exe theo xác nhận của chủ dự án.
 

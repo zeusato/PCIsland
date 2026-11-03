@@ -1,6 +1,6 @@
 # Module: Cuộc họp (`meeting`)
 
-> Trạng thái: Có source + test, chưa nghiệm thu cuộc họp thật · Phase: Bổ sung theo yêu cầu chủ dự án · Cập nhật: 2026-11-01
+> Trạng thái: Có source + test, chưa nghiệm thu cuộc họp thật · Phase: Bổ sung theo yêu cầu chủ dự án · Cập nhật: 2026-11-03
 
 ## 1. Mục đích
 
@@ -29,7 +29,7 @@ Ghi mic và/hoặc âm thanh máy tính; chọn thiết bị; đánh dấu clip;
 
 `codec.rs` encode Opus 48 kbps vào packet journal, flush/sync mỗi 5 giây. Clip remux Ogg với 80 ms decoder preroll và granule/pre-skip, không encode lại. Bản full đóng gói khi dừng. Journal xóa sau khi full và tất cả clip xuất thành công; lỗi giữ journal để phục hồi. Có phục hồi packet bền khi khởi động, chưa chứng minh toàn bộ cửa sổ crash giữa publish và cập nhật DB là idempotent.
 
-`transcript.rs` dùng một worker, giãn request 4 giây, timeout 120 giây, tối đa 5 retry cho lỗi tạm thời/429; cache SHA256 + model + ngôn ngữ. Job bị gián đoạn cần retry rõ ràng. Upload multipart file tối đa 24 MB, Ogg Opus dùng tên `.ogg`, MIME `audio/ogg`; model `whisper-large-v3`, `language=vi`. Không lưu key vào frontend/log/DB. Build native đọc `GROQ_API_KEY` từ môi trường hoặc `.env` và nhúng vào binary theo yêu cầu chủ dự án.
+`transcript.rs` đọc `GROQ_API_KEY` từ môi trường của tiến trình PCisland khi chép lời. Worker gửi clip tối đa 24 MB tới `whisper-large-v3` với `language=vi`, giãn yêu cầu 4 giây, timeout 120 giây và thử lại tối đa 5 lần với lỗi tạm thời/429. Cache dùng SHA-256, model và ngôn ngữ. Job bị gián đoạn cần người dùng chọn thử lại.
 
 Protocol `meetingaudio` chỉ giải file từ meeting/clip ID đã lưu, đọc từng phần phục vụ audio. ZIP dùng thư viện shared, không theo reparse point.
 
@@ -40,6 +40,8 @@ Protocol `meetingaudio` chỉ giải file từ meeting/clip ID đã lưu, đọc
 DTO chính: `Meeting`, `Highlight`, `MeetingSnapshot`, `MeetingDevice`. Các command chỉ qua wrapper IPC; quyền ở capability của UI local.
 
 ## 7. Dữ liệu & cài đặt
+
+Chép lời cần biến môi trường người dùng Windows `GROQ_API_KEY`. Sau khi đặt hoặc đổi khóa, thoát PCisland qua khay hệ thống rồi mở lại. Nếu thiếu khóa, người dùng vẫn ghi âm, đánh dấu và xuất clip. IPC chỉ trả trạng thái `keyConfigured`.
 
 SQLite `kv`: `meeting.session.<id>` và cache transcript. File nằm ở `data/meetings/<id>/`: journal, full Opus và các clip; khi xuất thêm `notes.md`, `meeting.json`. Ghi chú có revision, không ghi đè draft cũ. Thiết bị/nguồn được nhớ trong localStorage mỗi cửa sổ; chưa đồng bộ tùy chọn nguồn giữa main/island. Phím mặc định `Ctrl+Alt+M`.
 
@@ -67,10 +69,11 @@ Còn nghiệm thu: mic (máy QA trả Access denied), 60 phút, nghe/seek native
 
 ## 12. Câu hỏi mở
 
-Hạn mức key dùng chung và chất lượng nhận dạng thực tế trước khi phát hành. Backend giữ key là hướng nâng cấp, không nằm trong bản thử đã được chủ dự án chốt.
+Cần nghiệm thu chất lượng nhận dạng trên các clip họp có quyền sử dụng. Hạn mức chép lời phụ thuộc tài khoản Groq của người dùng.
 
 ## 13. Lịch sử thay đổi
 
 | Ngày | Thay đổi |
 |---|---|
 | 2026-11-01 | Triển khai local recording/highlight/notes/transcript, custom dropdown; QA debug và test pipeline Opus → Groq |
+| 2026-11-03 | Từ v0.1.6, đọc biến môi trường người dùng lúc chạy theo ADR-025. |

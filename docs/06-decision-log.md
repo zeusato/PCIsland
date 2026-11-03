@@ -319,6 +319,11 @@
 - Cài sau khi tiến trình thoát để không ngắt ghi âm hoặc công việc đang mở. Người dùng có thể chọn cài và khởi động lại ngay. Bản portable chỉ thay exe. Bản NSIS dùng chế độ cập nhật của bộ cài để duy trì đăng ký với Windows.
 - Các bản phát hành tiếp theo phải giữ quy ước tên gói của `package-release.ps1`. Bản cũ chỉ có chức năng thông báo cần được nâng cấp thủ công một lần.
 
+## ADR-025 · Khóa Groq theo tài khoản người dùng
+
+- **Ngày:** 2026-11-03 · **Trạng thái:** Accepted. Thay phần nhúng khóa Groq của ADR-020 theo xác nhận của chủ dự án.
+- Từ v0.1.6, worker native lấy khóa từ biến môi trường `GROQ_API_KEY` của tiến trình khi chạy. Quá trình build không đọc khóa từ môi trường hoặc `.env`. IPC chỉ cung cấp trạng thái đã cấu hình. Người chưa đặt khóa vẫn dùng được ghi âm, đánh dấu và xuất clip.
+
 ```markdown
 ## ADR-NNN · <Tiêu đề>
 

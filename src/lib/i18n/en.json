@@ -551,7 +551,7 @@
   "meeting.system": "System audio",
   "meeting.sourceHint": "Choose devices or use Windows defaults. System audio includes any music/video playing.",
   "meeting.consent": "Send marked clips to Groq for Vietnamese draft transcripts. Full recordings stay local.",
-  "meeting.noKey": "No shared key in this build; recording still works.",
+  "meeting.noKey": "To transcribe, set the GROQ_API_KEY user environment variable in Windows, then quit and reopen PCisland. Recording is still available.",
   "meeting.shortcutHint": "Use the Meeting marker shortcut in Settings (default Ctrl+Alt+M).",
   "meeting.openLog": "Open log and notes",
   "meeting.history": "Saved meetings",

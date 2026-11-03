@@ -103,7 +103,7 @@ impl MeetingHandle {
             active: s.active.as_ref().map(|a| a.0.clone()),
             mic_level: s.mic_level,
             system_level: s.system_level,
-            key_configured: !transcript::KEY.is_empty(),
+            key_configured: transcript::api_key().is_some(),
         }
     }
     fn publish(&self) {

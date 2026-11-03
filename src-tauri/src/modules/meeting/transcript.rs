@@ -3,7 +3,13 @@
 use super::MeetingHandle;
 use sha2::{Digest, Sha256};
 use std::{io::Read, path::Path, time::Duration};
-pub const KEY: &str = include!(concat!(env!("OUT_DIR"), "/groq_key.rs"));
+/// Read the user's runtime credential without exposing it to the WebView.
+pub(super) fn api_key() -> Option<String> {
+    std::env::var("GROQ_API_KEY")
+        .ok()
+        .map(|key| key.trim().to_owned())
+        .filter(|key| !key.is_empty())
+}
 
 pub fn start(handle: MeetingHandle) {
     tauri::async_runtime::spawn(async move {
@@ -38,15 +44,15 @@ pub fn start(handle: MeetingHandle) {
                 tokio::select! {()=handle.wake.notified()=>{},()=tokio::time::sleep(Duration::from_millis(wait))=>{}};
                 continue;
             };
-            if KEY.is_empty() {
+            let Some(key) = api_key() else {
                 let _ = handle.update(&id, |m| {
                     if let Some(c) = m.highlights.iter_mut().find(|c| c.id == clip.id) {
                         c.transcript_status = "failed".into();
-                        c.error = "Shared Groq key is not configured in this build".into();
+                        c.error = "Set GROQ_API_KEY and restart PCisland to transcribe".into();
                     }
                 });
                 continue;
-            }
+            };
             let _ = handle.update(&id, |m| {
                 if let Some(c) = m.highlights.iter_mut().find(|c| c.id == clip.id) {
                     c.transcript_status = "running".into();
@@ -55,9 +61,10 @@ pub fn start(handle: MeetingHandle) {
             });
             let path = clip.file.clone();
             let db = handle.db.clone();
-            let result =
-                tauri::async_runtime::spawn_blocking(move || transcribe(Path::new(&path), &db))
-                    .await;
+            let result = tauri::async_runtime::spawn_blocking(move || {
+                transcribe(Path::new(&path), &db, &key)
+            })
+            .await;
             let result =
                 result.unwrap_or_else(|_| Err(("Transcription worker stopped".into(), None)));
             let _ = handle.update(&id, |m| {
@@ -85,7 +92,11 @@ pub fn start(handle: MeetingHandle) {
         }
     });
 }
-fn transcribe(path: &Path, db: &crate::core::storage::Db) -> Result<String, (String, Option<u64>)> {
+fn transcribe(
+    path: &Path,
+    db: &crate::core::storage::Db,
+    key: &str,
+) -> Result<String, (String, Option<u64>)> {
     let fail = |e: std::io::Error| (e.to_string(), None);
     let file = std::fs::File::open(path).map_err(fail)?;
     if file.metadata().map_err(fail)?.len() > 24 * 1024 * 1024 {
@@ -129,7 +140,7 @@ fn transcribe(path: &Path, db: &crate::core::storage::Db) -> Result<String, (Str
         .part("file", part);
     let response = client
         .post("https://api.groq.com/openai/v1/audio/transcriptions")
-        .bearer_auth(KEY)
+        .bearer_auth(key)
         .multipart(form)
         .send()
         .map_err(|_| ("Cannot reach Groq; clip remains local".into(), Some(60_000)))?;
@@ -165,6 +176,35 @@ fn transcribe(path: &Path, db: &crate::core::storage::Db) -> Result<String, (Str
 }
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn reads_key_from_the_running_process() {
+        const CASE: &str = "PCISLAND_TEST_GROQ_CASE";
+        if let Ok(case) = std::env::var(CASE) {
+            assert_eq!(
+                super::api_key().as_deref(),
+                (case == "set").then_some("test-only-key")
+            );
+            return;
+        }
+        // Child processes isolate credentials from other tests and from the developer's machine.
+        for (case, value) in [
+            ("missing", None),
+            ("blank", Some("   ")),
+            ("set", Some(" test-only-key ")),
+        ] {
+            let mut child = std::process::Command::new(std::env::current_exe().unwrap());
+            child
+                .arg("reads_key_from_the_running_process")
+                .env(CASE, case)
+                .env_remove("GROQ_API_KEY");
+            if let Some(value) = value {
+                child.env("GROQ_API_KEY", value);
+            }
+            let output = child.output().unwrap();
+            assert!(output.status.success());
+            assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
+        }
+    }
     #[test]
     #[ignore = "live Groq API, public FLEURS fixture only; never microphone audio"]
     fn live_public_vietnamese_fixture() {
@@ -210,10 +250,11 @@ mod tests {
             .unwrap();
         let db = crate::core::storage::Db::open_in_memory().unwrap();
         let start = std::time::Instant::now();
-        let result = super::transcribe(&path, &db);
+        let key = super::api_key().expect("set GROQ_API_KEY for the live API test");
+        let result = super::transcribe(&path, &db, &key);
         let wav_elapsed = start.elapsed();
         let opus_start = std::time::Instant::now();
-        let opus_result = super::transcribe(&opus, &db);
+        let opus_result = super::transcribe(&opus, &db, &key);
         let _ = std::fs::remove_file(&opus);
         let _ = std::fs::remove_file(&journal);
         let _ = std::fs::remove_file(&path);

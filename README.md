@@ -18,7 +18,7 @@ Yêu cầu Windows 11 x64 và Microsoft Edge WebView2 Runtime. Khi nâng cấp, 
 
 - **Kệ file:** chọn nhiều/tất cả, kéo hoặc sao chép file thực, ZIP có tiến trình và hủy, đổi ảnh tĩnh PNG/JPEG sang PNG/JPEG/WebP. Bỏ giới hạn 3 mục.
 - **Note desktop:** ghim một ghi chú ra cửa sổ riêng, tùy chọn luôn trên cùng, tăng/giảm cỡ chữ, sửa/xóa; giữ countdown và chuông báo.
-- **Cuộc họp:** ghi mic/âm thanh máy tính, đánh dấu bằng `Ctrl+Alt+M` lùi 15 giây, xuất clip khi bản ghi vẫn chạy, timeline và notes. Transcript Groq tiếng Việt tùy chọn, chỉ gửi clip theo yêu cầu; cần mạng và chịu hạn mức dịch vụ.
+- **Cuộc họp** hỗ trợ ghi mic/âm thanh máy tính, đánh dấu 15 giây bằng `Ctrl+Alt+M` và xuất clip khi đang ghi. Để chép lời tiếng Việt, đặt biến môi trường người dùng Windows `GROQ_API_KEY` rồi thoát PCisland qua khay hệ thống và mở lại.
 - **Video và dọn dẹp:** trình phát video nổi; thu hồi RAM app nền và dọn file tạm/cache theo phạm vi bảo thủ. Xem giới hạn trong release notes.
 - **Các trạng thái hiển thị:** thu gọn (compact), mở rộng khi hover (peek), vạch mảnh (minimal), ẩn (hidden) và cửa sổ đầy đủ. Mặc định còn tác vụ thì giữ island ở minimal khi cần; ẩn hoàn toàn là tùy chọn. Khi đang soạn thảo, rời chuột không làm thu gọn island.
 - **Portable:** một file exe, không cần cài, không cần quyền admin.
