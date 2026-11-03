@@ -26,12 +26,12 @@ Kiểm tra bổ sung Dọn dẹp: 194 Rust đạt (1 smoke native mặc định 
 
 | Mục | Giá trị |
 |---|---|
-| Cập nhật lần cuối | 2026-11-02 |
+| Cập nhật lần cuối | 2026-11-03 |
 | Phase | **P1–P3 đã code đủ đặc tả** (trừ P4: F32–F34, F40–F44); chưa qua kiểm thử tay, Gate G0 chưa đóng |
-| Phiên bản | [v0.1.4](https://github.com/zeusato/PCIsland/releases/tag/v0.1.4): NSIS + portable + hai SHA256, theo yêu cầu chủ dự án. Nhạc tập trung: [focus-sounds-v1](https://github.com/zeusato/pcisland-sounds/releases/tag/focus-sounds-v1) |
+| Phiên bản | [v0.1.5](https://github.com/zeusato/PCIsland/releases/tag/v0.1.5) (bản vá player island có lời bài hát): NSIS + portable + hai SHA256, theo yêu cầu chủ dự án. Nhạc tập trung: [focus-sounds-v1](https://github.com/zeusato/pcisland-sounds/releases/tag/focus-sounds-v1) |
 | Code | Nhánh `main` trên https://github.com/zeusato/PCIsland |
 | Kiểm tra | (2026-11-02) 251 Rust đạt/4 ignored; 87 frontend/27 file; i18n 542 khóa; trước đó 238 Rust/81 frontend; fmt, clippy all-targets -D warnings, Svelte/eslint, i18n 497 khóa, frontend và Tauri NSIS build đạt. Giới hạn native/meeting ghi trong release notes |
-| Bản build gần nhất | `src-tauri/target/release/pcisland.exe`: 22.190.592 byte, ProductVersion 0.1.4, SHA256 `8D281E5433EB8E2B62C722590ACC93DC7B1147F1078C47B9B9A7BAD1E1A84516`. NSIS 5.990.122 byte; portable 7.906.394 byte. Build này còn dọn hết cache (9,4 GiB); từ nay wrapper giữ cache, dọn khi target > 20 GiB |
+| Bản build gần nhất | `src-tauri/target/release/pcisland.exe`: 22.191.104 byte, ProductVersion 0.1.5, SHA256 `E0E5924ADD20DD18AFB2125AA340108C671F3802B5061FDE164B9B59BC4961D9`. NSIS 5.983.715 byte; portable 7.906.701 byte (`release/0.1.5/`). Wrapper giữ cache (target 7,65 GiB < trần 20 GiB) |
 | Đang chặn | Không. SoundCloud đã đăng nhập/phát lại được (2026-11-02), tìm kiếm bật lại theo ADR-021; vẫn không tự thử lặp hoặc vượt challenge |
 
 UI launcher mới (2026-11-01): nội dung rảnh lên 28 px, header ở y=16, tổng chiều cao 226 px với đủ 7 nút; chữ ký “by Zeusato” nét mảnh nghiêng neon cam ở đáy phải. Đã QA localhost, panel Hẹn giờ mở đúng; `pnpm check`, 51 test frontend và `pnpm build` đạt (296 khóa i18n). Đã build exe release bằng `pnpm tauri build --no-bundle` theo yêu cầu chạy thử, đầu ra `src-tauri/target/release/pcisland.exe`; chưa tạo lại installer hay phát hành.
@@ -87,6 +87,7 @@ Theo thứ tự. Đánh dấu `[x]` khi xong và thêm việc mới phát sinh v
 
 - [ ] Nghiệm thu trên exe mới (2026-11-02): Spotify queue/chọn bài/repeat 3 chế độ/tìm→phát; SoundCloud queue/repeat/tìm kiếm (selector trang tìm kiếm chưa kiểm trên WebView thật); note desktop đóng được, ô tick ở cỡ 12–40; Dọn dẹp mới (UAC Windows Update, thùng rác, đóng app).
 - [ ] Đẩy commit sửa CMake rồi xem CI xanh lại.
+- [ ] Nghiệm thu v0.1.5: player island với một bài có lời đồng bộ không còn bị cắt hàng điều khiển.
 - [ ] Nhạc tập trung (ADR-023): release `focus-sounds-v1` đã có trên `zeusato/pcisland-sounds` (lofi 7, ambient 9, rest 4; 97 MiB). Còn nghiệm thu tải/hủy/xóa, hộp chào lần đầu và phát theo pha Pomodoro trên exe.
 - [ ] Nghiệm thu đợt 2 (2026-11-02): nút chia sẻ link trên player island (web/video), ô launcher đồng cỡ + Cài đặt › Nút trên island, Dọn dẹp giữ tiến trình khi rời island, kéo file Explorer lên island (đã sửa, thử giả lập đạt trên bản debug).
 
@@ -186,6 +187,8 @@ Sổ rủi ro đầy đủ ở [00 §8](00-vision-scope.md#8-sổ-rủi-ro). Nh�
 | R10 Virtual desktop | P0.4 |
 
 ## 7. Nhật ký phiên
+
+- 2026-11-03 · Claude: điều tra báo lỗi island thiếu nội dung trên bản v0.1.4. Không do merge/build (release khớp tag, hash bộ cài trùng `release/0.1.4`). Nguyên nhân: player peek cố định 172 px, bài có lời đồng bộ cần ~190 px nên hàng điều khiển bị cắt. Sửa: `Player.svelte` đo `Peek` qua `fit`, test `IslandMusic` bắt trường hợp hàng lời. 92 frontend + check đạt. Phát hành v0.1.5 (NSIS + portable + SHA256) theo yêu cầu chủ dự án; gồm nhãn `meetingMark` từ commit sau v0.1.4.
 
 - 2026-11-02 · Claude: sau v0.1.3, thêm trang Pomodoro và Dọn dẹp trong cửa sổ chính, nút Pomodoro trên island mở panel có tải gói nhạc; build + đóng gói v0.1.4 (269 Rust + 92 frontend + check đạt). Đổi quy tắc dọn build theo chủ dự án: giữ cache, dọn khi target > 20 GiB. Đã push + release v0.1.4. Sau release: thêm nhãn i18n còn thiếu cho phím tắt `meetingMark` (Cài đặt hiện key thô), chưa commit.
 

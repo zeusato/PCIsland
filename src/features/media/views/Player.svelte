@@ -62,13 +62,15 @@
 {:else if showQueue && current}
   <Queue expand={active} source={current.sourceId} close={() => showQueue = false} />
 {:else if current}
-  <div class="player"><Peek np={current} {active} trailing={current.sourceId === 'video' ? videoControls : undefined} /><div class="repeat"><RepeatControl source={current.sourceId} />{#if shareable(current.sourceId)}<button class="share" class:done={shared === 'copied'} aria-label={t(shareLabel)} title={t(shareLabel)} onclick={(event) => { event.stopPropagation(); void share(current.sourceId); }}>{#if shared === 'copied'}<Check size={14} />{:else}<Share2 size={14} />{/if}</button>{/if}</div>{#if current.sourceId !== 'video'}<div class="player-actions"><button onclick={(event) => { event.stopPropagation(); searching = true; }}>{t('webPlayer.searchButton')}</button><button onclick={(event) => { event.stopPropagation(); showQueue = true; }}>{t('music.queue')}</button></div>{/if}</div>
+  <div class="player"><div class="body" use:fit={active}><Peek np={current} {active} trailing={current.sourceId === 'video' ? videoControls : undefined} /></div><div class="repeat"><RepeatControl source={current.sourceId} />{#if shareable(current.sourceId)}<button class="share" class:done={shared === 'copied'} aria-label={t(shareLabel)} title={t(shareLabel)} onclick={(event) => { event.stopPropagation(); void share(current.sourceId); }}>{#if shared === 'copied'}<Check size={14} />{:else}<Share2 size={14} />{/if}</button>{/if}</div>{#if current.sourceId !== 'video'}<div class="player-actions"><button onclick={(event) => { event.stopPropagation(); searching = true; }}>{t('webPlayer.searchButton')}</button><button onclick={(event) => { event.stopPropagation(); showQueue = true; }}>{t('music.queue')}</button></div>{/if}</div>
 {:else}
   <div class="loading" role="status">{t('common.loading')}</div>
 {/if}
 
 <style>
   .player { position: relative; height: 100%; width: 100%; min-width: 0; }
+  /* Auto height: the island grows to the real content, e.g. an extra lyric row. */
+  .body { width: 100%; min-width: 0; }
   .repeat { position: absolute; left: var(--sp-5); bottom: var(--sp-3); display: flex; gap: var(--sp-2); align-items: center; }
   .share { display: grid; place-items: center; }
   .share.done { color: var(--c-success); }

@@ -177,3 +177,4 @@ Không có bảng DB.
 | 2026-11-01 | Giữ player mounted khi chuyển tính năng, nút Về trình phát nhạc, giữ query/queue; không gọi pause/stop khi điều hướng, ngừng tick UI khi ẩn. |
 | 2026-11-01 | Nguồn mới `video` (cửa sổ video nổi); ẩn phiên GSMTC `msedgewebview2` khi có `web` hoặc `video`. `Peek` có slot `trailing` cho nút phụ cùng hàng điều khiển; peek không còn bị tiêu đề dài kéo rộng |
 | 2026-11-02 | Nút chia sẻ trên player island: chép link bài đang phát (web: trackUrl của phiên hiện tại, dự phòng trang đang mở; video: link người dùng dán) qua `app_copy_link`, chỉ nhận http(s) không credential, ≤ 2048 ký tự. Ghi clipboard bằng Win32 vì island không nhận focus. Nguồn GSMTC/file trên máy không có link nên ẩn nút. |
+| 2026-11-03 | Player island đo chiều cao `Peek` thật (tối thiểu 172 px): hàng lời bài hát không còn đẩy nút điều khiển ra khỏi island. |

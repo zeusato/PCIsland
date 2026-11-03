@@ -12,7 +12,7 @@ vi.mock('$lib/motion/transitions', () => ({ contentIn: () => ({ duration: 0 }), 
 vi.mock('svelte/motion', () => ({ Spring: class { constructor(public current: unknown) {} async set(value: unknown) { this.current = value; } } }));
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); live.island = null; media.snapshot = null; });
 
-it('fits site options, resumes straight to the player before metadata arrives, and grows for the queue', async () => {
+it('fits site options, resumes straight to the player before metadata arrives, grows for the queue and the lyric row', async () => {
   const observers = new Map<Element, () => void>();
   vi.stubGlobal('ResizeObserver', class {
     node?: Element;
@@ -59,8 +59,12 @@ it('fits site options, resumes straight to the player before metadata arrives, a
     await vi.waitFor(() => { flushSync(); expect(target.textContent).toContain('Song 19'); });
     height = 390; measure();
     await vi.waitFor(() => expect(hits.mock.calls.some(([rects]) => rects[0]?.height === 418)).toBe(true));
+    height = 150;
     button('Quay lại · Danh sách phát').click(); flushSync();
     await vi.waitFor(() => expect(hits.mock.calls.at(-1)?.[0][0]?.height).toBe(200));
     expect(target.textContent).toContain('Resumed track');
+    // A synced lyric row makes the player taller than its 172 px floor.
+    height = 190; measure();
+    await vi.waitFor(() => expect(hits.mock.calls.at(-1)?.[0][0]?.height).toBe(218));
   } finally { await unmount(component); target.remove(); }
 });

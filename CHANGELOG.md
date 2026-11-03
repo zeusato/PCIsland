@@ -1,5 +1,12 @@
 # Lịch sử phát hành
 
+## 0.1.5 · 2026-11-03
+
+- Sửa: trình phát nhạc trên island bị cắt hàng ⏮ ▶ ⏭ khi bài có lời bài hát đồng bộ. Island giờ đo chiều cao nội dung thật của trình phát (tối thiểu như cũ).
+- Sửa: Cài đặt hiện key thô cho phím tắt đánh dấu cuộc họp.
+
+[Chi tiết, tải và giới hạn](docs/releases/v0.1.5.md).
+
 ## 0.1.4 · 2026-11-02
 
 - Trang **Pomodoro** riêng trong cửa sổ chính: phiên hiện tại, thống kê, thiết lập và nhạc tập trung.
