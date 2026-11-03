@@ -1,6 +1,6 @@
 # Module: Trình phát video nổi (`video`)
 
-> Trạng thái: Đã code đủ B + A, đã chạy thử trên bản release; chờ test tay (Facebook, dò trang) · Phase: chưa xếp (backlog, F46) · Tính năng: F46 · Cập nhật: 2026-11-01
+> Trạng thái: Đã code B + A và chọn ngôn ngữ âm thanh YouTube. Còn nghiệm thu nghe trực tiếp, Facebook và dò trang. Phase: chưa xếp (backlog, F46) · Cập nhật: 2026-11-03
 
 ## 1. Mục đích
 
@@ -107,10 +107,11 @@ cửa sổ `video` ── video.html (trang cục bộ, Svelte) ── <video> +
 - **Chọn luồng** (hàm thuần, có test):
   1. Bỏ format `has_drm`, `protocol` lạ (chỉ nhận `https`, `m3u8_native`, `m3u8`), và codec WebView2 không giải được. Nhận video `avc1`/`vp9`/`av01`, audio `mp4a`/`opus`.
   2. **HLS** (`manifest_url` master): đây là **mặc định cho YouTube**, theo spike S2. MSE tự đồng bộ, có chất lượng tự động, phát nền khi cửa sổ ẩn. Giới hạn mức theo `video.max_height`.
-  3. **Ghép đôi:** video-only cao nhất ≤ `video.max_height`, kèm audio-only tốt nhất cùng họ container (`mp4`+`m4a`, `webm`+`webm`). Dùng khi không có HLS, hoặc người dùng chọn tay một mức HLS không có.
+  3. **Ghép đôi:** chọn video-only cao nhất ≤ `video.max_height` và audio-only cho từng ngôn ngữ. Ưu tiên cùng họ container khi các luồng có cùng mức ưu tiên ngôn ngữ. Với video thu sẵn, ưu tiên ghép đôi nếu yt-dlp có nhiều ngôn ngữ nhưng master HLS không liệt kê đủ. HLS lấy danh sách âm thanh từ playlist thực tế.
   4. Luồng progressive có cả hình và tiếng: Facebook, link trực tiếp. YouTube đã bỏ loại này (itag 18), xem báo cáo S2.
   5. Không còn gì thì báo lỗi và mời dùng A.
-  - Danh sách chất lượng cho menu là các mức `height` có cặp hợp lệ.
+  - Menu chất lượng kết hợp các mức trong master HLS với các mức ghép được hình và âm thanh. `video.max_height` chỉ giới hạn chế độ **Tự động**. Người xem có thể chọn tay bất kỳ mức nào nguồn cung cấp, kể cả 1440p và 2160p khi giới hạn tự động là 1080p.
+  - Khi mở video, chọn tiếng Việt (kể cả `vi-VN`) nếu có, nếu không thì phát track mặc định của nguồn. Khi có nhiều ngôn ngữ, thanh trên hiện bộ chọn **Ngôn ngữ âm thanh**. Đổi tiếng giữ vị trí xem. Lựa chọn có hiệu lực cho video đang mở, kể cả khi đổi chất lượng hoặc lấy lại URL.
 
 **Trang web bất kỳ (`sniff.rs`, đúng cách addon stream-pocket):**
 - Mở trang trong WebView ẩn (profile riêng `video-sniff`, tắt âm, chặn popup), tối đa 25 s.
@@ -137,7 +138,7 @@ cửa sổ `video` ── video.html (trang cục bộ, Svelte) ── <video> +
 ### 5.5 B3. Trình phát (`video.html`)
 
 - Trang cục bộ (Svelte, chung design token), không có iframe ở chế độ B.
-- **HLS (mặc định cho YouTube):** hls.js đóng gói sẵn (không dùng CDN), nạp playlist qua `vstream://`, `autoLevelCapping` theo `video.max_height`. Menu chất lượng = Tự động + các mức của manifest.
+- **HLS (mặc định cho YouTube):** hls.js nạp playlist qua `vstream://`, giới hạn tự động theo `video.max_height`. Khi chọn tay một mức chỉ có ở luồng ghép đôi, app chuyển nguồn và tiếp tục từ vị trí đang xem.
 - **Cặp tách rời** (khi không có HLS): `<video muted>` phát luồng hình, `<audio>` phát luồng tiếng, đồng bộ theo đồng hồ tiếng.
   - Lệch > 80 ms thì chỉnh `playbackRate` của video ±3%; lệch > 400 ms thì đặt lại `currentTime`.
   - Sau khi tua, căn `video.currentTime = audio.currentTime` ngay khi cả hai `canplay`.
@@ -190,10 +191,10 @@ cửa sổ `video` ── video.html (trang cục bộ, Svelte) ── <video> +
 | `video_current` | video | `() → PlaybackSource \| null` (trang nạp xong thì hỏi nguồn hiện tại) |
 | `video_report` | video | `(report: VideoReport)` (chỉ nhận từ label `video`) |
 | `video_refresh` | video | **async** `(positionMs) → PlaybackSource`. Giải lại link khi bị 403/410; tối đa 1 lần/60 s |
-| `video_set_quality` | video | **async** `(height \| null, positionMs) → PlaybackSource`. Chỉ dùng cho nguồn không phải HLS; HLS đổi mức ngay trong trang |
+| `video_set_quality` | video | **async** `(height \| null, positionMs) → PlaybackSource`. Dùng khi cần đổi nguồn. Nếu mức đã có trong playlist HLS hiện tại, trình phát đổi ngay trong trang |
 | `video_sniff_report` | video-sniff | `(requestId, items, blobs, done)`. Lệnh duy nhất trang dò được gọi |
 
-- Event `video://source` → cửa sổ video: `PlaybackSource { kind: "hls" | "pair" | "single" | "embed", video, audio?, title, uploader?, durationMs?, isLive, qualities[], quality?, startMs, pageUrl, rev }`. Mọi URL là `http://vstream.localhost/<token>`, trừ `embed`.
+- Event `video://source` → cửa sổ video: `PlaybackSource { kind: "hls" | "pair" | "single" | "embed", video, audio?, audioLanguages, title, uploader?, durationMs?, isLive, qualities[], quality?, autoMaxHeight, startMs, pageUrl, rev }`. Với nguồn ghép đôi, `audioLanguages` ánh xạ mã ngôn ngữ sang URL proxy. `autoMaxHeight` là giới hạn độ cao khi chọn Tự động. Nguồn khác trả ánh xạ âm thanh rỗng. Mọi URL phát là `http://vstream.localhost/<token>`, trừ `embed`.
 - Event `video://command` → cửa sổ video: `VideoCommand { action, value? }`.
 - Event `video://state` → island/main/video: `VideoSnapshot { open, pinned, muted, title?, status?, rev }`.
 - Media hub: nguồn `video`. Next/previous của island và phím media = tua ±10 s.
@@ -203,6 +204,8 @@ cửa sổ `video` ── video.html (trang cục bộ, Svelte) ── <video> +
 - **CSP:** `media-src http://vstream.localhost blob:`, `connect-src http://vstream.localhost` (hls.js), `frame-src` cho `youtube-nocookie.com` và `facebook.com`. hls.js chạy không dùng worker nên không cần `worker-src blob:`.
 
 ## 7. Dữ liệu & cài đặt
+
+Ngôn ngữ âm thanh mặc định là tiếng Việt. Lựa chọn thủ công chỉ áp dụng cho lần mở video hiện tại.
 
 - `kv`:
   - `video.progress`: `{ <khóa video>: { pos_ms, dur_ms, at } }`, tối đa 200;
@@ -214,7 +217,7 @@ cửa sổ `video` ── video.html (trang cục bộ, Svelte) ── <video> +
 |---|---|
 | `app.shortcuts.video_open` | `"Ctrl+Alt+V"` |
 | `video.engine` | `"stream"` (B); `"embed"` = luôn dùng A |
-| `video.max_height` | `1080` |
+| `video.max_height` | `1080` (chỉ áp dụng ở chế độ Tự động) |
 | `video.default_width` | `320` |
 | `video.auto_update_tools` | `true` |
 
@@ -255,6 +258,8 @@ cửa sổ `video` ── video.html (trang cục bộ, Svelte) ── <video> +
 
 ## 11. Kiểm thử
 
+2026-11-03 · Đã chạy giao diện video đã build trong Edge headless với playlist HLS thật của `fqRHIWElMBk`, proxy thử và IPC mô phỏng nguồn. Video bắt đầu tại 279 s với `vi`, menu có đủ 144/240/360/480/720/1080/1440/2160p. Sau khi đổi sang `en-US` và chọn 2160p, thẻ video báo 3840×2160 tại 283,87 s. Còn nghiệm thu trực tiếp trong WebView2 của exe.
+
 - **Unit:**
   - `link.rs`: mọi dạng link; từ chối `javascript:`, user:pass, ID sai; tính `t=`.
   - `resolve.rs`: chọn luồng từ JSON mẫu (YouTube nhiều format, Facebook sd/hd, live, có DRM).
@@ -292,6 +297,8 @@ cửa sổ `video` ── video.html (trang cục bộ, Svelte) ── <video> +
 | Ngày | Thay đổi |
 |---|---|
 | 2026-11-01 | Tạo đặc tả: hai phương thức A (nhúng) và B (lấy stream) |
+| 2026-11-03 | Thêm bộ chọn ngôn ngữ âm thanh cho HLS và luồng ghép đôi, ưu tiên tiếng Việt. Đã xác nhận yt-dlp trả track Việt và Anh trên video YouTube `0e3GPea1Tyg`. |
+| 2026-11-03 | Đối chiếu video `fqRHIWElMBk`: cả hai đường phát có tám mức từ 144p đến 2160p và track Việt/Anh. Menu chọn tay hiển thị cả các mức cao hơn giới hạn tự động. |
 | 2026-11-01 | Chủ dự án chốt: tối đa 1 cửa sổ, có phím tắt, island điều khiển được, làm toàn bộ B; A thành đường lui. Viết lại §1–§12 theo B |
 | 2026-11-01 | Spike S2: YouTube mặc định HLS (hls.js), cặp tách rời làm đường thứ hai (lệch 16 ms); thêm cờ WebView2 chống dừng nền và thư mục WebView2 riêng; sửa nhận diện playlist trong proxy |
 | 2026-11-01 | Code đủ module: link/resolve/tools(yt-dlp)/proxy vstream/sniff/window/trang phát (hls.js, cặp, đơn, nhúng)/panel island/trang Video/cài đặt/phím tắt; nút video nằm cùng hàng nút phát trên peek. Kết quả chạy thật ở §11 |

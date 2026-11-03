@@ -22,6 +22,7 @@
   let info = $state<AppInfo | null>(null);
   let modules = $state<Record<string, ModuleState>>({});
   let update = $state<{ checking: boolean; result: UpdateInfo | null | undefined }>({ checking: false, result: undefined });
+  let updateFailed = $state(false);
   $effect(() => {
     if (!inTauri) return;
     appCommands.info().then((i) => (info = i));
@@ -48,7 +49,13 @@
   }
   async function checkUpdate() {
     update = { checking: true, result: undefined };
-    update = { checking: false, result: await appCommands.checkUpdateNow().catch(() => null) };
+    updateFailed = false;
+    try {
+      update = { checking: false, result: await appCommands.checkUpdateNow() };
+    } catch {
+      updateFailed = true;
+      update = { checking: false, result: undefined };
+    }
   }
   const set = (section: string, key: string) => (value: unknown) => updateSettings(section, { [key]: value });
   function toggleAction(id: string, on: boolean) {
@@ -217,11 +224,11 @@
         <Button onclick={() => appCommands.openDataFolder()}>{t('settings.openData')}</Button>
       </SettingRow>
     {/if}
-    <SettingRow label={t('settings.checkUpdates')} hint={update.result === null ? t('settings.upToDate') : ''}>
+    <SettingRow label={t('settings.checkUpdates')} hint={updateFailed ? t('app.update.failed') : update.result ? t('app.update.ready') : update.result === null ? t('settings.upToDate') : ''}>
       <Toggle label={t('settings.checkUpdates')} checked={s.app.checkUpdates} onchange={set('app', 'checkUpdates')} />
-      <Button onclick={checkUpdate} disabled={update.checking}>{t('settings.checkNow')}</Button>
+      <Button onclick={checkUpdate} disabled={update.checking}>{t(update.checking ? 'common.loading' : 'settings.checkNow')}</Button>
       {#if update.result}
-        <Button variant="primary" onclick={() => update.result && appCommands.openUrl(update.result.url)}>{t('app.update.open')} {update.result.version}</Button>
+        <Button variant="primary" onclick={() => appCommands.installUpdate().catch(() => { updateFailed = true; })}>{t('app.update.install')} {update.result.version}</Button>
       {/if}
     </SettingRow>
     <SettingRow label={t('settings.pauseAlerts')}>

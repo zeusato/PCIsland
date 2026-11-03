@@ -10,6 +10,14 @@
 
 ## 2. Snapshot
 
+**2026-11-03 · Video YouTube:** trình phát nổi ưu tiên bản tiếng Việt khi mở video. Nếu có nhiều ngôn ngữ, người xem đổi ở thanh trên và tiếp tục từ vị trí hiện tại. Đã đối chiếu track Việt và Anh trên video YouTube công khai `0e3GPea1Tyg` bằng yt-dlp.
+
+Link `fqRHIWElMBk&t=279s` có tám mức 144p–2160p và hai ngôn ngữ. Menu chọn tay hiển thị cả 1440p và 2160p. Giới hạn 1080p mặc định chỉ áp dụng ở chế độ Tự động.
+
+QA giao diện đã build trong Edge, với proxy thử và playlist thật: mở ở 279 s với tiếng Việt, chuyển sang tiếng Anh và lên 3840×2160 tại 283,87 s. Kiểm tra toàn repo: 97 test frontend, 274 test Rust đạt (4 ignored), svelte-check/ESLint, i18n (585 khóa), fmt và Clippy đạt.
+
+**F45:** tự tải bản ổn định mới hơn, kiểm SHA-256 và cài khi thoát bình thường hoặc khi chọn “Cài và mở lại”. Dùng NSIS theo đăng ký Windows, dùng gói portable cho exe độc lập. Đã đối chiếu tên và digest của hai gói trên GitHub v0.1.5.
+
 **Phiên 2026-11-02 (Claude):** máy dev mới cài lại toolchain (rustup stable, VS 2022 Build Tools + Windows 11 SDK + CMake qua winget, `pnpm install`); `.env` chưa có nên build local không nhúng key Groq. CI của commit v0.1.2 đỏ vì CMake 4 từ chối `audiopus_sys` (`cmake_minimum_required` < 3.5) → đặt `CMAKE_POLICY_VERSION_MINIMUM=3.5` trong `src-tauri/.cargo/config.toml`. Sửa note desktop: nút đóng (thiếu `core:window:allow-destroy`) và ô tick lệch khi đổi cỡ chữ. Spotify: queue/bài hiện tại/repeat từ connect-state + dealer WebSocket (trace thật), SoundCloud: queue panel Next up, repeat nút trang, bật lại tìm kiếm (ADR-021). Dọn dẹp mở rộng nguồn rác, thùng rác/Windows Update và đóng app nền ngốn RAM (ADR-022). Kiểm tra: 251 Rust đạt/4 ignored, 87 frontend/27 file, fmt, clippy all-targets, svelte-check/eslint, i18n 542 khóa đạt. `.env` đã có `GROQ_API_KEY`. Đã build exe chạy thử bằng `pnpm build:exe` (10:27, 21.948.416 byte, vẫn ProductVersion 0.1.2, SHA256 `25F17A7696EBEEF848E8E3E80F5B7850C5292A5DE7A0EE232ED52A609DD912A4`), wrapper dọn 9,616 GiB file sinh ra (ổ trống tăng 8,005 GiB); chưa tạo installer/release. Chưa chạy Dọn dẹp/UAC/đóng app thật; chủ dự án tự nghiệm thu Spotify/SoundCloud.
 
 **Bản phát hành v0.1.2:** theo yêu cầu cập nhật docs, push code và release của chủ dự án. Exe và bộ cài ProductVersion 0.1.2; portable/NSIS và hai SHA256 trong `release/0.1.2/`, [trang release](https://github.com/zeusato/PCIsland/releases/tag/v0.1.2). Đã kiểm tra ZIP chỉ có exe, README, marker `data/.portable` và hash exe khớp bản build. Key transcript nhúng native theo yêu cầu; `.env` không nằm trong Git/gói source. Sửa thêm `notes_desktop_open` sang async. Build wrapper đã dọn 8,140 GiB file sinh ra, ổ đĩa tăng thực tế **7,458 GiB**; giữ exe, installer, portable và dữ liệu. Những đoạn bên dưới ghi lại từng phiên trước đó; bảng hiện hành đã cập nhật.
@@ -28,10 +36,10 @@ Kiểm tra bổ sung Dọn dẹp: 194 Rust đạt (1 smoke native mặc định 
 |---|---|
 | Cập nhật lần cuối | 2026-11-03 |
 | Phase | **P1–P3 đã code đủ đặc tả** (trừ P4: F32–F34, F40–F44); chưa qua kiểm thử tay, Gate G0 chưa đóng |
-| Phiên bản | [v0.1.5](https://github.com/zeusato/PCIsland/releases/tag/v0.1.5) (bản vá player island có lời bài hát): NSIS + portable + hai SHA256, theo yêu cầu chủ dự án. Nhạc tập trung: [focus-sounds-v1](https://github.com/zeusato/pcisland-sounds/releases/tag/focus-sounds-v1) |
+| Phiên bản | [v0.1.6](https://github.com/zeusato/PCIsland/releases/tag/v0.1.6) bổ sung chọn ngôn ngữ, chất lượng YouTube và tự cập nhật PCisland. [Ghi chú phát hành](releases/v0.1.6.md). |
 | Code | Nhánh `main` trên https://github.com/zeusato/PCIsland |
-| Kiểm tra | (2026-11-02) 251 Rust đạt/4 ignored; 87 frontend/27 file; i18n 542 khóa; trước đó 238 Rust/81 frontend; fmt, clippy all-targets -D warnings, Svelte/eslint, i18n 497 khóa, frontend và Tauri NSIS build đạt. Giới hạn native/meeting ghi trong release notes |
-| Bản build gần nhất | `src-tauri/target/release/pcisland.exe`: 22.191.104 byte, ProductVersion 0.1.5, SHA256 `E0E5924ADD20DD18AFB2125AA340108C671F3802B5061FDE164B9B59BC4961D9`. NSIS 5.983.715 byte; portable 7.906.701 byte (`release/0.1.5/`). Wrapper giữ cache (target 7,65 GiB < trần 20 GiB) |
+| Kiểm tra | 97 test frontend, 274 test Rust đạt, 4 ignored. Svelte/ESLint, i18n 585 khóa, fmt và Clippy đạt. Đã phát 4K trong Edge với luồng YouTube thật. |
+| Gói phát hành | Bộ cài NSIS, ZIP portable và hai tệp SHA-256 theo quy ước trong `scripts/package-release.ps1`. Bản v0.1.5 trở xuống cần nâng cấp thủ công lên v0.1.6 một lần. |
 | Đang chặn | Không. SoundCloud đã đăng nhập/phát lại được (2026-11-02), tìm kiếm bật lại theo ADR-021; vẫn không tự thử lặp hoặc vượt challenge |
 
 UI launcher mới (2026-11-01): nội dung rảnh lên 28 px, header ở y=16, tổng chiều cao 226 px với đủ 7 nút; chữ ký “by Zeusato” nét mảnh nghiêng neon cam ở đáy phải. Đã QA localhost, panel Hẹn giờ mở đúng; `pnpm check`, 51 test frontend và `pnpm build` đạt (296 khóa i18n). Đã build exe release bằng `pnpm tauri build --no-bundle` theo yêu cầu chạy thử, đầu ra `src-tauri/target/release/pcisland.exe`; chưa tạo lại installer hay phát hành.
@@ -68,7 +76,7 @@ Quy trình build mới: dùng `pnpm build:exe` / `pnpm build:app` để tự d�
 | F30–F31 | Âm lượng, pin/sạc | ✅ | — |
 | F32–F34 | Mic/cam, theo dõi hệ thống | ⬜ | P4 |
 | F33 | Màn hình chờ đôi mắt / đồng hồ | ✅ | — |
-| F45 | Kiểm tra cập nhật | ✅ | Chỉ báo có bản mới và mở trang Release; không tự cập nhật |
+| F45 | Tự cập nhật | 🟡 | Có tải, xác minh và cài khi thoát. Còn nghiệm thu nâng cấp NSIS giữa hai phiên bản thực |
 | F46 | Trình phát video nổi | 🟡 | Code đủ B + A; YouTube đã chạy thật. Chưa thử tay Facebook, dò trang, link hết hạn, trình phát nhúng (S1) |
 
 **Nợ kỹ thuật so với system design:**
@@ -80,6 +88,10 @@ Quy trình build mới: dùng `pnpm build:exe` / `pnpm build:app` để tự d�
 6. Visualizer, toast, thumbnail, kéo file ra ngoài, nhớ vị trí cửa sổ mới chỉ chạy qua test logic + build; chưa test tay.
 
 ## 3. Việc tiếp theo
+
+- Nghiệm thu nghe trực tiếp trên cửa sổ nổi với video `0e3GPea1Tyg`. Kiểm tra tiếng Việt lúc mở, đổi sang tiếng Anh khi đang phát và khi tạm dừng, rồi đổi chất lượng.
+- Thử link `fqRHIWElMBk&t=279s` từ 4:39, chọn 1440p rồi 2160p và trở lại Tự động. Kiểm tra ngôn ngữ và vị trí sau mỗi lần đổi.
+- Nghiệm thu nâng cấp NSIS và portable giữa hai bản phát hành trong môi trường thử riêng.
 
 Ưu tiên mới: nghiệm thu ba module theo [plan cập nhật](plans/file-note-meeting.md), đặc biệt kéo nhiều file thành attachment thật, note desktop nhiều DPI/chuông, quyền mic, meeting 60 phút và crash đúng lúc publish file. Chưa đóng các tiêu chí này bằng unit test. Bản release tiếp theo cần đo kích thước/RAM rồi dọn theo `pnpm clean:build`.
 
@@ -128,6 +140,8 @@ Theo thứ tự. Đánh dấu `[x]` khi xong và thêm việc mới phát sinh v
 - [x] Đóng gói v0.1.1: bộ cài, portable chỉ chứa exe/README/data marker, hai file SHA256; cập nhật README và release notes theo yêu cầu push + release.
 
 ## 4. Câu hỏi mở
+
+Video dùng iframe dự phòng vẫn do trình phát nhúng của YouTube quản lý ngôn ngữ.
 
 Chủ dự án đã cho phép push toàn bộ thay đổi và phát hành phiên bản mới; không chờ xác nhận phát hành thêm. Những hạn chế QA được ghi công khai trong release notes.
 
@@ -187,6 +201,11 @@ Sổ rủi ro đầy đủ ở [00 §8](00-vision-scope.md#8-sổ-rủi-ro). Nh�
 | R10 Virtual desktop | P0.4 |
 
 ## 7. Nhật ký phiên
+
+- 2026-11-03 · Codex: chuẩn bị tag v0.1.6, bộ cài, portable và ghi chú nâng cấp theo yêu cầu push và release của chủ dự án. Giữ cấu hình Groq tích hợp trong exe theo xác nhận của chủ dự án.
+
+- 2026-11-03 · Codex: bổ sung chọn ngôn ngữ âm thanh YouTube cho HLS và luồng ghép đôi, ưu tiên tiếng Việt, giữ lựa chọn khi đổi chất lượng hoặc làm mới URL. Đã xác nhận dữ liệu track từ YouTube. Còn nghiệm thu nghe trực tiếp.
+- 2026-11-03 · Codex: khôi phục đủ tám mức chất lượng của `fqRHIWElMBk` trong menu chọn tay. Mở rộng F45 sang tải gói đã xác minh và cài khi thoát (ADR-024).
 
 - 2026-11-03 · Claude: điều tra báo lỗi island thiếu nội dung trên bản v0.1.4. Không do merge/build (release khớp tag, hash bộ cài trùng `release/0.1.4`). Nguyên nhân: player peek cố định 172 px, bài có lời đồng bộ cần ~190 px nên hàng điều khiển bị cắt. Sửa: `Player.svelte` đo `Peek` qua `fit`, test `IslandMusic` bắt trường hợp hàng lời. 92 frontend + check đạt. Phát hành v0.1.5 (NSIS + portable + SHA256) theo yêu cầu chủ dự án; gồm nhãn `meetingMark` từ commit sau v0.1.4.
 

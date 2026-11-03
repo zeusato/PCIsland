@@ -1,6 +1,6 @@
 # Module: Vòng đời app (`app`)
 
-> Trạng thái: Đã code đủ đặc tả, chờ test tay (xem Handoff §2) · Phase: P1 (lõi), P3 (âm báo tùy chỉnh, cập nhật) · Tính năng: F03, F08, F45 · Cập nhật: 2026-10-31
+> Trạng thái: Đã bổ sung tự cập nhật, chờ nghiệm thu nâng cấp NSIS giữa hai bản phát hành · Phase: P1 và P3 · Tính năng: F03, F08, F45 · Cập nhật: 2026-11-03
 
 ## 1. Mục đích
 
@@ -29,13 +29,13 @@
    - Thoát
 4. **Click trái tray:** mở/đóng `main`.
 5. **Di chuyển thư mục app rồi chạy lại:** nếu autostart đang bật, khóa `Run` được sửa sang đường dẫn mới.
-6. **Có bản mới (F45):** alert nhỏ "Có bản 1.2.0" với hành động "Xem" (mở trang release) và "Bỏ qua bản này".
+6. **Có bản mới (F45):** tải nền và kiểm tra gói. Alert cho chọn “Cài và mở lại” hoặc “Cài khi thoát”. Nếu bỏ qua alert, gói vẫn tự cài khi thoát app bình thường. Nút kiểm tra trong Cài đặt cho phép tải lại khi lỗi.
 
 ## 4. Activity
 
 | Kind | Ưu tiên | Compact | Peek | Alert | Hành động |
 |---|---|---|---|---|---|
-| `app.update` | Alert (ttl 8 s) | — | — | Icon tải + "Có bản x.y.z" | Xem · Bỏ qua bản này |
+| `app.update` | Alert (ttl 8 s) | — | — | Đã tải bản cập nhật x.y.z | Cài và mở lại · Cài khi thoát |
 | `app.crash_recovered` | Alert (ttl 10 s) | — | — | "PCisland vừa gặp lỗi" | Mở thư mục log |
 | `app.alerts_paused` | Ambient | Icon chuông gạch | Còn lại bao lâu | — | Bật lại |
 
@@ -91,7 +91,9 @@
 
 **Kiểm tra cập nhật (F45):**
 - `GET https://api.github.com/repos/<owner>/<repo>/releases/latest`, tối đa 1 lần mỗi 24 h, chỉ khi `app.check_updates = true`.
-- So SemVer với phiên bản hiện tại; bỏ qua bản nằm trong `app.skipped_version`. Không tải, không cài.
+- Chỉ lấy bản ổn định có tag `vX.Y.Z` mới hơn bản đang chạy. Một lượt tải tại một thời điểm. Dữ liệu phải khớp tên gói, kích thước và SHA-256 trong API của repo phát hành.
+- Bản đã cài qua NSIS dùng đúng bộ cài x64 và chạy `/S /UPDATE` sau khi app thoát. Portable lấy riêng `PCisland.exe` trong ZIP, thay exe hiện tại trên cùng ổ đĩa và giữ thư mục dữ liệu. Helper kiểm tra lại SHA-256 ngay trước khi cài. Nếu helper lỗi sau khi app đã đóng, thông tin lỗi nằm ở `update-error.txt` trong thư mục tạm `PCisland-update-*` của gói.
+- Lịch tự động chỉ chạy trong bản release. Lỗi tải không ghi mốc đã kiểm tra, lần kiểm tra sau có thể thử lại. Nút kiểm tra thủ công hoạt động khi người dùng tắt lịch nền.
 
 **Panic hook:** ghi `crash-<ts>.log` gồm message, backtrace, phiên bản. Lần chạy sau thấy file mới hơn lần chạy trước thì phát alert `app.crash_recovered`.
 
@@ -107,7 +109,8 @@
 | `app_show_toast` | `(title: string, body: string) → ()` (native, 3 giây) |
 | `app_pause_alerts` | `(minutes: u32) → ()` |
 | `app_resume_alerts` | `() → ()` |
-| `app_check_update_now` | `() → UpdateInfo?` |
+| `app_check_update_now` | `() → UpdateInfo?`. Trả phiên bản đã tải và xác minh hoặc null nếu đang dùng bản mới nhất. Lỗi mạng/gói trả lỗi IPC. |
+| `app_install_update` | `() → ()`. Cài gói đã chuẩn bị và khởi động lại. |
 | `app_open_logs_folder` | `() → ()` |
 | `app_play_sound` | `(sound: SoundId) → ()` (nghe thử trong Cài đặt) |
 | `app_set_shortcut` | `(action: ShortcutAction, accelerator: string?) → ()` |
@@ -125,7 +128,7 @@
 | `app.sound_volume` | `0.6` |
 | `app.sounds` | `{ reminder: "chime", timer: "bell", pomodoro: "soft-tick", shelf: "pop" }`. Công tắc bật/tắt âm nằm ở cài đặt của từng module, ví dụ `shelf.sound_on_drop` |
 | `app.shortcuts` | `{ togglePeek: "Ctrl+Alt+Space", openMain: "Ctrl+Alt+I", toggleHidden: "Ctrl+Alt+H", quickNote: "Ctrl+Alt+N" }` |
-| `app.check_updates` | `true` |
+| `app.check_updates` | `true`, bật kiểm tra và tải tự động, áp dụng khi thoát |
 | `app.skipped_version` | `null` |
 
 ## 8. Phụ thuộc
@@ -152,6 +155,8 @@
 
 ## 11. Kiểm thử
 
+2026-11-03 · Test helper PowerShell trên Windows xác nhận sai SHA-256 thì giữ exe cũ, đúng SHA-256 thì thay exe và giữ nguyên dữ liệu mẫu. Đã thử nhánh NSIS với chương trình mô phỏng, nhận chính xác hai tham số `/S /UPDATE`. Còn nghiệm thu nâng cấp bằng bộ cài thật giữa hai phiên bản.
+
 **Unit:** so sánh SemVer và bỏ qua phiên bản; phân tích cờ dòng lệnh; đồng bộ autostart (registry giả).
 
 **Checklist thủ công:**
@@ -171,6 +176,7 @@ Không có. Q4 đã chốt: giữ phím tắt mặc định, người dùng tự
 
 | Ngày | Thay đổi |
 |---|---|
+| 2026-11-03 | F45 tự tải gói NSIS/portable từ GitHub, xác minh SHA-256 và cài khi thoát theo ADR-024. |
 | 2026-10-31 | Tạo đặc tả |
 | 2026-10-31 | Kiểm tra cập nhật từ GitHub Releases (hằng ngày + nút trong Cài đặt); manifest Common-Controls v6 nhúng qua linker (ADR-012); trạng thái module trong Cài đặt |
 | 2026-11-01 | Đăng ký Run có quoting/cờ startup, đọc lại xác minh, báo lỗi/repair trong Settings; IPC toast Windows. |

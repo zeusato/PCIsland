@@ -24,6 +24,7 @@ permissions = [
   "allow-app-play-sound",
   "allow-app-pause-alerts",
   "allow-app-check-update-now",
+  "allow-app-install-update",
   "allow-app-open-url",
   "allow-app-shortcut-errors",
   "allow-app-modules",

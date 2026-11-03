@@ -234,24 +234,39 @@ impl VideoHandle {
     ) -> PlaybackSource {
         self.0.proxy.clear();
         let reg = |s: &resolve::Stream| self.0.proxy.register(&s.url, &s.headers);
+        let mut audio_languages = std::collections::BTreeMap::new();
         let (kind, video, audio, quality) = match &resolved.plan {
             Plan::Hls { manifest } => (SourceKind::Hls, reg(manifest), None, quality),
             Plan::Pair {
                 video,
                 audio,
+                languages,
                 height,
-            } => (
-                SourceKind::Pair,
-                reg(video),
-                Some(reg(audio)),
-                Some(*height),
-            ),
+            } => {
+                let default = reg(audio);
+                for (language, track) in languages {
+                    let url = if track == audio {
+                        default.clone()
+                    } else {
+                        reg(track)
+                    };
+                    audio_languages.insert(language.clone(), url);
+                }
+                (
+                    SourceKind::Pair,
+                    reg(video),
+                    Some(default),
+                    quality.map(|_| *height),
+                )
+            }
             Plan::Single { stream } => (SourceKind::Single, reg(stream), None, None),
         };
         PlaybackSource {
             kind,
             video,
             audio,
+            audio_languages,
+            auto_max_height: self.max_height(),
             title: if resolved.title.is_empty() {
                 page_url.to_owned()
             } else {
@@ -294,6 +309,8 @@ impl VideoHandle {
             },
             video: self.0.proxy.register(url, &headers),
             audio: None,
+            audio_languages: Default::default(),
+            auto_max_height: self.max_height(),
             title: title.to_owned(),
             uploader: None,
             duration_ms: None,
@@ -370,6 +387,8 @@ impl VideoHandle {
                     kind: SourceKind::Embed,
                     video: url,
                     audio: None,
+                    audio_languages: Default::default(),
+                    auto_max_height: self.max_height(),
                     title: link.source_url(),
                     uploader: None,
                     duration_ms: None,
@@ -522,12 +541,8 @@ impl VideoHandle {
             }
             (LinkKind::Youtube { .. } | LinkKind::Facebook { .. }, None) => {
                 let info = Arc::new(self.resolve_with_tools(&page).await?);
-                let resolved = resolve::plan(
-                    &info,
-                    self.max_height(),
-                    current.quality.filter(|_| current.kind == SourceKind::Pair),
-                )
-                .ok_or_else(|| IpcError::new("video.no_stream", "no playable stream"))?;
+                let resolved = resolve::plan(&info, self.max_height(), current.quality)
+                    .ok_or_else(|| IpcError::new("video.no_stream", "no playable stream"))?;
                 self.lock().info = Some(info);
                 self.source_from_plan(&resolved, &page, position_ms, current.quality)
             }

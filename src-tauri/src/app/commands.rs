@@ -149,8 +149,28 @@ pub fn activity_pin(hub: State<'_, ActivityHub>, activity_id: Option<String>) {
 #[tauri::command]
 pub async fn app_check_update_now(
     db: State<'_, crate::core::storage::Db>,
+    updater: State<'_, super::update::Updater>,
 ) -> IpcResult<Option<super::update::UpdateInfo>> {
-    Ok(super::update::check(true, &db).await)
+    updater
+        .check(true, &db)
+        .await
+        .map_err(|e| IpcError::new("app.update_failed", e))
+}
+
+/// Applies the already verified package, then reopens the application.
+#[tauri::command]
+pub fn app_install_update(
+    app: AppHandle,
+    updater: State<'_, super::update::Updater>,
+) -> IpcResult<()> {
+    if !updater
+        .apply(true)
+        .map_err(|e| IpcError::new("app.update_failed", e))?
+    {
+        return Err(IpcError::new("app.no_update", "No update is ready"));
+    }
+    app.exit(0);
+    Ok(())
 }
 
 #[tauri::command]

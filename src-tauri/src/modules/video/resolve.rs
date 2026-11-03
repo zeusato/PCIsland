@@ -2,6 +2,7 @@
 //! with trimmed real output. Order (spike S2): HLS → video+audio pair → single stream.
 
 use serde::Deserialize;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Default, Deserialize)]
 pub struct Info {
@@ -35,6 +36,8 @@ pub struct Format {
     pub vcodec: Option<String>,
     #[serde(default)]
     pub acodec: Option<String>,
+    pub language: Option<String>,
+    pub language_preference: Option<i32>,
     #[serde(default)]
     pub height: Option<u32>,
     #[serde(default)]
@@ -61,6 +64,7 @@ pub enum Plan {
     Pair {
         video: Stream,
         audio: Stream,
+        languages: BTreeMap<String, Stream>,
         height: u32,
     },
     /// One file with both tracks.
@@ -131,13 +135,9 @@ fn is_plain(f: &Format) -> bool {
 /// Picks the plan. `want` is a height the user chose; otherwise the best ≤ `max_height`.
 pub fn plan(info: &Info, max_height: u32, want: Option<u32>) -> Option<Resolved> {
     let formats: Vec<&Format> = info.formats.iter().filter(|f| usable(f)).collect();
-    let cap = |h: Option<u32>| h.is_none_or(|h| h <= max_height);
-    let heights_of = |list: &mut Vec<u32>, h: Option<u32>| {
-        if let Some(h) = h.filter(|h| *h <= max_height) {
-            if !list.contains(&h) {
-                list.push(h);
-            }
-        }
+    let matches_height = |h: Option<u32>| match want {
+        Some(height) => h == Some(height),
+        None => h.is_none_or(|h| h <= max_height),
     };
 
     // Video-only candidates and the best audio per container family.
@@ -146,72 +146,103 @@ pub fn plan(info: &Info, max_height: u32, want: Option<u32>) -> Option<Resolved>
         .filter(|f| is_plain(f) && none(f.acodec.as_deref()) && f.url.is_some())
         .filter(|f| f.vcodec.as_deref().and_then(video_rank).is_some())
         .collect();
-    let best_audio = |mp4: bool| {
-        formats
-            .iter()
-            .filter(|f| is_plain(f) && none(f.vcodec.as_deref()) && f.url.is_some())
-            .filter(|f| f.acodec.as_deref().is_some_and(audio_ok))
-            .filter(|f| (f.ext.as_deref() == Some("m4a") || f.ext.as_deref() == Some("mp4")) == mp4)
-            .max_by(|a, b| a.tbr.unwrap_or(0.0).total_cmp(&b.tbr.unwrap_or(0.0)))
-            .copied()
+    let mut audio: Vec<_> = formats
+        .iter()
+        .copied()
+        .filter(|f| {
+            is_plain(f) && none(f.vcodec.as_deref()) && f.acodec.as_deref().is_some_and(audio_ok)
+        })
+        .filter_map(|f| Some((f, stream(f, f.url.as_deref()?)?)))
+        .collect();
+    let mp4_audio = |f: &Format| matches!(f.ext.as_deref(), Some("m4a" | "mp4"));
+    let language = |f: &Format| {
+        f.language
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .to_ascii_lowercase()
     };
+    let pair_languages: BTreeSet<_> = audio
+        .iter()
+        .map(|(f, _)| language(f))
+        .filter(|tag| !tag.is_empty())
+        .collect();
 
-    let mut qualities = Vec::new();
     let manifest = formats
         .iter()
         .filter(|f| is_hls(f))
         .find_map(|f| f.manifest_url.as_deref().map(|m| (*f, m)));
-    let chosen = if let Some((f, url)) = manifest.filter(|_| want.is_none()) {
-        for f in formats
-            .iter()
-            .filter(|f| is_hls(f) && !none(f.vcodec.as_deref()))
-        {
-            heights_of(&mut qualities, f.height);
-        }
+    let in_manifest =
+        |f: &Format| is_hls(f) && f.manifest_url.as_deref() == manifest.map(|(_, url)| url);
+    let hls_heights: BTreeSet<_> = formats
+        .iter()
+        .filter(|f| in_manifest(f) && !none(f.vcodec.as_deref()))
+        .filter_map(|f| f.height)
+        .collect();
+    let hls = || {
+        let (f, url) = manifest.filter(|_| want.is_none_or(|h| hls_heights.contains(&h)))?;
         stream(f, url).map(|manifest| Plan::Hls { manifest })
-    } else {
-        None
     };
-    let chosen = chosen.or_else(|| {
-        for v in &videos {
-            heights_of(&mut qualities, v.height);
-        }
-        let mut pairable: Vec<&&&Format> = videos
-            .iter()
-            .filter(|v| cap(v.height) && want.is_none_or(|w| v.height == Some(w)))
-            .collect();
-        pairable.sort_by(|a, b| {
-            let key = |f: &Format| {
-                (
-                    f.height.unwrap_or(0),
-                    f.vcodec.as_deref().and_then(video_rank).unwrap_or(0),
-                )
-            };
-            key(b).cmp(&key(a))
-        });
-        pairable.into_iter().find_map(|v| {
-            let mp4 = v.ext.as_deref() == Some("mp4");
-            let a = best_audio(mp4)?;
-            Some(Plan::Pair {
-                video: stream(v, v.url.as_deref()?)?,
-                audio: stream(a, a.url.as_deref()?)?,
-                height: v.height.unwrap_or(0),
+    // A master can contain only its default dub even when separate files expose more.
+    let manifest_languages: BTreeSet<_> = formats
+        .iter()
+        .filter(|f| in_manifest(f))
+        .map(|f| language(f))
+        .collect();
+    let prefer_pair = pair_languages.len() > 1
+        && !pair_languages.is_subset(&manifest_languages)
+        && !info.is_live.unwrap_or(false);
+    let chosen = if prefer_pair || want.is_some() {
+        None
+    } else {
+        hls()
+    };
+    let chosen = chosen
+        .or_else(|| {
+            let mut pairable: Vec<_> = videos.iter().filter(|v| matches_height(v.height)).collect();
+            pairable.sort_by_key(|v| {
+                std::cmp::Reverse((v.height, v.vcodec.as_deref().and_then(video_rank)))
+            });
+            pairable.into_iter().find_map(|v| {
+                let mp4 = v.ext.as_deref() == Some("mp4");
+                audio.sort_by(|(a, _), (b, _)| {
+                    let rank =
+                        |f: &Format| (f.language_preference.unwrap_or(0), mp4_audio(f) == mp4);
+                    rank(a)
+                        .cmp(&rank(b))
+                        .then_with(|| a.tbr.unwrap_or(0.0).total_cmp(&b.tbr.unwrap_or(0.0)))
+                });
+                let (_, default) = audio.last()?;
+                // Separate elements decode independently. Prefer a matching container on ties.
+                let languages = audio
+                    .iter()
+                    .map(|(f, s)| (language(f), s.clone()))
+                    .collect();
+                Some(Plan::Pair {
+                    video: stream(v, v.url.as_deref()?)?,
+                    audio: default.clone(),
+                    languages,
+                    height: v.height.unwrap_or(0),
+                })
             })
         })
-    });
+        .or_else(hls);
+    let mut qualities = hls_heights;
+    if !audio.is_empty() {
+        qualities.extend(videos.iter().filter_map(|v| v.height));
+    }
     let chosen = chosen.or_else(|| {
         let single = formats
             .iter()
             .filter(|f| is_plain(f) && f.url.is_some())
             .filter(|f| !none(f.vcodec.as_deref()) && !none(f.acodec.as_deref()))
-            .filter(|f| cap(f.height))
+            .filter(|f| matches_height(f.height))
             .max_by_key(|f| f.height.unwrap_or(0))?;
-        heights_of(&mut qualities, single.height);
+        qualities.extend(single.height);
         Some(Plan::Single {
             stream: stream(single, single.url.as_deref()?)?,
         })
     })?;
-    qualities.sort_unstable_by(|a, b| b.cmp(a));
     Some(Resolved {
         title: info
             .title
@@ -225,7 +256,7 @@ pub fn plan(info: &Info, max_height: u32, want: Option<u32>) -> Option<Resolved>
         thumbnail: info.thumbnail.clone(),
         is_live: info.is_live.unwrap_or(false),
         plan: chosen,
-        qualities,
+        qualities: qualities.into_iter().rev().collect(),
     })
 }
 
@@ -255,10 +286,10 @@ mod tests {
     }
 
     #[test]
-    fn youtube_prefers_hls_and_caps_qualities() {
+    fn youtube_auto_prefers_hls_and_offers_all_hls_and_pair_heights() {
         let r = plan(&info(YOUTUBE), 1080, None).unwrap();
         assert!(matches!(&r.plan, Plan::Hls { manifest } if manifest.url.ends_with("master.m3u8")));
-        assert_eq!(r.qualities, vec![1080]);
+        assert_eq!(r.qualities, vec![2160, 1440, 1080, 720]);
         assert_eq!(r.title, "Big Buck Bunny 60fps 4K");
         assert_eq!(r.duration_s, Some(635.0));
     }
@@ -271,6 +302,7 @@ mod tests {
                 video,
                 audio,
                 height,
+                ..
             } => {
                 assert_eq!(height, 1080);
                 assert!(
@@ -282,15 +314,47 @@ mod tests {
             }
             other => panic!("expected pair, got {other:?}"),
         }
-        assert_eq!(r.qualities, vec![1440, 1080, 720]);
+        assert_eq!(r.qualities, vec![2160, 1440, 1080, 720]);
     }
 
     #[test]
     fn webm_video_pairs_with_webm_audio() {
-        let r = plan(&info(YOUTUBE), 1440, Some(1440)).unwrap();
+        let r = plan(&info(YOUTUBE), 1080, Some(1440)).unwrap();
         assert!(
             matches!(r.plan, Plan::Pair { ref audio, height: 1440, .. } if audio.url.ends_with("a251"))
         );
+    }
+
+    #[test]
+    fn manual_4k_uses_hls_when_no_4k_pair_exists() {
+        let r = plan(&info(YOUTUBE), 1080, Some(2160)).unwrap();
+        assert!(matches!(r.plan, Plan::Hls { .. }));
+        assert!(plan(&info(YOUTUBE), 1080, Some(4320)).is_none());
+    }
+
+    #[test]
+    fn dubbed_video_exposes_each_playable_language_at_both_qualities() {
+        let mut info = info(YOUTUBE);
+        let mut dub = info.formats[1].clone();
+        info.formats[1].language = Some("en".into());
+        info.formats[1].language_preference = Some(10);
+        info.formats[2].language = Some("en".into());
+        dub.language = Some("vi-VN".into());
+        dub.tbr = Some(48.0);
+        dub.url = Some("https://audio.test/vi".into());
+        info.formats.push(dub);
+        for height in [None, Some(720)] {
+            let resolved = plan(&info, 1080, height).unwrap();
+            let Plan::Pair {
+                audio, languages, ..
+            } = resolved.plan
+            else {
+                panic!("expected both language streams");
+            };
+            assert_eq!(audio, languages["en"]);
+            assert_eq!(languages.len(), 2);
+            assert_eq!(languages["vi-vn"].url, "https://audio.test/vi");
+        }
     }
 
     #[test]

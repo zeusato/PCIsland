@@ -24,4 +24,4 @@ pageUrl: string,
 /**
  * Set when playback continues where the user left this video last time.
  */
-resumedFromMs: number | null, rev: number, };
+resumedFromMs: number | null, rev: number, autoMaxHeight: number, audioLanguages: { [key in string]: string }, };

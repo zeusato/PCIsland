@@ -280,7 +280,6 @@
 - **Lý do:** không có phép suy luận chung rằng mọi cache/bộ nhớ chiếm dụng đều vô giá trị. Giới hạn rõ recipe và đo kết quả thực tế để tránh ảnh hưởng dữ liệu/phiên đang dùng.
 - **Hệ quả:** chưa bao phủ mọi app/profile tùy chỉnh; không hứa mức MB hoặc tăng tốc. Không triển khai mới unload/suspend web player vì yêu cầu đã mở rộng sang PC. [Đặc tả, phạm vi và nghiệm thu](modules/maintenance.md).
 
-```markdown
 ## ADR-021 · Spotify/SoundCloud: đọc trạng thái từ response của trang, repeat bằng nút của trang
 
 - **Ngày:** 2026-11-02 · **Trạng thái:** Accepted theo yêu cầu chủ dự án. Thay phần giới hạn SoundCloud trong ADR-016.
@@ -313,6 +312,14 @@
 - **Phương án đã cân nhắc:** nhúng vào bộ cài (nặng); release trong repo dự án (lẫn với `releases/latest` của kiểm tra cập nhật); Git LFS (giới hạn băng thông); app tự sinh tiếng ồn nền (không đáp ứng nhu cầu nhạc).
 - **Hệ quả:** phụ thuộc GitHub Releases. Chủ dự án chịu trách nhiệm quyền phân phối nhạc (Suno gói trả phí hoặc giấy phép tương đương) và ghi trong manifest. Đổi repo cần sửa hằng số trong `modules/focus_sounds`.
 
+## ADR-024 · Cập nhật PCisland bằng gói NSIS hoặc portable khi thoát
+
+- **Ngày:** 2026-11-03 · **Trạng thái:** Accepted theo yêu cầu chủ dự án cho F45.
+- App tải gói đúng kiểu cài từ bản ổn định mới hơn trong repo GitHub chính thức và kiểm tra tên, kích thước, SHA-256 do GitHub trả về. Lịch tự động dùng cài đặt kiểm tra cập nhật hiện có.
+- Cài sau khi tiến trình thoát để không ngắt ghi âm hoặc công việc đang mở. Người dùng có thể chọn cài và khởi động lại ngay. Bản portable chỉ thay exe. Bản NSIS dùng chế độ cập nhật của bộ cài để duy trì đăng ký với Windows.
+- Các bản phát hành tiếp theo phải giữ quy ước tên gói của `package-release.ps1`. Bản cũ chỉ có chức năng thông báo cần được nâng cấp thủ công một lần.
+
+```markdown
 ## ADR-NNN · <Tiêu đề>
 
 - **Ngày:** YYYY-MM-DD · **Trạng thái:** Proposed | Accepted | Superseded by ADR-xxx | Rejected

@@ -15,5 +15,6 @@ pub mod process;
 pub mod shell;
 pub mod smtc;
 pub mod toast;
+pub mod update;
 pub mod webview_drop;
 pub mod window;

@@ -1,5 +1,5 @@
 //! Update check against GitHub Releases (F45, docs/modules/app-lifecycle.md §5).
-//! Notifies only; never downloads or installs.
+//! Downloads verified packages and installs them after the app exits.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::watch;
 use ts_rs::TS;
 
+use super::update_package::{self, Asset, Package};
 use crate::core::activity::{Activity, ActivityAction, ActivityHub, payload};
 use crate::core::priority;
 use crate::core::settings::Settings;
@@ -36,6 +37,14 @@ struct Release {
     draft: bool,
     #[serde(default)]
     prerelease: bool,
+    #[serde(default)]
+    assets: Vec<Asset>,
+}
+
+#[derive(Clone, Default)]
+pub struct Updater {
+    check_lock: Arc<tokio::sync::Mutex<()>>,
+    pending: Arc<std::sync::Mutex<Option<(UpdateInfo, Package)>>>,
 }
 
 /// `a > b` for dotted numeric versions ("v1.2.10" > "1.2.9"); suffixes are ignored.
@@ -50,65 +59,105 @@ pub fn is_newer(a: &str, b: &str) -> bool {
     parse(a) > parse(b)
 }
 
-pub async fn check(force: bool, db: &Db) -> Option<UpdateInfo> {
-    let now = now_ms();
-    let last: u64 = db
-        .kv_get(LAST_CHECK_KEY)
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(0);
-    if !force && now.saturating_sub(last) < DAY_MS {
-        return None;
+impl Updater {
+    pub async fn check(&self, force: bool, db: &Db) -> Result<Option<UpdateInfo>, String> {
+        let _guard = self.check_lock.lock().await;
+        if let Some((info, _)) = &*self
+            .pending
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        {
+            return Ok(Some(info.clone()));
+        }
+        let now = now_ms();
+        let last: u64 = db
+            .kv_get(LAST_CHECK_KEY)
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0);
+        if !force && now.saturating_sub(last) < DAY_MS {
+            return Ok(None);
+        }
+        let client = reqwest::Client::builder()
+            .user_agent(concat!("PCisland/", env!("CARGO_PKG_VERSION")))
+            .connect_timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(180))
+            .build()
+            .map_err(|e| e.to_string())?;
+        let release: Release = client
+            .get(RELEASES_API)
+            .timeout(Duration::from_secs(15))
+            .send()
+            .await
+            .map_err(|e| e.to_string())?
+            .error_for_status()
+            .map_err(|e| e.to_string())?
+            .json()
+            .await
+            .map_err(|e| e.to_string())?;
+        let version = release.tag_name.trim_start_matches('v').to_owned();
+        let skipped = db.kv_get(SKIPPED_KEY);
+        let valid_url = release.html_url.starts_with(RELEASES_PAGE_PREFIX);
+        let available = !release.draft
+            && !release.prerelease
+            && valid_url
+            && release.tag_name == format!("v{version}")
+            && version.split('.').count() == 3
+            && version
+                .split('.')
+                .all(|n| !n.is_empty() && n.bytes().all(|c| c.is_ascii_digit()))
+            && is_newer(&version, env!("CARGO_PKG_VERSION"))
+            && (force || skipped.as_deref() != Some(version.as_str()));
+        let result = if available {
+            let package = update_package::download(&client, &version, &release.assets).await?;
+            let info = UpdateInfo {
+                version,
+                url: release.html_url,
+            };
+            *self
+                .pending
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((info.clone(), package));
+            Some(info)
+        } else {
+            None
+        };
+        // Retry next launch if the process is killed before an available update is applied.
+        if result.is_none() {
+            let _ = db.kv_set(LAST_CHECK_KEY, &now.to_string());
+        }
+        Ok(result)
     }
-    let _ = db.kv_set(LAST_CHECK_KEY, &now.to_string());
-    let client = reqwest::Client::builder()
-        .user_agent(concat!("PCisland/", env!("CARGO_PKG_VERSION")))
-        .timeout(Duration::from_secs(10))
-        .build()
-        .ok()?;
-    let release: Release = client
-        .get(RELEASES_API)
-        .send()
-        .await
-        .ok()?
-        .error_for_status()
-        .ok()?
-        .json()
-        .await
-        .ok()?;
-    let version = release.tag_name.trim_start_matches('v').to_owned();
-    let skipped = db.kv_get(SKIPPED_KEY);
-    let valid_url = release.html_url.starts_with(RELEASES_PAGE_PREFIX);
-    (!release.draft
-        && !release.prerelease
-        && valid_url
-        && is_newer(&version, env!("CARGO_PKG_VERSION"))
-        && (force || skipped.as_deref() != Some(version.as_str())))
-    .then_some(UpdateInfo {
-        version,
-        url: release.html_url,
-    })
+
+    pub fn apply(&self, restart: bool) -> Result<bool, String> {
+        let pending = self
+            .pending
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        if let Some((_, package)) = pending {
+            package.apply(restart)?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
 }
 
-pub fn spawn(db: Db, hub: ActivityHub, settings: watch::Receiver<Settings>) {
-    let for_actions = db.clone();
+pub fn spawn(
+    app: tauri::AppHandle,
+    updater: Updater,
+    db: Db,
+    hub: ActivityHub,
+    settings: watch::Receiver<Settings>,
+) {
     let hub_for_actions = hub.clone();
-    let latest: Arc<std::sync::Mutex<Option<UpdateInfo>>> = Arc::default();
-    let latest_for_actions = latest.clone();
+    let for_actions = updater.clone();
     hub.register_handler(
         "app",
         Arc::new(move |_, action| {
-            let info = latest_for_actions
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .clone();
-            let Some(info) = info else {
-                return Err("no update".into());
-            };
             match action {
-                "open" => open_url(&info.url),
-                "skip" => {
-                    let _ = for_actions.kv_set(SKIPPED_KEY, &info.version);
-                }
+                "install" if for_actions.apply(true)? => app.exit(0),
+                "later" => (),
                 other => return Err(format!("unknown app action `{other}`")),
             }
             hub_for_actions.dismiss("app:update");
@@ -120,25 +169,28 @@ pub fn spawn(db: Db, hub: ActivityHub, settings: watch::Receiver<Settings>) {
         tokio::time::sleep(Duration::from_secs(60)).await;
         loop {
             if settings.borrow().app.check_updates {
-                if let Some(info) = check(false, &db).await {
-                    tracing::info!(version = %info.version, "update available");
-                    *latest
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(info.clone());
-                    hub.alert(
-                        Activity::new(
-                            "app",
-                            "app:update",
-                            "app.update",
-                            priority::ALERT,
-                            payload(&info),
-                        )
-                        .transient(8_000)
-                        .with_actions(vec![
-                            ActivityAction::new("open", "download", "app.update.open").primary(),
-                            ActivityAction::new("skip", "x", "app.update.skip"),
-                        ]),
-                    );
+                match updater.check(false, &db).await {
+                    Ok(Some(info)) => {
+                        tracing::info!(version = %info.version, "update staged");
+                        hub.alert(
+                            Activity::new(
+                                "app",
+                                "app:update",
+                                "app.update",
+                                priority::ALERT,
+                                payload(&info),
+                            )
+                            .transient(8_000)
+                            .with_actions(vec![
+                                ActivityAction::new("install", "download", "app.update.install")
+                                    .primary(),
+                                ActivityAction::new("later", "x", "app.update.onExit"),
+                            ]),
+                        );
+                        break;
+                    }
+                    Ok(None) => (),
+                    Err(error) => tracing::warn!(%error, "update check or download failed"),
                 }
             }
             tokio::time::sleep(Duration::from_secs(3600)).await;

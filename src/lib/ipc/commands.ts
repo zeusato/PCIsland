@@ -103,6 +103,7 @@ export const appCommands = {
   playSound: (sound: SoundId) => invoke<void>('app_play_sound', { sound }),
   pauseAlerts: (minutes: number | null) => invoke<void>('app_pause_alerts', { minutes }),
   checkUpdateNow: () => invoke<UpdateInfo | null>('app_check_update_now'),
+  installUpdate: () => invoke<void>('app_install_update'),
   openUrl: (url: string) => invoke<void>('app_open_url', { url }),
   modules: () => invoke<Record<string, ModuleState>>('app_modules'),
   shortcutErrors: () => invoke<ShortcutError[]>('app_shortcut_errors'),

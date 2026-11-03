@@ -1,5 +1,13 @@
 # Lịch sử phát hành
 
+## 0.1.6 · 2026-11-03
+
+- Trình phát YouTube ưu tiên tiếng Việt nếu có, cho đổi ngôn ngữ trong khi xem và giữ lựa chọn khi đổi chất lượng.
+- Menu chất lượng có cả 1440p và 2160p nếu nguồn cung cấp. Giới hạn trong Cài đặt áp dụng cho chế độ Tự động.
+- PCisland tự tải bản cập nhật, xác minh SHA-256 và cài khi thoát. Có thể chọn **Cài và mở lại** để cập nhật ngay.
+
+[Ghi chú nâng cấp](docs/releases/v0.1.6.md).
+
 ## 0.1.5 · 2026-11-03
 
 - Sửa: trình phát nhạc trên island bị cắt hàng ⏮ ▶ ⏭ khi bài có lời bài hát đồng bộ. Island giờ đo chiều cao nội dung thật của trình phát (tối thiểu như cũ).

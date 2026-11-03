@@ -21,7 +21,8 @@
   import type { PlaybackSource } from '$lib/ipc/bindings/PlaybackSource';
   import type { VideoCommand } from '$lib/ipc/bindings/VideoCommand';
   import type { VideoStatus } from '$lib/ipc/bindings/VideoStatus';
-  import { t } from '$lib/i18n/index.svelte';
+  import { getLocale, t } from '$lib/i18n/index.svelte';
+  import { languageLabel, manifestLanguage, preferredTrack } from './languages';
   import { formatTime, syncStep } from './sync';
 
   let source = $state<PlaybackSource | null>(null);
@@ -42,6 +43,11 @@
   let resumeTimer: ReturnType<typeof setTimeout> | undefined;
   let hlsLevels = $state<number[]>([]);
   let hlsQuality = $state<number | null>(null);
+  let hlsLanguages = $state<string[]>([]);
+  let selectedLanguage = $state('');
+  let preferredLanguage = 'vi';
+  let metadataEvents: AbortController | undefined;
+  const languages = $derived(source?.kind === 'hls' ? hlsLanguages : Object.keys(source?.audioLanguages ?? {}));
   let wantPlay = true;
   let refreshing = false;
   let lastReport = 0;
@@ -55,7 +61,9 @@
   const isEmbed = $derived(source?.kind === 'embed');
   /** The element whose clock and sound the user hears. */
   const clock = (): HTMLMediaElement | undefined => (isPair ? audioEl : videoEl);
-  const qualities = $derived(source?.kind === 'hls' ? hlsLevels : (source?.qualities ?? []));
+  const qualities = $derived(source?.kind === 'hls'
+    ? [...new Set([...hlsLevels, ...source.qualities])].sort((a, b) => b - a)
+    : (source?.qualities ?? []));
   const currentQuality = $derived(source?.kind === 'hls' ? hlsQuality : (source?.quality ?? null));
 
   function report(force = false) {
@@ -75,10 +83,13 @@
   }
 
   function teardown() {
+    metadataEvents?.abort();
     hls?.destroy();
     hls = null;
     hlsLevels = [];
     hlsQuality = null;
+    hlsLanguages = [];
+    selectedLanguage = '';
     clearInterval(syncTimer);
     waiting.clear();
     for (const el of [videoEl, audioEl]) {
@@ -115,8 +126,9 @@
     report(true);
   }
 
-  function load(next: PlaybackSource) {
+  function load(next: PlaybackSource, language = 'vi', height = next.quality) {
     teardown();
+    preferredLanguage = language;
     error = null;
     // Only a fresh open announces the resume; renewals keep playing silently.
     if (next.resumedFromMs !== null && next.rev !== source?.rev) {
@@ -140,9 +152,18 @@
       }
       // Workers need blob: in the CSP; the main thread is fast enough for one stream.
       hls = new Hls({ enableWorker: false, startPosition: start > 0 ? start : -1, maxBufferLength: 30 });
+      const player = hls;
+      player.on(Hls.Events.AUDIO_TRACKS_UPDATED, (_event, { audioTracks }) => {
+        hlsLanguages = [...new Set(audioTracks.map(manifestLanguage))];
+        const preferred = preferredTrack(audioTracks, manifestLanguage, preferredLanguage);
+        if (preferred && player.audioTrack !== preferred.id) player.audioTrack = preferred.id;
+      });
+      player.on(Hls.Events.AUDIO_TRACK_SWITCHING, (_event, track) => {
+        selectedLanguage = manifestLanguage(track);
+      });
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         if (!hls) return;
-        const cap = Math.max(...(next.qualities.length ? next.qualities : [99999]));
+        const cap = next.autoMaxHeight;
         // Highest level whose height fits the cap (`video.max_height`).
         let capIndex = -1;
         let capHeight = -1;
@@ -152,9 +173,13 @@
             capHeight = l.height;
           }
         });
-        if (capIndex >= 0) hls.autoLevelCapping = capIndex;
-        hlsLevels = [...new Set(hls.levels.map((l) => l.height).filter((h) => h <= cap))].sort((x, y) => y - x);
+        hls.autoLevelCapping = Math.max(0, capIndex);
+        hlsLevels = hls.levels.map((l) => l.height).filter((h) => h > 0);
+        const index = hls.levels.findIndex((l) => l.height === height);
+        hlsQuality = index < 0 ? null : height;
+        if (index >= 0) hls.currentLevel = index;
         if (wantPlay) void playBoth();
+        else setStatus('paused');
       });
       hls.on(Hls.Events.ERROR, (_e, data) => {
         if (!data.fatal) return;
@@ -170,7 +195,10 @@
     }
     v.src = next.video;
     if (next.kind === 'pair' && next.audio) {
-      a.src = next.audio;
+      const tracks = Object.entries(next.audioLanguages);
+      const track = preferredTrack(tracks, ([tag]) => tag, language) ?? tracks.find(([, url]) => url === next.audio);
+      selectedLanguage = track?.[0] ?? '';
+      a.src = track?.[1] ?? next.audio;
       v.muted = true;
       a.muted = muted;
       a.volume = volume;
@@ -182,8 +210,10 @@
     const ready = () => {
       if (start > 0) seekTo(start);
       if (wantPlay) void playBoth();
+      else setStatus('paused');
     };
-    (next.kind === 'pair' ? a : v).addEventListener('loadedmetadata', ready, { once: true });
+    metadataEvents = new AbortController();
+    (next.kind === 'pair' ? a : v).addEventListener('loadedmetadata', ready, { once: true, signal: metadataEvents.signal });
   }
 
   // Pair: audio is the clock; the video follows (spike S2).
@@ -228,7 +258,10 @@
     if (refreshing || !inTauri) return;
     refreshing = true;
     try {
-      load(await videoCommands.refresh(position * 1000));
+      const rev = source?.rev;
+      const quality = currentQuality;
+      const next = await videoCommands.refresh(position * 1000);
+      if (rev === source?.rev) load(next, preferredLanguage, quality);
     } catch {
       error = t('video.error.expired');
     } finally {
@@ -243,15 +276,30 @@
 
   async function chooseQuality(value: string) {
     const height = value === 'auto' ? null : Number(value);
-    if (source?.kind === 'hls' && hls) {
+    if (source?.kind === 'hls' && hls && (height === null || hlsLevels.includes(height))) {
       hlsQuality = height;
       hls.currentLevel = height === null ? -1 : hls.levels.findIndex((l) => l.height === height);
       return;
     }
     try {
-      load(await videoCommands.setQuality(height, position * 1000));
+      const rev = source?.rev;
+      const next = await videoCommands.setQuality(height, position * 1000);
+      if (rev === source?.rev) load(next, preferredLanguage);
     } catch {
       error = t('video.error.quality');
+    }
+  }
+
+  function chooseLanguage(language: string) {
+    if (!source) return;
+    if (hls) {
+      const track = hls.audioTracks.find((track) => manifestLanguage(track) === language);
+      if (track) {
+        preferredLanguage = language;
+        hls.audioTrack = track.id;
+      }
+    } else if (source.kind === 'pair') {
+      load({ ...source, startMs: (clock()?.currentTime ?? position) * 1000, resumedFromMs: null }, language);
     }
   }
 
@@ -382,6 +430,12 @@
 
   <header class="bar top" data-tauri-drag-region>
     <span class="title" data-tauri-drag-region title={source?.title}>{source?.title ?? t('video.title')}</span>
+    {#if languages.length > 1}
+      <select class="language" aria-label={t('video.audioLanguage')} title={t('video.audioLanguage')} value={selectedLanguage}
+        onchange={(e) => chooseLanguage(e.currentTarget.value)}>
+        {#each languages as lang (lang)}<option value={lang}>{languageLabel(lang, getLocale(), t('video.unnamedAudio'))}</option>{/each}
+      </select>
+    {/if}
     <button title={pinned ? t('video.unpin') : t('video.pin')} aria-label={pinned ? t('video.unpin') : t('video.pin')} class:on={pinned}
       onclick={() => void videoCommands.window(pinned ? 'unpin' : 'pin')}>
       {#if pinned}<PinOff size={14} />{:else}<Pin size={14} />{/if}
@@ -403,7 +457,7 @@
       <div class="center error" role="alert">
         <p>{error}</p>
         <div class="row">
-          <button onclick={() => source && load(source)}><RotateCcw size={14} /> {t('video.retry')}</button>
+          <button onclick={() => source && load(source, preferredLanguage)}><RotateCcw size={14} /> {t('video.retry')}</button>
           {#if source}<button onclick={() => source && void videoCommands.open(source.pageUrl, true)}>{t('video.useEmbed')}</button>{/if}
         </div>
       </div>
@@ -428,7 +482,7 @@
       {#if qualities.length > 1 || source?.kind === 'hls'}
         <select aria-label={t('video.quality')} value={currentQuality === null ? 'auto' : String(currentQuality)}
           onchange={(e) => void chooseQuality((e.currentTarget as HTMLSelectElement).value)}>
-          {#if source?.kind === 'hls'}<option value="auto">{t('video.auto')}</option>{/if}
+          {#if source?.kind === 'hls' || source?.kind === 'pair'}<option value="auto">{t('video.auto')}</option>{/if}
           {#each qualities as q (q)}<option value={String(q)}>{q}p</option>{/each}
         </select>
       {/if}
@@ -499,6 +553,10 @@
     white-space: nowrap;
     color: var(--c-text-2);
     font-size: var(--fs-caption);
+  }
+  .language {
+    max-width: 35%;
+    min-width: 0;
   }
   button {
     display: inline-flex;

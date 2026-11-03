@@ -42,6 +42,10 @@ pub struct PlaybackSource {
     pub resumed_from_ms: Option<u64>,
     #[ts(type = "number")]
     pub rev: u64,
+    // Applies to automatic playback only. Manual choices can exceed it.
+    pub auto_max_height: u32,
+    // Proxied audio-only streams keyed by language tag (empty tag = unnamed).
+    pub audio_languages: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]

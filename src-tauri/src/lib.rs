@@ -205,7 +205,17 @@ pub fn run() {
             );
 
             media.attach_smtc(island.hwnd());
-            app::update::spawn(db.clone(), hub.clone(), settings.subscribe());
+            let updater = app::update::Updater::default();
+            app.manage(updater.clone());
+            if !qa && !cfg!(debug_assertions) {
+                app::update::spawn(
+                    handle.clone(),
+                    updater,
+                    db.clone(),
+                    hub.clone(),
+                    settings.subscribe(),
+                );
+            }
             if !qa {
                 if let Err(error) = app::sync_autostart(handle, settings.get().app.autostart) {
                     tracing::warn!(%error, "autostart registration failed");
@@ -294,6 +304,7 @@ pub fn run() {
             app::commands::app_play_sound,
             app::commands::app_pause_alerts,
             app::commands::app_check_update_now,
+            app::commands::app_install_update,
             app::commands::app_open_url,
             app::commands::app_shortcut_errors,
             app::commands::app_modules,
@@ -423,6 +434,15 @@ pub fn run() {
             modules::meeting::meeting_transcript_edit,
             modules::meeting::meeting_export,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running PCisland");
+        .build(tauri::generate_context!())
+        .expect("error while building PCisland")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                if let Some(updater) = app.try_state::<app::update::Updater>() {
+                    if let Err(error) = updater.apply(false) {
+                        tracing::warn!(%error, "could not apply staged update");
+                    }
+                }
+            }
+        });
 }

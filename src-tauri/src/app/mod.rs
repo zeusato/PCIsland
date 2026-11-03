@@ -7,6 +7,7 @@ pub mod maintenance;
 pub mod shortcuts;
 pub mod tray;
 pub mod update;
+mod update_package;
 
 use std::path::Path;
 

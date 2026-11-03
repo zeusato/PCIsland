@@ -56,7 +56,7 @@ PCisland đưa trải nghiệm Dynamic Island lên Windows. Một vùng nhỏ �
 | F07 | Theme: biến thể màu nhấn, độ sáng glow, cỡ island | S | P3 | [ui-main](modules/full-window.md) |
 | F08 | Bộ âm báo (chọn âm, âm lượng riêng). Âm báo cơ bản có từ P1 | S | P3 | [app](modules/app-lifecycle.md) |
 | F09 | Đa ngôn ngữ vi/en, hạ tầng i18n có từ ngày đầu | M | P1 | [ui-main](modules/full-window.md) |
-| F45 | Kiểm tra bản cập nhật qua GitHub Releases (không tự tải) | S | P3 | [app](modules/app-lifecycle.md) |
+| F45 | Tự tải bản phát hành từ GitHub và cài khi thoát, có thể cài và mở lại ngay | S | P3 | [app](modules/app-lifecycle.md) |
 
 ### Media
 

@@ -344,7 +344,7 @@ WebPlayer ────────── (MediaSource) ───┘       │   
 - **Sản phẩm:** `PCisland.exe` một file, asset frontend nhúng sẵn. Mỗi bản phát hành có 2 gói, mỗi gói kèm file `.sha256` ([ADR-009](06-decision-log.md#adr-009--phân-phối--ký-số)):
   - `PCisland-<ver>-setup.exe`: bộ cài NSIS (Tauri bundler), cài theo user vào `%LOCALAPPDATA%\Programs\PCisland`, không cần admin, có shortcut Start menu và trình gỡ cài đặt.
   - `PCisland-<ver>-portable.zip`: exe + thư mục `data\` rỗng + `README-portable.txt`.
-- **Kênh phát hành:** GitHub Releases. Kiểm tra cập nhật (F45) gọi API `releases/latest` tối đa mỗi ngày một lần và chỉ thông báo, không tự tải.
+- **Kênh phát hành:** GitHub Releases. F45 kiểm tra hằng ngày, tải gói NSIS hoặc portable đã xác minh SHA-256 và cài khi thoát app. Có thể cài và mở lại ngay theo ADR-024.
 - **Ký số:** theo [ADR-009](06-decision-log.md#adr-009--phân-phối--ký-số). Không mua chứng chỉ trả phí; v0.x không ký; trước v1.0 xin ký miễn phí qua SignPath Foundation nếu repo mã nguồn mở và đủ điều kiện.
 - **CI:** mỗi PR chạy fmt, clippy, test, svelte-check, eslint, vitest, kiểm tra bindings, build. Tag `v*` thì build release, tạo zip và SHA256, đính kèm vào bản nháp release.
 
